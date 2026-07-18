@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { useAppDispatch, useAppSelector } from "@/store";
-import { setActiveMode } from "@/store/slices/authSlice";
+import { useAppSelector } from "@/store";
 import { marketplaceApi, bookingApi } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
-import type { SpecialistResult, ServiceLocation, ActiveMode, BookingDetail } from "@/types";
+import type { SpecialistResult, ServiceLocation, BookingDetail } from "@/types";
 import { SpecialistDetailsModal } from "@/components/dashboard/client/SpecialistDetailsModal";
 import { SpecialistProfileCard } from "@/components/dashboard/client/SpecialistProfileCard";
 import { SERVICE_LOCATION_KEY } from "@/components/location/ServiceLocationFlow";
@@ -24,8 +23,7 @@ const CATEGORIES = [
 
 export default function ServiceDiscoveryPage() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { user, activeMode } = useAppSelector((s) => s.auth);
+  const { user } = useAppSelector((s) => s.auth);
   const { showToast } = useToast();
 
   const [specialists, setSpecialists] = useState<SpecialistResult[]>([]);
@@ -42,12 +40,6 @@ export default function ServiceDiscoveryPage() {
     const q = searchQuery.trim();
     if (!q) return;
     router.push(`/dashboard/client/chat?query=${encodeURIComponent(q)}`);
-  }
-
-  function handleModeToggle(mode: ActiveMode) {
-    if (mode === activeMode) return;
-    dispatch(setActiveMode(mode));
-    router.push(mode === "specialist" ? "/dashboard/specialist" : "/dashboard/client");
   }
 
   useEffect(() => {

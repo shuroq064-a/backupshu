@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { useAppDispatch, useAppSelector } from "@/store";
+import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import { logout } from "@/store/slices/authSlice";
 import { Logo } from "../ui";
 
@@ -17,8 +17,8 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  const { user } = useAppSelector((s: { auth: any; }) => s.auth);
-  const { stats } = useAppSelector((s: { admin: any; }) => s.admin);
+  const { user } = useAppSelector((s: RootState) => s.auth);
+  const { stats } = useAppSelector((s: RootState) => s.admin);
 
   const navItems = [
     {

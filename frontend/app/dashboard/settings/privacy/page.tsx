@@ -50,8 +50,8 @@ export default function PrivacyPage() {
         setPwSuccess(false);
         setShowChangePassword(false);
       }, 2000);
-    } catch (e: any) {
-      setPwError(e.message || "Failed to change password");
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : "Failed to change password");
     } finally {
       setPwLoading(false);
     }

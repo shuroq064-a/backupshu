@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/store";
-import { userApi, workerApi } from "@/lib/api";
+import { workerApi } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
 import {
@@ -71,7 +71,7 @@ export default function SpecialistSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 font-sans md:px-8">
+    <div className="mx-auto max-w-screen-2xl px-4 py-8 font-sans md:px-8">
       {/* ── Header ─────────────────────────── */}
       <header className="mb-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -301,7 +301,6 @@ export default function SpecialistSettingsPage() {
           <PreferencesSection
             notifications={notifications}
             setNotifications={setNotifications}
-            router={router}
           />
 
           {/* Support & Info */}

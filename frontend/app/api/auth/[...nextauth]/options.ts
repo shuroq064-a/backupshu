@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
       }
     },
 
-    async jwt({ token, user }: { token: Record<string, any>; user?: AuthCallbackUser }) {
+    async jwt({ token, user }: { token: Record<string, unknown>; user?: AuthCallbackUser }) {
       if (user) {
         token.backendId = user.backendId;
         token.backendToken = user.backendToken;
@@ -69,7 +69,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    async session({ session, token }: { session: Record<string, any>; token: Record<string, any> }) {
+    async session({ session, token }: { session: Record<string, unknown>; token: Record<string, unknown> }) {
       session.user = { ...(session.user || {}), id: token.backendId };
       session.backendToken = token.backendToken;
       return session;

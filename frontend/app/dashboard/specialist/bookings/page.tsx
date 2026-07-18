@@ -9,7 +9,7 @@ import { getToken } from "@/lib/auth";
 import { WS_BASE_URL as WS_BASE } from "@/lib/config";
 import { Toast, useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
-import type { BookingDetail, BookingReview, ServiceOption } from "@/types";
+import type { BookingDetail, ServiceOption } from "@/types";
 import { STATUS_META as SM } from "@/types";
 
 const SPECIALIST_ACTIONS: Record<string, { label: string; icon: string; next: string; color: string }> = {

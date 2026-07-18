@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "@/store";
+import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import {
   fetchAllSpecialistQueues,
   approveSpecialist,
@@ -19,7 +19,7 @@ export default function AdminSpecialistsPage() {
   const dispatch = useAppDispatch();
   const { pendingSpecialists, approvedSpecialists, rejectedSpecialists,
           isLoading, actionLoading, error, stats } =
-    useAppSelector((s: { admin: any; }) => s.admin);
+    useAppSelector((s: RootState) => s.admin);
 
   const [activeTab, setActiveTab] = useState<VerificationStatus>("pending");
   const [rejectModal, setRejectModal] = useState<{

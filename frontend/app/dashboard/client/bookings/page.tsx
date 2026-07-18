@@ -5,7 +5,7 @@ import { useAppSelector } from "@/store";
 import { bookingApi } from "@/lib/api";
 import { WS_BASE_URL } from "@/lib/config";
 import { getToken } from "@/lib/auth";
-import type { BookingDetail, BookingStatus } from "@/types";
+import type { BookingDetail } from "@/types";
 import { STATUS_META } from "@/types";
 import { BookingDetailModal } from "@/components/dashboard/client/BookingDetailModal";
 import { ReviewForm } from "@/components/dashboard/client/ReviewForm";
@@ -57,7 +57,14 @@ export default function ClientBookingsPage() {
   const [bookings, setBookings] = useState<BookingDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "active" | "upcoming" | "completed">("all");
+  const [page, setPage] = useState(1);
+  function handleTabChange(tab: "all" | "active" | "upcoming" | "completed") {
+    setActiveTab(tab);
+    setPage(1);
+  }
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
+
+  const PAGE_SIZE = 5;
 
   // Review modal
   const [reviewBooking, setReviewBooking] = useState<BookingDetail | null>(null);
@@ -72,6 +79,7 @@ export default function ClientBookingsPage() {
     try {
       const data = await bookingApi.getMyBookings(user.id);
       setBookings(data);
+      setPage(1);
     } catch (err) {
       console.error(err);
       setBookings([]);
@@ -165,15 +173,21 @@ export default function ClientBookingsPage() {
   const upcomingBookings = bookings.filter(b => b.status === "upcoming");
   const completedBookings = bookings.filter(b => ["completed", "cancelled", "rejected"].includes(b.status));
 
-  let filteredBookings = bookings;
-  if (activeTab === "active") filteredBookings = activeBookings;
-  else if (activeTab === "upcoming") filteredBookings = upcomingBookings;
-  else if (activeTab === "completed") filteredBookings = completedBookings;
-
   // Spend metrics summary (sum of all completed bookings)
   const totalSpend = completedBookings
     .filter(b => b.status === "completed")
     .reduce((sum, b) => sum + (b.amount || 0), 0);
+
+  // ── Pagination (per visible list, shared page state) ──
+  function paginate<T>(items: T[]) {
+    const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    const current = Math.min(page, totalPages);
+    const slice = items.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+    return { slice, totalPages, current };
+  }
+  const activePages = paginate(activeBookings);
+  const upcomingPages = paginate(upcomingBookings);
+  const completedPages = paginate(completedBookings);
 
   async function handleOpenBooking(booking: BookingDetail) {
     try {
@@ -198,7 +212,7 @@ export default function ClientBookingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in-up">
+    <div className="p-6 max-w-screen-2xl mx-auto space-y-8 animate-fade-in-up">
       <Toast toast={toast} onDismiss={dismiss} />
 
       {/* Top Header Section */}
@@ -212,7 +226,7 @@ export default function ClientBookingsPage() {
           {(["all", "active", "upcoming", "completed"] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`px-5 py-2 text-xs font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer ${
                 activeTab === tab
                   ? "bg-surface-container-lowest text-primary shadow-sm border border-black/5"
@@ -236,9 +250,16 @@ export default function ClientBookingsPage() {
             {/* Active Bookings (Only show when active tab is all or active) */}
             {(activeTab === "all" || activeTab === "active") && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
-                  <h2 className="text-lg font-bold text-gray-900 tracking-tight">Active Services</h2>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
+                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Active Services</h2>
+                  </div>
+                  {activeBookings.length > 0 && (
+                    <span className="text-xs font-medium text-on-surface-variant">
+                      {activeBookings.length} total · Page {activePages.current} of {activePages.totalPages}
+                    </span>
+                  )}
                 </div>
 
                 {activeBookings.length === 0 ? (
@@ -247,7 +268,7 @@ export default function ClientBookingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {activeBookings.map(b => (
+                    {activePages.slice.map(b => (
                       <ActiveBookingCard
                         key={b.id}
                         booking={b}
@@ -257,15 +278,30 @@ export default function ClientBookingsPage() {
                     ))}
                   </div>
                 )}
+
+                {activePages.totalPages > 1 && (
+                  <Pager
+                    current={activePages.current}
+                    totalPages={activePages.totalPages}
+                    onPage={(p) => setPage(p)}
+                  />
+                )}
               </div>
             )}
 
             {/* Upcoming Appointments (Only show when tab is all or upcoming) */}
             {(activeTab === "all" || activeTab === "upcoming") && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-secondary-container"></span>
-                  <h2 className="text-lg font-bold text-gray-900 tracking-tight">Upcoming Appointments</h2>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-secondary-container"></span>
+                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Upcoming Appointments</h2>
+                  </div>
+                  {upcomingBookings.length > 0 && (
+                    <span className="text-xs font-medium text-on-surface-variant">
+                      {upcomingBookings.length} total · Page {upcomingPages.current} of {upcomingPages.totalPages}
+                    </span>
+                  )}
                 </div>
 
                 {upcomingBookings.length === 0 ? (
@@ -274,7 +310,7 @@ export default function ClientBookingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {upcomingBookings.map(b => (
+                    {upcomingPages.slice.map(b => (
                       <UpcomingBookingRow
                         key={b.id}
                         booking={b}
@@ -283,20 +319,35 @@ export default function ClientBookingsPage() {
                     ))}
                   </div>
                 )}
+
+                {upcomingPages.totalPages > 1 && (
+                  <Pager
+                    current={upcomingPages.current}
+                    totalPages={upcomingPages.totalPages}
+                    onPage={(p) => setPage(p)}
+                  />
+                )}
               </div>
             )}
 
-            {/* If tab is Completed, list them in main pane */}
+            {/* If tab is Completed, list them in main pane (paginated) */}
             {activeTab === "completed" && (
               <div className="space-y-4">
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">Booking History</h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-900 tracking-tight">Booking History</h2>
+                  {completedBookings.length > 0 && (
+                    <span className="text-xs font-medium text-on-surface-variant">
+                      {completedBookings.length} total · Page {completedPages.current} of {completedPages.totalPages}
+                    </span>
+                  )}
+                </div>
                 {completedBookings.length === 0 ? (
                   <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 text-center text-on-surface-variant text-sm">
                     No past bookings.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {completedBookings.map(b => (
+                    {completedPages.slice.map(b => (
                       <HistoryBookingItem
                         key={b.id}
                         booking={b}
@@ -306,6 +357,15 @@ export default function ClientBookingsPage() {
                       />
                     ))}
                   </div>
+                )}
+
+                {/* Pagination controls */}
+                {completedPages.totalPages > 1 && (
+                  <Pager
+                    current={completedPages.current}
+                    totalPages={completedPages.totalPages}
+                    onPage={(p) => setPage(p)}
+                  />
                 )}
               </div>
             )}
@@ -372,6 +432,50 @@ export default function ClientBookingsPage() {
           onSkip={() => setReviewBooking(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ── Reusable Pagination Controls ──────────────────────────────────────────────
+
+function Pager({ current, totalPages, onPage }: {
+  current: number;
+  totalPages: number;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2 pt-2">
+      <button
+        onClick={() => onPage(Math.max(1, current - 1))}
+        disabled={current === 1}
+        className="flex items-center justify-center w-9 h-9 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+        aria-label="Previous page"
+      >
+        <span className="material-symbols-outlined text-sm">chevron_left</span>
+      </button>
+
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+        <button
+          key={p}
+          onClick={() => onPage(p)}
+          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            p === current
+              ? "bg-primary text-white shadow-sm"
+              : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onPage(Math.min(totalPages, current + 1))}
+        disabled={current === totalPages}
+        className="flex items-center justify-center w-9 h-9 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+        aria-label="Next page"
+      >
+        <span className="material-symbols-outlined text-sm">chevron_right</span>
+      </button>
     </div>
   );
 }
@@ -522,7 +626,7 @@ function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
             ))}
           </div>
           {booking.customerFeedback && (
-            <span className="text-xs text-amber-900 italic font-medium ml-1.5">"{booking.customerFeedback}"</span>
+            <span className="text-xs text-amber-900 italic font-medium ml-1.5">{`"${booking.customerFeedback}"`}</span>
           )}
         </div>
       )}

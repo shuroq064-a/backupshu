@@ -448,12 +448,10 @@ export function DisplaySection({
 export function PreferencesSection({
   notifications,
   setNotifications,
-  router,
   languageLabel = "English (US)",
 }: {
   notifications: boolean;
   setNotifications: (v: boolean) => void;
-  router: ReturnType<typeof useRouter>;
   languageLabel?: string;
 }) {
   return (

@@ -348,6 +348,29 @@ body {
   }
 }
 
+/* Lively "comes alive" reaction for the hovered rating emoji */
+@keyframes emojiPop {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  30% {
+    transform: scale(1.4) rotate(-10deg) translateY(-4px);
+  }
+  55% {
+    transform: scale(1.25) rotate(8deg) translateY(0);
+  }
+  75% {
+    transform: scale(1.35) rotate(-4deg);
+  }
+  100% {
+    transform: scale(1.25) rotate(0deg);
+  }
+}
+
+.emoji-pop {
+  animation: emojiPop 0.45s ease-in-out;
+}
+
 @keyframes popIn {
   from {
     opacity: 0;

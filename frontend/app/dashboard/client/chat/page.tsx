@@ -82,8 +82,6 @@ import type {
   AssistantStreamEvent,
 } from "@/types";
 
-const INTENT_POLL_ATTEMPTS = 12;
-const INTENT_POLL_DELAY_MS = 1000;
 const WS_BASE = WS_BASE_URL;
 const CHAT_STORAGE_KEY = "shuroqx_chat_messages";
 const BOOKING_VISIBLE_STATUSES = new Set(["accepted", "started", "reached", "ongoing", "completed"]);
@@ -698,7 +696,7 @@ export default function RedesignedClientChat() {
                 ))}
               </>
             ) : (
-              <SpecialistDirectChat placeholderName={activeChatsList.find(c => c.workerId === activeChatTarget)?.name || "Specialist"} />
+              <SpecialistDirectChat />
             )}
             <ChatContainerScrollAnchor />
           </ChatContainerContent>
@@ -750,7 +748,7 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (s: string) => v
       </div>
       <div>
         <h3 className="font-semibold text-lg text-on-surface dark:text-white">ShuroqX AI Assistant</h3>
-        <p className="text-sm text-on-surface-variant dark:text-on-surface mt-1">Describe what service you need, and I'll match you with a vetted specialist instantly.</p>
+        <p className="text-sm text-on-surface-variant dark:text-on-surface mt-1">Describe what service you need, and I&apos;ll match you with a vetted specialist instantly.</p>
       </div>
       <div className="flex flex-wrap gap-2 justify-center mt-3">
         {suggestions.map(({ label, prompt, icon }) => (
@@ -987,7 +985,7 @@ function SpecialistCard({ specialist, liveStatus, onNameClick, bookingId, onView
   );
 }
 
-function SpecialistDirectChat({ placeholderName }: { placeholderName: string }) {
+function SpecialistDirectChat() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center max-w-sm mx-auto">
       <div className="w-16 h-16 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-2xl font-bold">

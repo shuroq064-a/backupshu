@@ -261,56 +261,10 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { setActiveMode, fetchSpecialistProfile, setSpecialistAvailability, updateLocation, setLocation } from "@/store/slices/authSlice";
-import { Logo } from "@/components/ui";
-import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
+import { setActiveMode, fetchSpecialistProfile, setSpecialistAvailability, setLocation } from "@/store/slices/authSlice";
 import { SidebarToggleIcon } from "@/components/sidebar/SidebarToggleIcon";
-import { SAVED_LOCATIONS_KEY, SERVICE_ADDRESS_DETAILS_KEY, SERVICE_LOCATION_KEY } from "@/components/location/ServiceLocationFlow";
-import type { ActiveMode, ServiceLocation } from "@/types";
+import type { ActiveMode } from "@/types";
 import { userApi, workerApi } from "@/lib/api";
-
-const DEFAULT_LOCATION_AREAS = ["Banjara Hills", "Jubilee Hills", "Gachibowli", "Madhapur", "Kondapur", "Hitech City", "Begumpet", "Uppal"];
-
-function normalizeLocations(locations: string[]) {
-  const seen = new Set<string>();
-  return locations
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .filter((item) => {
-      const key = item.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-function readSavedLocations(currentLocation?: string) {
-  let saved: string[] = [];
-  try {
-    const raw = localStorage.getItem(SAVED_LOCATIONS_KEY);
-    saved = raw ? JSON.parse(raw) : [];
-  } catch {
-    saved = [];
-  }
-  return normalizeLocations([currentLocation || "", ...saved]);
-}
-
-function persistServiceLocation(address: string) {
-  const serviceLocation: ServiceLocation = { address, source: "manual" };
-  localStorage.setItem(SERVICE_LOCATION_KEY, JSON.stringify(serviceLocation));
-  // A different saved place needs its own receiver/contact details before booking.
-  localStorage.removeItem(SERVICE_ADDRESS_DETAILS_KEY);
-  window.dispatchEvent(new CustomEvent("shuroqx-service-location", { detail: serviceLocation }));
-  window.dispatchEvent(new Event("shuroqx-open-location-permission"));
-
-  const isDefaultArea = DEFAULT_LOCATION_AREAS.some((area) => area.toLowerCase() === address.toLowerCase());
-  if (!isDefaultArea) {
-    const nextSaved = normalizeLocations([address, ...readSavedLocations()]);
-    localStorage.setItem(SAVED_LOCATIONS_KEY, JSON.stringify(nextSaved));
-    window.dispatchEvent(new CustomEvent("shuroqx-saved-locations", { detail: nextSaved }));
-  }
-}
-
 
 const getIconClass = (icon: string) => {
   switch (icon) {
@@ -339,10 +293,6 @@ export function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  // const [locationOpen, setLocationOpen] = useState(false);
-  // const [selectedLocation, setSelectedLocation] = useState("");
-  const [locationOpen, setLocationOpen] = useState(false);
-  const [savedLocations, setSavedLocations] = useState<string[]>([]);
   // const { location } = useAppSelector((s) => s.auth);
 
   const { user, activeMode, specialistProfile, location } = useAppSelector((s) => s.auth);
@@ -358,18 +308,6 @@ export function Sidebar({
       }).catch(() => {});
     }
   }, [user, location, dispatch]);
-
-  useEffect(() => {
-    setSavedLocations(readSavedLocations(location));
-
-    function handleSavedLocations(event: Event) {
-      const detail = (event as CustomEvent<string[]>).detail || [];
-      setSavedLocations(normalizeLocations([location, ...detail].filter(Boolean) as string[]));
-    }
-
-    window.addEventListener("shuroqx-saved-locations", handleSavedLocations);
-    return () => window.removeEventListener("shuroqx-saved-locations", handleSavedLocations);
-  }, [location]);
 
   async function handleModeSwitch(mode: ActiveMode) {
     if (mode === activeMode) return;
@@ -426,17 +364,6 @@ export function Sidebar({
   function openLocationPrompt() {
     window.dispatchEvent(new Event("shuroqx-open-location-permission"));
   }
-
-  function handleLocationSelect(address: string) {
-    persistServiceLocation(address);
-    dispatch(updateLocation(address));
-    setLocationOpen(false);
-  }
-
-  const locationOptions = normalizeLocations([
-    ...savedLocations,
-    ...DEFAULT_LOCATION_AREAS,
-  ]);
 
   return (
     <>
@@ -526,7 +453,6 @@ export function Sidebar({
             onClick={() => handleModeSwitch("client")}
             label="User"
             icon="person"
-            activeMode={activeMode}
           />
           <ModeButton
             mode="specialist"
@@ -535,7 +461,6 @@ export function Sidebar({
             onClick={() => handleModeSwitch("specialist")}
             label="Specialist"
             icon="build"
-            activeMode={activeMode}
           />
         </div>
       </div>
@@ -641,7 +566,6 @@ function ModeButton({
   onClick,
   label,
   icon,
-  activeMode,
 }: {
   mode: ActiveMode;
   active: boolean;
@@ -649,7 +573,6 @@ function ModeButton({
   onClick: () => void;
   label: string;
   icon: string;
-  activeMode: ActiveMode;
 }) {
   return (
     <button

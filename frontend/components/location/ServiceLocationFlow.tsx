@@ -71,7 +71,6 @@ export function ServiceLocationFlow() {
   const [step, setStep] = useState<Step>("permission");
   const [selectedLocation, setSelectedLocation] = useState<ServiceLocation | null>(null);
   const [savedDetails, setSavedDetails] = useState<ServiceAddressDetails | null>(null);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const persistLocal = useCallback((nextLocation: ServiceLocation, details: ServiceAddressDetails, addressId?: string | null) => {
@@ -101,8 +100,10 @@ export function ServiceLocationFlow() {
     const storedLocation = readStored<ServiceLocation>(SERVICE_LOCATION_KEY);
     const details = readStored<ServiceAddressDetails>(SERVICE_ADDRESS_DETAILS_KEY);
     const storedAddressId = localStorage.getItem(SERVICE_ADDRESS_ID_KEY);
-    setSelectedAddressId(storedAddressId);
-    if (storedLocation) { setSelectedLocation(storedLocation); dispatch(setLocation(storedLocation.address)); }
+    if (storedLocation) {
+      setSelectedLocation(storedLocation);
+      dispatch(setLocation(storedLocation.address));
+    }
     if (details) setSavedDetails(details);
 
     void loadAddressBook().then((addresses) => {
@@ -116,7 +117,6 @@ export function ServiceLocationFlow() {
 
       const nextLocation = locationFromSavedAddress(preferred);
       const nextDetails = detailsFromSavedAddress(preferred);
-      setSelectedAddressId(preferred.id);
       setSelectedLocation(nextLocation);
       setSavedDetails(nextDetails);
       persistLocal(nextLocation, nextDetails, preferred.id);
@@ -147,7 +147,6 @@ export function ServiceLocationFlow() {
         if (!preferred) return;
         const nextLocation = locationFromSavedAddress(preferred);
         const nextDetails = detailsFromSavedAddress(preferred);
-        setSelectedAddressId(preferred.id);
         setSelectedLocation(nextLocation);
         setSavedDetails(nextDetails);
         persistLocal(nextLocation, nextDetails, preferred.id);
@@ -231,7 +230,7 @@ export function ServiceLocationFlow() {
             </div>
           )}
           {step === "detecting" && <div className="py-10 text-center text-sm font-bold text-primary"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-outline-variant border-t-primary shadow-sm" /><p className="mt-4">Detecting your location...</p></div>}
-          {step === "map" && <LocationMapPicker initialLocation={selectedLocation} onBack={() => setStep("permission")} onConfirm={(nextLocation) => { setSelectedLocation(nextLocation); setSelectedAddressId(null); setMessage(""); persistLocal(nextLocation, savedDetails || EMPTY_ADDRESS_DETAILS); setOpen(false); }} />}
+          {step === "map" && <LocationMapPicker initialLocation={selectedLocation} onBack={() => setStep("permission")} onConfirm={(nextLocation) => { setSelectedLocation(nextLocation); setMessage(""); persistLocal(nextLocation, savedDetails || EMPTY_ADDRESS_DETAILS); setOpen(false); }} />}
           {message && <p className="mt-4 rounded-xl border border-error/30 bg-error-container px-4 py-3 text-sm font-bold text-on-error-container shadow-inner">{message}</p>}
         </div>
       </div>

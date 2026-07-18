@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import dbmodels
@@ -30,6 +30,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def allow_websocket_cors(request: Request, call_next):
+    # CORSMiddleware does not authorize WebSocket upgrade handshakes, so the
+    # browser rejects them with 403. Echo the request Origin back for WS upgrades.
+    if request.scope.get("type") == "websocket":
+        origin = request.headers.get("origin")
+        if origin:
+            response = await call_next(request)
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
+    return await call_next(request)
 
 
 @app.get("/")

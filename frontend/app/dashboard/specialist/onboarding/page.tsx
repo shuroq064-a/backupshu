@@ -84,8 +84,8 @@ export default function SpecialistOnboarding() {
     if (user) {
       setProfile({
         name: user.name || "",
-        phone: (user as any).phone || "",
-        address: (user as any).address || "",
+        phone: (user as unknown as { phone?: string }).phone || "",
+        address: (user as unknown as { address?: string }).address || "",
         email: user.email || "",
       });
     }
@@ -248,7 +248,7 @@ export default function SpecialistOnboarding() {
           </div>
         </header>
 
-        <div className="px-6 lg:px-10 py-10 max-w-6xl mx-auto space-y-10">
+        <div className="px-6 lg:px-10 py-10 max-w-screen-2xl mx-auto space-y-10">
           {/* Hero */}
           <section className="text-center mx-auto max-w-2xl">
             <h2 className="text-2xl font-extrabold text-on-surface">

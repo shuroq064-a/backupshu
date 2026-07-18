@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "@/store";
+import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import {
   fetchSpecialistDetail,
   approveSpecialist,
@@ -15,7 +15,7 @@ export default function SpecialistDetailPage() {
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const { selectedSpecialist, actionLoading, error } = useAppSelector((s: { admin: any; }) => s.admin);
+  const { selectedSpecialist, actionLoading, error } = useAppSelector((s: RootState) => s.admin);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
 

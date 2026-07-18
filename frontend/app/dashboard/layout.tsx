@@ -13,7 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isHydrated, specialistProfile } = useAppSelector((s) => s.auth);
+  const { user, isHydrated } = useAppSelector((s) => s.auth);
   const [redirecting, setRedirecting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();

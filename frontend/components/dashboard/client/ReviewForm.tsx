@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { bookingApi } from "@/lib/api";
+import { Rating } from "@/components/ui/rating";
 
 interface ReviewFormProps {
   bookingId: string;
@@ -13,7 +15,6 @@ interface ReviewFormProps {
 
 export function ReviewForm({ bookingId, bookingNumber, serviceType, specialistName, onSuccess, onSkip }: ReviewFormProps) {
   const [rating, setRating] = useState(0);
-  const [hover, setHover] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -33,38 +34,34 @@ export function ReviewForm({ bookingId, bookingNumber, serviceType, specialistNa
     }
   }
 
-  const labels = ["", "Poor", "Fair", "Good", "Great", "Excellent"];
+  const LABELS = ["Terrible", "Bad", "Okay", "Good", "Excellent"];
 
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-surface-container-lowest rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 p-4 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center">
+        <div className="bg-surface-container-lowest rounded-3xl w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl my-8">
 
         {/* Header */}
         <div className="bg-gradient-to-br from-primary to-primary-container px-6 py-6 text-center">
-          <div className="text-3xl mb-2">⭐</div>
+          <div className="text-3xl mb-2 material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</div>
           <h2 className="text-white font-bold text-lg">Rate your experience</h2>
           <p className="text-teal-100 text-sm mt-1">{specialistName} · {serviceType}</p>
           <p className="text-teal-200 text-xs mt-1">{bookingNumber}</p>
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          {/* Stars */}
+          {/* Star rating */}
           <div className="text-center">
-            <div className="flex justify-center gap-2 mb-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onMouseEnter={() => setHover(star)}
-                  onMouseLeave={() => setHover(0)}
-                  onClick={() => { setRating(star); setError(""); }}
-                  className="text-3xl transition-transform hover:scale-110"
-                >
-                  {star <= (hover || rating) ? "⭐" : "â˜†"}
-                </button>
-              ))}
-            </div>
-            {(hover || rating) > 0 && (
-              <p className="text-sm font-semibold text-amber-500">{labels[hover || rating]}</p>
+            <Rating
+              variant="star"
+              value={rating}
+              onValueChange={(v) => { setRating(v); setError(""); }}
+              count={5}
+              className="justify-center"
+            />
+            {rating > 0 && (
+              <p className="text-sm font-semibold text-amber-500 mt-1">{LABELS[rating - 1]}</p>
             )}
           </div>
 
@@ -96,6 +93,8 @@ export function ReviewForm({ bookingId, bookingNumber, serviceType, specialistNa
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }

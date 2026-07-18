@@ -106,10 +106,6 @@ export default function SpecialistEarningsPage() {
     }
   }, [profileChecked, currentProfile, activeMode, router]);
 
-  if (profileChecked && activeMode === "specialist" && !currentProfile) {
-    return null;
-  }
-
   const loadEarnings = useCallback(async () => {
     if (!user?.id) return;
 
@@ -202,14 +198,18 @@ export default function SpecialistEarningsPage() {
   const maxAmount = Math.max(1, ...weeklyData.map(d => d.amount));
   const todayIndex = now.getDay() === 0 ? 6 : now.getDay() - 1;
 
+  if (profileChecked && activeMode === "specialist" && !currentProfile) {
+    return null;
+  }
+
   return (
     <>
     {currentProfile?.verificationStatus === "pending" ? (
-      <div className="p-6 max-w-3xl mx-auto">
+      <div className="p-6 max-w-screen-2xl mx-auto">
         <VerificationPendingCard centered />
       </div>
     ) : (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>

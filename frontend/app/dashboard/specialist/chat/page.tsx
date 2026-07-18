@@ -141,7 +141,6 @@ export default function SpecialistCommunicationHub() {
   const [selectedClientId, setSelectedClientId] = useState<string>("sarah_jenkins");
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [dbClientsLoading, setDbClientsLoading] = useState(false);
 
   // A specialist must finish onboarding before accessing messages.
   useEffect(() => {
@@ -155,10 +154,6 @@ export default function SpecialistCommunicationHub() {
     }
   }, [profileChecked, currentProfile, activeMode, router]);
 
-  if (profileChecked && activeMode === "specialist" && !currentProfile) {
-    return null;
-  }
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeClient = useMemo(() => {
@@ -170,7 +165,6 @@ export default function SpecialistCommunicationHub() {
     async function loadDbClients() {
       const workerId = specialistProfile?.id;
       if (!workerId) return;
-      setDbClientsLoading(true);
       try {
         const bookings = await workerExtApi.getBookings(workerId, "accepted");
         if (bookings.length > 0) {
@@ -212,8 +206,6 @@ export default function SpecialistCommunicationHub() {
         }
       } catch (err) {
         console.error("Failed to sync database clients:", err);
-      } finally {
-        setDbClientsLoading(false);
       }
     }
     loadDbClients();
@@ -233,6 +225,10 @@ export default function SpecialistCommunicationHub() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeClient?.messages]);
+
+  if (profileChecked && activeMode === "specialist" && !currentProfile) {
+    return null;
+  }
 
   // ── Send Message ──
   function handleSendMessage() {

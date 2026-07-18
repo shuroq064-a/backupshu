@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/store";
+import { useAppSelector, type RootState } from "@/store";
 
 export default function DashboardIndex() {
   const router = useRouter();
-  const { activeMode } = useAppSelector((s: { auth: any; }) => s.auth);
+  const { activeMode } = useAppSelector((s: RootState) => s.auth);
 
   useEffect(() => {
     if (activeMode === "specialist") {

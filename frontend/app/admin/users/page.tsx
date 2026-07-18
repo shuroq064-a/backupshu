@@ -1,12 +1,12 @@
 "use client";
 
-import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "@/store";
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import { fetchAllUsers } from "@/store/slices/adminSlice";
 
 export default function AdminUsersPage() {
   const dispatch = useAppDispatch();
-  const { users, isLoading, stats } = useAppSelector((s: { admin: any; }) => s.admin);
+  const { users, isLoading, stats } = useAppSelector((s: RootState) => s.admin);
 
   useEffect(() => {
     dispatch(fetchAllUsers());
@@ -42,7 +42,7 @@ export default function AdminUsersPage() {
 
           {/* Rows */}
           <div className="divide-y divide-gray-800">
-            {users.map((user: { id: Key | null | undefined; name: any; email: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; role: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; hasSpecialistProfile: any; createdAt: string | number | Date; }) => (
+            {users.map((user) => (
               <div key={user.id} className="grid grid-cols-5 gap-4 px-5 py-4 hover:bg-gray-800/40 transition-colors">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">

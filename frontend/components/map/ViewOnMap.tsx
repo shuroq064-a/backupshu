@@ -5,13 +5,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Loader2 } from "lucide-react";
 
 interface ViewOnMapProps {
-  locationName?: string;
   address?: string;
   className?: string;
 }
 
 export const ViewOnMap: React.FC<ViewOnMapProps> = ({
-  locationName,
   address = "Hyderabad, India",
   className = "",
 }) => {

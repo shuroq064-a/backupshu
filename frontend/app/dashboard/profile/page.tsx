@@ -47,7 +47,7 @@ export default function ProfilePage() {
           address:  data.address  || "",
           language: data.language || "english",
         });
-      } catch (e: any) {
+      } catch {
         setError("Failed to load profile");
       } finally {
         setIsLoading(false);
@@ -66,8 +66,8 @@ export default function ProfilePage() {
       setIsEditing(false);
       setSuccessMsg("Profile updated successfully");
       setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (e: any) {
-      setError(e.message || "Failed to update profile");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
     }
@@ -121,7 +121,7 @@ export default function ProfilePage() {
   const langLabel    = LANGUAGE_OPTIONS.find((l) => l.value === (profile?.language || "english"))?.label || "English";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 font-sans md:px-8">
+    <div className="mx-auto max-w-screen-2xl px-4 py-8 font-sans md:px-8">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-on-surface">My Profile</h2>

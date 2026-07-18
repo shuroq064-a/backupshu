@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAppSelector, useAppDispatch } from "@/store";
+import { useAppSelector, useAppDispatch, type RootState } from "@/store";
 import { AdminSidebar } from "@/components/sidebar/AdminSidebar";
 import { fetchAdminStats } from "@/store/slices/adminSlice";
 
@@ -13,7 +13,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { user, isHydrated } = useAppSelector((s: { auth: any; }) => s.auth);
+  const { user, isHydrated } = useAppSelector((s: RootState) => s.auth);
 
   // Client-side guard (middleware handles SSR layer)
   useEffect(() => {
