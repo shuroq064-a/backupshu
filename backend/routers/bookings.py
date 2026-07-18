@@ -96,9 +96,9 @@ class ConnectionManager:
     def room_name(self, booking_id: str) -> str:
         return f"room:booking_{booking_id}"
 
-    async def connect(self, booking_id: str, ws: WebSocket, msg_id: str = ""):
+    async def connect(self, booking_id: str, ws: WebSocket, msg_id: str = "", origin: str = "*"):
         room = self.room_name(booking_id)
-        await ws.accept()
+        await ws.accept(headers=_ws_cors_headers(origin))
         self.rooms.setdefault(room, []).append((ws, msg_id))
 
     def disconnect(self, booking_id: str, ws: WebSocket):
@@ -138,9 +138,9 @@ class SpecialistConnectionManager:
     def room_name(self, worker_id: str) -> str:
         return f"room:specialist_{worker_id}"
 
-    async def connect(self, worker_id: str, ws: WebSocket):
+    async def connect(self, worker_id: str, ws: WebSocket, origin: str = "*"):
         room = self.room_name(worker_id)
-        await ws.accept()
+        await ws.accept(headers=_ws_cors_headers(origin))
         self.rooms.setdefault(room, []).append(ws)
 
     def disconnect(self, worker_id: str, ws: WebSocket):
@@ -208,6 +208,82 @@ def _extract_ws_token(websocket: WebSocket, token: Optional[str]) -> Optional[st
     return None
 
 
+def _ws_cors_headers(origin: str) -> list:
+    """CORS headers echoed on the WebSocket handshake response.
+
+    CORSMiddleware rejects WebSocket upgrades (403), so we authorize the
+    upgrade ourselves here by reflecting the requesting Origin back.
+    """
+    return [
+        (b"Access-Control-Allow-Origin", origin.encode("utf-8")),
+        (b"Access-Control-Allow-Credentials", b"true"),
+    ]
+
+
+def _ws_cors_origin(websocket: WebSocket) -> str:
+    """Mirror main.get_cors_origin without importing main (avoids circular import)."""
+    raw = os.getenv("CORS_ORIGINS", "*")
+    allowed = [o.strip() for o in raw.split(",") if o.strip()]
+    origin = websocket.headers.get("origin")
+    if not origin:
+        return "*"
+    if "*" in allowed or origin in allowed:
+        return origin
+    return allowed[0] if allowed else "*"
+
+
+def _ws_authenticate_room(booking_id: str, websocket: WebSocket, token: Optional[str]):
+    """Validate the WS auth + room membership using a short-lived DB session.
+
+    The session is closed before returning so long-lived WebSocket connections
+    don't pin a pooled DB connection (which exhausts the pool under many sockets).
+    Returns (user_id, error_reason). error_reason is None on success.
+    """
+    ws_token = _extract_ws_token(websocket, token)
+    if not ws_token:
+        return None, "Missing authentication token"
+
+    user_id = _ws_user_id_from_token(ws_token)
+    if not user_id:
+        return None, "Invalid authentication token"
+
+    db = SessionLocal()
+    try:
+        booking = db.query(Booking).filter(Booking.id == booking_id).first()
+        if not booking or booking.client_id != user_id:
+            return None, "Not allowed to join this booking room"
+    finally:
+        db.close()
+
+    return user_id, None
+
+
+def _ws_authenticate_specialist(worker_id: str, websocket: WebSocket, token: Optional[str]):
+    """Validate WS auth + specialist ownership using a short-lived DB session.
+
+    Mirrors _ws_authenticate_room: the session is closed before returning so the
+    connection does not hold a pooled DB handle for its whole lifetime.
+    Returns (user_id, error_reason). error_reason is None on success.
+    """
+    ws_token = _extract_ws_token(websocket, token)
+    if not ws_token:
+        return None, "Missing authentication token"
+
+    user_id = _ws_user_id_from_token(ws_token)
+    if not user_id:
+        return None, "Invalid authentication token"
+
+    db = SessionLocal()
+    try:
+        worker = db.query(Worker).filter(Worker.id == worker_id).first()
+        if not worker or worker.user_id != user_id:
+            return None, "Not allowed to join this specialist room"
+    finally:
+        db.close()
+
+    return user_id, None
+
+
 def _ws_user_id_from_token(token: str) -> Optional[str]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -216,11 +292,6 @@ def _ws_user_id_from_token(token: str) -> Optional[str]:
 
     user_id = payload.get("sub")
     return user_id if isinstance(user_id, str) and user_id else None
-
-
-def _can_join_booking_room(booking_id: str, user_id: str, db: Session) -> bool:
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    return bool(booking and booking.client_id == user_id)
 
 
 async def dispatch_eta_update(booking_id: str, eta_minutes: int, last_updated: datetime):
@@ -733,23 +804,14 @@ async def booking_ws(
     websocket: WebSocket,
     msg_id: str = "",
     token: Optional[str] = None,
-    db: Session = Depends(get_db),
 ):
-    ws_token = _extract_ws_token(websocket, token)
-    if not ws_token:
-        await websocket.close(code=1008, reason="Missing authentication token")
+    user_id, error = _ws_authenticate_room(booking_id, websocket, token)
+    if error:
+        await websocket.close(code=1008, reason=error)
         return
 
-    user_id = _ws_user_id_from_token(ws_token)
-    if not user_id:
-        await websocket.close(code=1008, reason="Invalid authentication token")
-        return
-
-    if not _can_join_booking_room(booking_id, user_id, db):
-        await websocket.close(code=1008, reason="Not allowed to join this booking room")
-        return
-
-    await manager.connect(booking_id, websocket, msg_id)
+    origin = _ws_cors_origin(websocket)
+    await manager.connect(booking_id, websocket, msg_id, origin)
     try:
         while True:
             await websocket.receive_text()
@@ -762,29 +824,19 @@ async def specialist_ws(
     worker_id: str,
     websocket: WebSocket,
     token: Optional[str] = None,
-    db: Session = Depends(get_db),
 ):
     """Live channel for a specialist's Bookings Manager.
 
     Pushes NEW_REQUEST / BOOKING_UPDATED events so the UI refreshes only on real
     changes instead of polling. Auth: only the worker's own owner may join.
     """
-    ws_token = _extract_ws_token(websocket, token)
-    if not ws_token:
-        await websocket.close(code=1008, reason="Missing authentication token")
+    user_id, error = _ws_authenticate_specialist(worker_id, websocket, token)
+    if error:
+        await websocket.close(code=1008, reason=error)
         return
 
-    user_id = _ws_user_id_from_token(ws_token)
-    if not user_id:
-        await websocket.close(code=1008, reason="Invalid authentication token")
-        return
-
-    worker = db.query(Worker).filter(Worker.id == worker_id).first()
-    if not worker or worker.user_id != user_id:
-        await websocket.close(code=1008, reason="Not allowed to join this specialist room")
-        return
-
-    await specialist_manager.connect(worker_id, websocket)
+    origin = _ws_cors_origin(websocket)
+    await specialist_manager.connect(worker_id, websocket, origin)
     try:
         while True:
             await websocket.receive_text()

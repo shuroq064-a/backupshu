@@ -5,14 +5,15 @@ LLM-powered conversational assistant for the customer side.
 
 POST /assistant/chat  (JWT)  → Server-Sent Events stream.
 
-Design (per product requirement: "the AI should just talk to the user"):
-  * The assistant is a real conversational agent. It streams its natural reply
-    token-by-token over SSE (`token` events). No hard-coded replies, no forced
-    catalog dumps, no JSON-only contract.
-  * After the reply streams, a single cheap non-streaming call asks the SAME model
-    to decide, in JSON, whether the user clearly requested a bookable home service
-    (e.g. "book a plumber"). If so we emit a `match` event (with available+verified
-    specialists) or `no_workers`. Pure chit-chat just ends after the stream.
+Multi-agent design (backend/agents):
+  * A Supervisor LLM call routes each message to one of three agents — chat,
+    booking, or tracking — and may request tool runs first.
+  * Agents have real "powers" via deterministic tools: search_specialists
+    (verified+available specialists), my_bookings, and booking_status — all
+    backed by the existing worker_matching / dbmodels layer.
+  * The chosen agent streams its reply token-by-token over SSE (`token` events)
+    and may emit a `match` event (with specialists) or `no_workers`. New additive
+    events (`agent`, `thought`, `tool`) let the UI show the AI "working".
   * If the LLM is genuinely unreachable, we surface a single honest `error` event —
     we do NOT fabricate a conversation or fall back to a dumb classifier.
 
@@ -26,7 +27,6 @@ import os
 import sys
 import json
 import uuid
-import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -36,14 +36,9 @@ if __package__ and "." in __package__:
     from ..database import get_db
     from .. import models, dbmodels
     from ..auth_utils import get_current_user
-    from ..services.llm.frenix_client import stream_chat, chat, LLMUnavailable
-    from ..services.llm.catalog import (
-        build_system_prompt,
-        build_intent_prompt,
-        resolve_intent,
-        get_catalog_names,
-    )
-    from ..services.worker_matching import find_available_workers_by_intent
+    from ..services.llm.frenix_client import LLMUnavailable
+    from ..agents import run_agents
+    from ..agents.sse import ev_start, ev_error, ev_done
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
     if BACKEND_DIR not in sys.path:
@@ -51,14 +46,9 @@ else:
     from database import get_db
     import models, dbmodels
     from auth_utils import get_current_user
-    from services.llm.frenix_client import stream_chat, chat, LLMUnavailable
-    from services.llm.catalog import (
-        build_system_prompt,
-        build_intent_prompt,
-        resolve_intent,
-        get_catalog_names,
-    )
-    from services.worker_matching import find_available_workers_by_intent
+    from services.llm.frenix_client import LLMUnavailable
+    from agents import run_agents
+    from agents.sse import ev_start, ev_error, ev_done
 
 
 def build_booking_context(db: Session, user: dbmodels.User) -> str:
@@ -110,36 +100,6 @@ def build_booking_context(db: Session, user: dbmodels.User) -> str:
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 
-class _SSE:
-    """Minimal SSE helper."""
-
-    @staticmethod
-    def event(event_type: str, data: dict) -> str:
-        payload = json.dumps({"type": event_type, **data}, ensure_ascii=False)
-        return f"event: {event_type}\ndata: {payload}\n\n"
-
-
-_INTENT_RE = re.compile(r"\{.*\}\s*$", re.DOTALL)
-
-
-def _extract_json(text: str) -> dict | None:
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-    match = _INTENT_RE.search(text.strip())
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-    return None
-
-
-def _match_workers(db: Session, canonical_intent: str):
-    return find_available_workers_by_intent(db, canonical_intent)
-
-
 def _build_history(payload: models.AssistantChatRequest) -> list[dict]:
     """Parse prior turns sent by the client (serialized chat history).
 
@@ -161,68 +121,6 @@ def _build_history(payload: models.AssistantChatRequest) -> list[dict]:
         except (json.JSONDecodeError, TypeError):
             pass
     return history
-
-
-async def _stream_conversation(db: Session, user: dbmodels.User, message: str, history: list[dict]):
-    """Stream the assistant's natural reply token-by-token.
-
-    The model is a booking-aware conversational agent: it gets the live booking
-    context and the recent chat history so it can answer "where is my specialist?"
-    from real data and remember what was discussed. Booking matching is handled
-    separately afterwards so the conversation is never sacrificed.
-    """
-    booking_ctx = build_booking_context(db, user)
-    convo_messages: list[dict] = [
-        {"role": "system", "content": build_system_prompt(booking_ctx)},
-    ]
-    convo_messages.extend(history)
-    convo_messages.append({"role": "user", "content": message})
-
-    async for delta in stream_chat(convo_messages):
-        yield _SSE.event("token", {"text": delta})
-
-
-async def _resolve_booking(db: Session, user: dbmodels.User, message: str, history: list[dict]):
-    """Ask the model (cheap, non-streaming) whether a bookable service was requested.
-
-    Returns a `match` / `no_workers` SSE event when appropriate, else nothing.
-    Any failure is swallowed — a chit-chat turn simply stays a chit-chat turn.
-    """
-    try:
-        intent_messages: list[dict] = [
-            {"role": "system", "content": build_intent_prompt(db)},
-        ]
-        intent_messages.extend(history[-6:])
-        intent_messages.append({"role": "user", "content": message})
-        raw = await chat(intent_messages)
-    except LLMUnavailable:
-        return
-
-    data = _extract_json(raw) or {}
-    intent = data.get("intent")
-    booking = bool(data.get("booking", False))
-    if not booking or not isinstance(intent, str):
-        return
-
-    canonical = resolve_intent(db, intent)
-    if not canonical:
-        return
-
-    workers = _match_workers(db, canonical)
-    if workers:
-        yield _SSE.event(
-            "match",
-            {
-                "reply": "",
-                "intent": canonical,
-                "workers": [w.model_dump() for w in workers],
-            },
-        )
-    else:
-        yield _SSE.event(
-            "no_workers",
-            {"reply": "", "intent": canonical},
-        )
 
 
 @router.post("/chat")
@@ -258,28 +156,21 @@ async def assistant_chat(
     history = _build_history(payload)
 
     async def event_generator():
-        yield _SSE.event("start", {"queryId": query_id})
+        yield ev_start(query_id)
         try:
-            # 1) Real conversational stream (booking-aware + remembers history).
-            async for chunk in _stream_conversation(db, current_user, message, history):
-                yield chunk
-            # 2) Soft booking detection (only emits an event when a service was requested).
-            async for chunk in _resolve_booking(db, current_user, message, history):
+            # Multi-agent orchestrator: supervisor routes to chat / booking / tracking
+            # agents, runs domain tools (live specialist search, booking status), and
+            # streams the reply (+ agent/thought/tool events) back to the client.
+            async for chunk in run_agents(db, current_user, message, history):
                 yield chunk
         except LLMUnavailable:
             # Honest failure — do NOT fabricate a conversation or a classifier fallback.
-            yield _SSE.event(
-                "error",
-                {"reply": "I'm having trouble reaching my brain right now. Please try again in a moment."},
-            )
+            yield ev_error("I'm having trouble reaching my brain right now. Please try again in a moment.")
         except Exception as exc:
-            yield _SSE.event(
-                "error",
-                {"reply": "Something went wrong. Please try again."},
-            )
+            yield ev_error("Something went wrong. Please try again.")
             print(f"[assistant] chat error: {exc}")
         finally:
-            yield _SSE.event("done", {})
+            yield ev_done()
 
     return StreamingResponse(
         event_generator(),

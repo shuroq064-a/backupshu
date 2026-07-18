@@ -204,6 +204,8 @@ export interface SpecialistResult {
   isAvailable?: boolean;
   isVerified?: boolean;
   gender?: "male" | "female" | "other";
+  price?: number | null;
+  experienceYears?: number | null;
 }
 
 export interface ChatMessage {
@@ -222,11 +224,17 @@ export interface ChatMessage {
   awaitingChoice?: boolean; // user must pick an option
   candidates?: SpecialistResult[]; // matched specialists for this intent (user picks one)
   selectedWorkerId?: string | null; // the specialist the customer chose to book
+  agentTrace?: AgentTraceStep[];    // multi-agent working steps for this turn (UI only)
+  agentLabel?: string;              // active agent display name (e.g. "Booking Agent")
+  agentJob?: string;                // active agent task (e.g. "Finding a verified specialist")
 }
 
 // ── Assistant SSE stream events (POST /assistant/chat) ──
 export type AssistantStreamEvent =
   | { type: "start"; queryId: string }
+  | { type: "agent"; name: string; label: string; job: string }
+  | { type: "thought"; text: string }
+  | { type: "tool"; name: string; args: Record<string, unknown>; summary: string }
   | { type: "token"; text: string }
   | {
       type: "clarify";
@@ -243,6 +251,13 @@ export type AssistantStreamEvent =
   | { type: "no_workers"; reply: string; intent: string }
   | { type: "error"; reply: string }
   | { type: "done" };
+
+// A live, transient trace of which agent/tool is working for the current turn.
+export interface AgentTraceStep {
+  kind: "agent" | "thought" | "tool";
+  label?: string;
+  text: string;
+}
 
 // Location permission
 export type LocationPermissionChoice =
@@ -365,6 +380,8 @@ export interface MatchedWorkerOut {
   language?: string | null;
   submittedAt?: string | null;
   reviewedAt?: string | null;
+  price?: number | null;
+  experienceYears?: number | null;
 }
 
 export interface IntentWorkerMatchResponse {

@@ -6,15 +6,13 @@ Async client for Google Gemini (Generative Language API).
 This module is kept intentionally small and provider-shaped so the rest of the
 assistant pipeline (catalog.py, assistant.py) is unchanged:
 
-  * chat(...)          → single non-streaming completion (used for the structured
+  * chat(...)          -> single non-streaming completion (used for the structured
                          booking-intent check after the conversation).
-  * stream_chat(...)   → async generator yielding text deltas (used by /assistant/chat).
-  * LLMUnavailable     → raised on network/timeout/5xx so callers can fall back.
+  * stream_chat(...)   -> async generator yielding text deltas (used by /assistant/chat).
+  * LLMUnavailable     -> raised on network/timeout/5xx so callers can fall back.
 
-The public interface (`chat`, `stream_chat`, `LLMUnavailable`) and the
-OpenAI-style ``messages: list[{role, content}]`` contract are byte-for-byte
-compatible with the previous Frenix client, so swapping providers did not
-require touching the assistant router or catalog.
+The public interface (chat, stream_chat, LLMUnavailable) and the OpenAI-style
+``messages: list[{role, content}]`` contract are preserved.
 
 Gemini specifics:
   * Text lives in ``candidates[].content.parts[].text``. We skip ``thought``
@@ -37,7 +35,7 @@ GEMINI_BASE_URL = os.getenv(
     "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"
 ).rstrip("/")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-4-31b-it")
 
 DEFAULT_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT", "30"))
 DEFAULT_TEMPERATURE = 0.2
@@ -152,7 +150,8 @@ async def chat(
                     last_err = RuntimeError(f"Gemini 5xx: {resp.status_code}")
                     if attempt < MAX_RETRIES:
                         await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
-                    continue
+                        continue
+                    raise LLMUnavailable(f"Gemini 5xx: {resp.status_code}")
                 if resp.status_code >= 400:
                     raise LLMUnavailable(f"Gemini {resp.status_code}: {resp.text[:200]}")
                 return _extract_text(resp.json(), allow_thought=True)
@@ -162,6 +161,8 @@ async def chat(
             last_err = exc
             if attempt < MAX_RETRIES:
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
+                continue
+            raise LLMUnavailable(f"Gemini unavailable: {last_err}")
     raise LLMUnavailable(f"Gemini unavailable: {last_err}")
 
 
@@ -194,7 +195,7 @@ async def stream_chat(
                         line = (line or "").strip()
                         if not line or not line.startswith("data:"):
                             continue
-                        data_str = line[len("data:") :].strip()
+                        data_str = line[len("data:"):].strip()
                         if data_str == "[DONE]":
                             return
                         try:

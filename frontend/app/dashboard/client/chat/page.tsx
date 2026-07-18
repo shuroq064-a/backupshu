@@ -321,6 +321,8 @@ export default function RedesignedClientChat() {
       email: worker.email,
       isAvailable: worker.isAvailable,
       isVerified: worker.isVerified,
+      price: worker.price ?? undefined,
+      experienceYears: worker.experienceYears ?? undefined,
     };
   }
 
@@ -497,6 +499,33 @@ export default function RedesignedClientChat() {
             content: event.reply,
             streaming: false,
           });
+        } else if (event.type === "agent") {
+          // A multi-agent agent has taken over this turn; show its working label.
+          updateMessage(assistantMsgId, (prev) => ({
+            ...prev,
+            agentLabel: event.label,
+            agentJob: event.job,
+            agentTrace: [
+              ...(prev?.agentTrace || []),
+              { kind: "agent", text: event.label, label: event.job },
+            ],
+          }));
+        } else if (event.type === "thought") {
+          updateMessage(assistantMsgId, (prev) => ({
+            ...prev,
+            agentTrace: [
+              ...(prev?.agentTrace || []),
+              { kind: "thought", text: event.text },
+            ],
+          }));
+        } else if (event.type === "tool") {
+          updateMessage(assistantMsgId, (prev) => ({
+            ...prev,
+            agentTrace: [
+              ...(prev?.agentTrace || []),
+              { kind: "tool", text: event.summary, label: event.name },
+            ],
+          }));
         } else if (event.type === "done") {
           // Stream finished without a structured terminal event (match/clarify/…):
           // stop the blinking typing cursor.
@@ -793,6 +822,28 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
     <Message>
       <MessageAvatar fallback="SX" />
       <MessageContent className="max-w-xl space-y-2">
+        {message.agentTrace && message.agentTrace.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+            {message.agentTrace.map((step, i) => (
+              <span
+                key={i}
+                className={
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border " +
+                  (step.kind === "agent"
+                    ? "bg-primary/10 text-primary border-primary/30"
+                    : step.kind === "tool"
+                    ? "bg-secondary-container/40 text-on-secondary-container border-outline-variant"
+                    : "bg-surface-container text-on-surface-variant border-outline-variant")
+                }
+              >
+                {step.kind === "agent" && <span className="material-symbols-outlined text-[12px]">smart_toy</span>}
+                {step.kind === "tool" && <span className="material-symbols-outlined text-[12px]">build</span>}
+                {step.kind === "thought" && <span className="material-symbols-outlined text-[12px]">psychology</span>}
+                <span className="max-w-[220px] truncate">{step.text}</span>
+              </span>
+            ))}
+          </div>
+        )}
         {message.specialist && isAccepted && (
           <SpecialistCard
             specialist={message.specialist}
@@ -809,9 +860,6 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
               <Loader variant="text-shimmer" text="Thinking" size="sm" />
             ) : (
               <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{message.content}</p>
-            )}
-            {message.streaming && message.content && (
-              <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 animate-pulse bg-primary/70 align-middle" />
             )}
           </div>
         )}
@@ -857,6 +905,14 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-on-surface truncate">{sp.name}</p>
                       <div className="mt-0.5"><SkillBadges services={sp.services} /></div>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-on-surface-variant">
+                        {sp.price != null && (
+                          <span className="font-semibold text-primary">₹{sp.price} onwards</span>
+                        )}
+                        {sp.experienceYears != null && (
+                          <span>{sp.experienceYears} yrs exp</span>
+                        )}
+                      </p>
                     </div>
                     {selected && message.bookingPending && (
                       <span className="text-[10px] font-bold text-primary">Booked ✓</span>

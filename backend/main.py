@@ -1,7 +1,6 @@
 import os
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, Response
 
 import dbmodels
 from database import engine
@@ -23,28 +22,42 @@ def get_cors_origins() -> list[str]:
     raw_origins = os.getenv("CORS_ORIGINS", "*")
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+def resolve_cors_origin(origin: str | None) -> str:
+    """Reflect an allowed requesting Origin, or "*" when unrestricted."""
+    if not origin:
+        return "*"
+    allowed = get_cors_origins()
+    if "*" in allowed or origin in allowed:
+        return origin
+    return allowed[0] if allowed else "*"
 
 
 @app.middleware("http")
-async def allow_websocket_cors(request: Request, call_next):
-    # CORSMiddleware does not authorize WebSocket upgrade handshakes, so the
-    # browser rejects them with 403. Echo the request Origin back for WS upgrades.
-    if request.scope.get("type") == "websocket":
-        origin = request.headers.get("origin")
-        if origin:
-            response = await call_next(request)
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            return response
-    return await call_next(request)
+async def cors_middleware(request: Request, call_next):
+    """CORS for both HTTP and WebSocket.
 
+    Starlette's CORSMiddleware rejects WebSocket upgrade handshakes with a 403,
+    so we handle CORS ourselves: HTTP responses get the standard CORS headers
+    (plus OPTIONS preflight handling), while WebSocket upgrades are passed
+    straight through to the endpoint, which echoes the CORS headers on accept().
+    """
+    origin = request.headers.get("origin")
+    if request.scope.get("type") == "websocket":
+        return await call_next(request)
+
+    if request.method == "OPTIONS":
+        response = Response(status_code=204)
+    else:
+        response = await call_next(request)
+
+    allowed = resolve_cors_origin(origin)
+    response.headers["Access-Control-Allow-Origin"] = allowed
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+    response.headers["Vary"] = "Origin"
+    return response
 
 @app.get("/")
 def greet():
