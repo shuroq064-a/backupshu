@@ -1,0 +1,17 @@
+.env
+.env.*
+Dockerfile
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+shuroqbackend/
+venv/
+env/
+.venv/
+*.log
+*.sqlite3
+backend.zip

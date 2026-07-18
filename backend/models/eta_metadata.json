@@ -1,0 +1,11 @@
+{
+    "mae": 0.97,
+    "features": [
+        "distance_km",
+        "hour",
+        "day_of_week",
+        "area_type",
+        "historical_speed",
+        "is_peak_hour"
+    ]
+}

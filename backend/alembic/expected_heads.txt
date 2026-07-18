@@ -1,0 +1,4 @@
+# One Alembic head revision per line. Update this file whenever a new migration
+# is added, so deployment checks and Docker builds fail if a migration file is
+# left out.
+add_location_permission_db

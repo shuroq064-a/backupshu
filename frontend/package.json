@@ -1,0 +1,41 @@
+{
+  "name": "shuroqx-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ark-ui/react": "^5.37.2",
+    "@radix-ui/react-tooltip": "^1.2.12",
+    "@reduxjs/toolkit": "^2.11.2",
+    "framer-motion": "^12.42.2",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^1.24.0",
+    "motion": "^12.42.2",
+    "next": "15.3.8",
+    "next-auth": "^4.24.11",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.2.0",
+    "use-stick-to-bottom": "^1.1.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "agentation": "^3.0.2",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9",
+    "eslint-config-next": "15.1.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5"
+  }
+}
