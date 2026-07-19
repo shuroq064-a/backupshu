@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { bookingApi, streamAssistantChat } from "@/lib/api";
+import { bookingApi, streamAssistantChat, messageApi, type ChatMessageDTO, type ConversationDTO } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { WS_BASE_URL } from "@/lib/config";
 import { useAppSelector } from "@/store";
@@ -98,6 +97,38 @@ export default function RedesignedClientChat() {
   const [activeChatTarget, setActiveChatTarget] = useState<"ai" | string>("ai");
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const sidebarResizeCleanupRef = useRef<(() => void) | null>(null);
+
+  // ── Real specialist conversations (backend-backed direct messaging) ──
+  const [conversations, setConversations] = useState<ConversationDTO[]>([]);
+
+  const loadConversations = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const data = await messageApi.conversations();
+      setConversations(data);
+    } catch (err) {
+      console.error("Failed to load conversations:", err);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    void loadConversations();
+    // Poll so newly received specialist messages surface without a manual
+    // refresh, but skip polling while the tab is hidden to avoid needless
+    // authenticated traffic.
+    const t = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void loadConversations();
+    }, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadConversations();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [loadConversations]);
 
   const handleSidebarResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -575,6 +606,12 @@ export default function RedesignedClientChat() {
     .map(m => m.specialist!)
     .filter((sp, idx, self) => self.findIndex(s => s.workerId === sp.workerId) === idx);
 
+  // The conversation currently open in the direct-chat pane (keyed by bookingId).
+  const activeConversation =
+    activeChatTarget !== "ai"
+      ? conversations.find((c) => c.bookingId === activeChatTarget) || null
+      : null;
+
   return (
     <div className="flex h-full flex-col md:flex-row overflow-hidden bg-background text-on-surface">
 
@@ -615,16 +652,55 @@ export default function RedesignedClientChat() {
             </div>
           </div>
 
-          {/* Connected specialist chats */}
-          {activeChatsList.map(sp => (
+          {/* Direct message conversations with specialists (backend-backed) */}
+          {conversations.map((c) => {
+            const isSelected = activeChatTarget === c.bookingId;
+            return (
+              <div
+                key={c.bookingId}
+                onClick={() => {
+                  setActiveChatTarget(c.bookingId);
+                  void loadConversations();
+                }}
+                className={`flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-all ${
+                  isSelected
+                    ? "bg-primary/10 border-l-4 border-primary shadow-sm"
+                    : "hover:bg-surface-container-low"
+                }`}
+              >
+                <div className="w-11 h-11 rounded-xl overflow-hidden bg-secondary-container shrink-0">
+                  <img
+                    className="w-full h-full object-cover"
+                    src={getSpecialistAvatar(c.otherName, c.serviceType || undefined)}
+                    alt={c.otherName}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <p className="font-semibold text-sm text-on-surface truncate">{c.otherName}</p>
+                    {c.unread > 0 && (
+                      <span className="ml-1 shrink-0 text-[10px] font-bold text-white bg-primary rounded-full px-1.5 py-0.5">
+                        {c.unread}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-on-surface-variant truncate mt-0.5">{c.lastMessage}</p>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* AI-matched specialists that don't yet have a message thread.
+              Messages are booking-scoped, so until the specialist sends the
+              first message there is no thread to open — show them as an
+              informational (non-clickable) hint rather than a dead-end. */}
+          {activeChatsList
+            .filter((sp) => !conversations.some((c) => c.otherId === sp.workerId))
+            .map(sp => (
             <div
               key={sp.workerId}
-              onClick={() => setActiveChatTarget(sp.workerId)}
-              className={`flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-all ${
-                activeChatTarget === sp.workerId
-                  ? "bg-primary/10 border-l-4 border-primary shadow-sm"
-                  : "hover:bg-surface-container-low"
-              }`}
+              title="No messages yet — this specialist will appear here once they message you."
+              className="flex items-center gap-3 p-3.5 rounded-2xl transition-all opacity-70 cursor-default"
             >
               <div className="w-11 h-11 rounded-xl overflow-hidden bg-secondary-container shrink-0">
                 <img
@@ -638,7 +714,7 @@ export default function RedesignedClientChat() {
                   <p className="font-semibold text-sm text-on-surface truncate">{sp.name}</p>
                   <span className="w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-surface-container-lowest"></span>
                 </div>
-                <p className="text-xs text-on-surface-variant truncate mt-0.5">Matched Specialist</p>
+                <p className="text-xs text-on-surface-variant truncate mt-0.5">Matched · no messages yet</p>
               </div>
             </div>
           ))}
@@ -662,7 +738,9 @@ export default function RedesignedClientChat() {
             <span className="material-symbols-outlined text-primary">chat</span>
             <div>
               <h2 className="font-bold text-on-surface">
-                {activeChatTarget === "ai" ? "AI Service Assistant" : activeChatsList.find(c => c.workerId === activeChatTarget)?.name || "Specialist"}
+                {activeChatTarget === "ai"
+                  ? "AI Service Assistant"
+                  : activeConversation?.otherName || "Specialist"}
               </h2>
               <p className="text-[10px] text-green-600 font-semibold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span> Active Session
@@ -700,10 +778,10 @@ export default function RedesignedClientChat() {
         )}
 
         {/* Messages list area */}
-        <ChatContainerRoot className="chat-scrollbar">
-          <ChatContainerContent className="p-4 md:p-6 space-y-4">
-            {activeChatTarget === "ai" ? (
-              <>
+        {activeChatTarget === "ai" ? (
+          <>
+            <ChatContainerRoot className="chat-scrollbar">
+              <ChatContainerContent className="p-4 md:p-6 space-y-4">
                 {messages.length === 0 && <EmptyState onSuggestionClick={s => setInput(s)} />}
 
                 {messages.map(msg => (
@@ -722,29 +800,36 @@ export default function RedesignedClientChat() {
                     }
                   </div>
                 ))}
-              </>
-            ) : (
-              <SpecialistDirectChat />
-            )}
-            <ChatContainerScrollAnchor />
-          </ChatContainerContent>
-          <ScrollButton />
-        </ChatContainerRoot>
+                <ChatContainerScrollAnchor />
+              </ChatContainerContent>
+              <ScrollButton />
+            </ChatContainerRoot>
 
-        {/* Input Bar */}
-        <div className="p-4">
-          <div className="mx-auto max-w-3xl">
-            <ChatPromptInput
-              value={input}
-              onChange={setInput}
-              onSend={handleSend}
-              onStop={handleStop}
-              isLoading={isSearching}
-              disabled={isChatDisabled}
-              placeholder={inputPlaceholder}
-            />
-          </div>
-        </div>
+            {/* AI Input Bar */}
+            <div className="p-4">
+              <div className="mx-auto max-w-3xl">
+                <ChatPromptInput
+                  value={input}
+                  onChange={setInput}
+                  onSend={handleSend}
+                  onStop={handleStop}
+                  isLoading={isSearching}
+                  disabled={isChatDisabled}
+                  placeholder={inputPlaceholder}
+                />
+              </div>
+            </div>
+          </>
+        ) : activeConversation ? (
+          <SpecialistDirectChat
+            conversation={activeConversation}
+            currentUserId={user?.id || ""}
+            onSent={() => void loadConversations()}
+            onError={(m) => showToast(m, "error")}
+          />
+        ) : (
+          <SpecialistDirectChatEmpty />
+        )}
       </section>
 
       {/* Specialist details modal */}
@@ -1023,7 +1108,7 @@ function SpecialistCard({ specialist, liveStatus, onNameClick, bookingId, onView
   );
 }
 
-function SpecialistDirectChat() {
+function SpecialistDirectChatEmpty() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center max-w-sm mx-auto">
       <div className="w-16 h-16 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-2xl font-bold">
@@ -1031,17 +1116,205 @@ function SpecialistDirectChat() {
       </div>
       <div>
         <h4 className="font-semibold text-on-surface">Select a Conversation</h4>
-        <p className="text-xs text-on-surface-variant mt-1.5">Choose a specialist from your list to view the chat history and manage your service requests.</p>
-      </div>
-      <Link
-        href="/dashboard/client"
-        className="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs font-semibold hover:bg-primary-container hover:text-on-primary-container transition-all shadow-sm"
-      >
-        View All Contacts
-      </Link>
-      <div className="w-full bg-surface-container-low p-4 rounded-2xl text-xs text-on-surface-variant border border-outline-variant mt-2">
-        Live chat messages with specialists are archived for safety.
+        <p className="text-xs text-on-surface-variant mt-1.5">Choose a specialist from your list to view the chat history and reply to their messages.</p>
       </div>
     </div>
+  );
+}
+
+function fmtTime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function SpecialistDirectChat({
+  conversation,
+  currentUserId,
+  onSent,
+  onError,
+}: {
+  conversation: ConversationDTO;
+  currentUserId: string;
+  onSent: () => void;
+  onError: (message: string) => void;
+}) {
+  const [msgs, setMsgs] = useState<ChatMessageDTO[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
+  const bookingId = conversation.bookingId;
+
+  // Merge server messages with local state by id so an in-flight optimistic
+  // send is never clobbered by a poll landing mid-send (avoids duplicate/flicker).
+  const mergeServer = useCallback((server: ChatMessageDTO[]) => {
+    setMsgs((prev) => {
+      const pendingTemp = prev.filter(
+        (m) => m.id.startsWith("temp-") && !server.some((s) => s.id === m.id),
+      );
+      return [...server, ...pendingTemp];
+    });
+  }, []);
+
+  // Append a single server-pushed message (WebSocket) without duplicating one
+  // we already have by id.
+  const appendPush = useCallback((incoming: ChatMessageDTO) => {
+    setMsgs((prev) =>
+      prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming],
+    );
+  }, []);
+
+  const load = useCallback(
+    (initial = false) => {
+      if (initial) setLoading(true);
+      messageApi
+        .listByBooking(bookingId)
+        .then((server) => {
+          // Don't overwrite while a send is resolving; the send handler will
+          // reconcile and the next poll will pick up the saved copy.
+          if (sendingRef.current) return;
+          mergeServer(server);
+        })
+        .catch(() => {
+          if (initial) setMsgs([]);
+        })
+        .finally(() => {
+          if (initial) setLoading(false);
+        });
+    },
+    [bookingId, mergeServer],
+  );
+
+  // Reload history when the selected conversation changes, then poll for
+  // incoming replies while the tab is visible (polling is the fallback; the
+  // WebSocket below delivers messages instantly).
+  useEffect(() => {
+    load(true);
+    const t = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      load(false);
+    }, 8000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  // Live message channel: receive new messages instantly instead of waiting
+  // for the 8s poll. Opening the thread also marks messages as read server-side.
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    const params = new URLSearchParams({ token });
+    const ws = new WebSocket(`${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}?${params.toString()}`);
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data) as ChatMessageDTO;
+        appendPush(data);
+        void load(false); // refresh unread counts / conversation list
+      } catch {}
+    };
+    return () => ws.close();
+  }, [bookingId, appendPush, load]);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgs]);
+
+  async function send() {
+    const body = text.trim();
+    if (!body || sending) return;
+    setSending(true);
+    sendingRef.current = true;
+    const optimistic: ChatMessageDTO = {
+      id: `temp-${Date.now()}`,
+      bookingId,
+      senderType: "client",
+      senderId: currentUserId,
+      recipientType: "worker",
+      recipientId: conversation.otherId,
+      text: body,
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+    setMsgs((prev) => [...prev, optimistic]);
+    setText("");
+    try {
+      const saved = await messageApi.send(bookingId, body, "worker", conversation.otherId);
+      setMsgs((prev) => prev.map((m) => (m.id === optimistic.id ? saved : m)));
+      onSent();
+    } catch {
+      onError("Could not send message. Please retry.");
+      setMsgs((prev) => prev.filter((m) => m.id !== optimistic.id));
+    } finally {
+      setSending(false);
+      sendingRef.current = false;
+    }
+  }
+
+  return (
+    <>
+      <div className="flex-1 min-h-0 overflow-y-auto chat-scrollbar p-4 md:p-6 space-y-3">
+        {loading && msgs.length === 0 ? (
+          <div className="flex justify-center py-10">
+            <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          </div>
+        ) : msgs.length === 0 ? (
+          <div className="text-center text-sm text-on-surface-variant py-10">
+            No messages yet. Say hello to {conversation.otherName}!
+          </div>
+        ) : (
+          msgs.map((m) => {
+            // A message is "mine" if it was NOT sent by the person I'm chatting
+            // with. comparing against the known other-party id is robust against
+            // mismatches between the local user.id and the server-stored sender id.
+            const isMe = m.senderId !== conversation.otherId;
+            return (
+              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
+                  <div
+                    className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      isMe
+                        ? "bg-primary text-on-primary rounded-tr-sm"
+                        : "bg-surface-container-lowest text-on-surface border border-outline-variant rounded-tl-sm"
+                    }`}
+                  >
+                    {m.text}
+                  </div>
+                  <span className="text-[10px] text-on-surface-variant px-1">{fmtTime(m.createdAt)}</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={endRef} />
+      </div>
+
+      {/* Specialist Direct Message Input */}
+      <div className="p-4 border-t border-outline-variant bg-surface-container-low">
+        <div className="mx-auto max-w-3xl flex items-center gap-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder={`Message ${conversation.otherName}...`}
+            className="flex-1 bg-surface-container border border-outline-variant/60 focus:border-primary rounded-xl px-4 py-2.5 text-sm resize-none h-11 focus:outline-none"
+          />
+          <button
+            onClick={() => void send()}
+            disabled={!text.trim() || sending}
+            className="w-11 h-11 shrink-0 bg-primary text-on-primary rounded-xl flex items-center justify-center hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">send</span>
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

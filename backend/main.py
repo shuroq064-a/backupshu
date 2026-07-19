@@ -11,9 +11,9 @@ dbmodels.Base.metadata.create_all(bind=engine)
 
 
 if __package__:
-    from .routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant
+    from .routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages
 else:
-    from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant
+    from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages
 
 app = FastAPI(title="ShuroqX API", version="1.0.0")
 
@@ -76,3 +76,4 @@ app.include_router(marketplace.router)
 app.include_router(services.router)
 app.include_router(location_permission.router)  # /location-permission/*
 app.include_router(assistant.router)            # /assistant/chat (LLM chat brain)
+app.include_router(messages.router)             # /messages (specialist <-> client chat)

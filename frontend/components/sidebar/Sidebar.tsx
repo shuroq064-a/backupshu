@@ -340,7 +340,7 @@ export function Sidebar({
   const clientNav = [
     { href: "/dashboard/client", label: "Discover", icon: "search" },
     { href: "/dashboard/client/bookings", label: "My Bookings", icon: "calendar_today" },
-    { href: "/dashboard/client/chat", label: "Chat", icon: "chat_bubble_outline" },
+    { href: "/dashboard/client/chat", label: "Assistant", icon: "chat_bubble_outline" },
     { href: "/dashboard/settings", label: "Settings", icon: "settings" },
   ];
 

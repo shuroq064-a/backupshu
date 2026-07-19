@@ -475,3 +475,40 @@ export const workerExtApi = {
       ...(extra?.experience_years != null ? { experience_years: extra.experience_years } : {}),
     }),
 };
+
+// ── Messages API (specialist <-> client chat) ──────────────────────────────
+
+export interface ChatMessageDTO {
+  id: string;
+  bookingId: string;
+  senderType: "worker" | "client";
+  senderId: string;
+  recipientType: "worker" | "client";
+  recipientId: string;
+  text: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface ConversationDTO {
+  bookingId: string;
+  bookingNumber: string | null;
+  serviceType: string | null;
+  otherName: string;
+  otherId: string;
+  otherType: "worker" | "client";
+  lastMessage: string;
+  lastMessageAt: string;
+  unread: number;
+}
+
+export const messageApi = {
+  send: (bookingId: string, text: string, recipientType: "worker" | "client", recipientId: string) =>
+    apiClient.post<ChatMessageDTO>("/messages", { booking_id: bookingId, text, recipient_type: recipientType, recipient_id: recipientId }),
+
+  listByBooking: (bookingId: string) =>
+    apiClient.get<ChatMessageDTO[]>(`/messages/booking/${bookingId}`),
+
+  conversations: () =>
+    apiClient.get<ConversationDTO[]>("/messages/conversations"),
+};

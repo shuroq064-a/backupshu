@@ -200,3 +200,27 @@ class UserAddress(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="addresses")
+
+
+class Message(Base):
+    """Person-to-person chat messages between a specialist (worker) and a client,
+    scoped to a booking. Replaces the previously mocked specialist communication hub."""
+
+    __tablename__ = "messages"
+    __table_args__ = (
+        Index("ix_messages_booking_id", "booking_id"),
+        Index("ix_messages_created_at", "created_at"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    booking_id = Column(String, ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False)
+
+    # Sender / recipient are identified by role + id so either side can read/write.
+    sender_type = Column(String, nullable=False)   # "worker" | "client"
+    sender_id = Column(String, nullable=False)
+    recipient_type = Column(String, nullable=False)  # "worker" | "client"
+    recipient_id = Column(String, nullable=False)
+
+    text = Column(Text, nullable=False)
+    read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
