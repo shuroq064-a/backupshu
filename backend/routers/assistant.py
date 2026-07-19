@@ -72,14 +72,15 @@ def build_booking_context(db: Session, user: dbmodels.User) -> str:
             return ""
 
         STATUS_HUMAN = {
-            "upcoming": "waiting for a specialist to accept",
-            "accepted": "specialist accepted and is preparing to come",
-            "started": "specialist is on the way",
-            "reached": "specialist has arrived at your location",
-            "ongoing": "work is in progress",
+            "upcoming": "NOT yet accepted — no specialist is committed; still awaiting acceptance",
+            "accepted": "specialist ACCEPTED and is preparing to come (not yet on the way)",
+            "started": "specialist is ON THE WAY",
+            "reached": "specialist has ARRIVED at your location",
+            "ongoing": "work is IN PROGRESS",
         }
         lines = []
         for b in bookings:
+            assigned = False
             specialist_name = "Not yet assigned"
             if b.worker_id:
                 worker = db.query(dbmodels.Worker).filter(dbmodels.Worker.id == b.worker_id).first()
@@ -87,11 +88,16 @@ def build_booking_context(db: Session, user: dbmodels.User) -> str:
                     su = db.query(dbmodels.User).filter(dbmodels.User.id == worker.user_id).first()
                     if su:
                         specialist_name = su.name or su.email
+                        assigned = True
+            if b.status == "upcoming" and assigned:
+                specialist_name += " (proposed, not yet accepted)"
             status = STATUS_HUMAN.get(b.status, b.status)
             eta = f" ETA ~{b.eta_minutes} min." if b.eta_minutes else ""
             lines.append(
                 f"- Booking {b.booking_number} | {b.service_type} | "
-                f"specialist: {specialist_name} | status: {status}{eta}"
+                f"assigned_specialist: {specialist_name} | "
+                f"has_committed_specialist: {str(assigned and b.status != 'upcoming').lower()} | "
+                f"status: {status}{eta}"
             )
         return "\n".join(lines)
     except Exception:

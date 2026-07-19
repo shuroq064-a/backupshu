@@ -261,10 +261,10 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store";
-import { setActiveMode, fetchSpecialistProfile, setSpecialistAvailability, setLocation } from "@/store/slices/authSlice";
+import { setActiveMode, fetchSpecialistProfile, setLocation } from "@/store/slices/authSlice";
 import { SidebarToggleIcon } from "@/components/sidebar/SidebarToggleIcon";
 import type { ActiveMode } from "@/types";
-import { userApi, workerApi } from "@/lib/api";
+import { userApi } from "@/lib/api";
 
 const getIconClass = (icon: string) => {
   switch (icon) {
@@ -329,14 +329,9 @@ export function Sidebar({
       dispatch(setActiveMode("specialist"));
       router.push("/dashboard/specialist");
     } else {
-      if (currentSpecialistProfile?.id && currentSpecialistProfile.isAvailable) {
-        try {
-          await workerApi.updateAvailability(currentSpecialistProfile.id, false);
-        } catch {
-          // Keep the client transition even if the availability update fails.
-        }
-      }
-      dispatch(setSpecialistAvailability(false));
+      // Switching to client mode no longer forces availability OFF — a
+      // specialist's listing state is independent of which UI mode is active,
+      // so returning to specialist mode keeps their previous availability.
       dispatch(setActiveMode("client"));
       router.push("/dashboard/client");
     }
@@ -377,10 +372,10 @@ export function Sidebar({
       )}
 
       <aside
-        className={`flex flex-col bg-surface-container-lowest border-r border-outline-variant h-screen flex-shrink-0 overflow-hidden
-          md:sticky md:top-0 md:bg-surface-container-lowest/80 md:backdrop-blur md:transition-all md:duration-300
+        className={`flex flex-col bg-surface-container-lowest border border-outline-variant h-[calc(100vh-3rem)] flex-shrink-0 overflow-hidden
+          md:static md:my-6 md:ml-6 md:rounded-[28px] md:bg-surface-container-lowest/80 md:backdrop-blur md:transition-all md:duration-300 md:shadow-sm
           ${collapsed ? "md:w-[68px]" : "md:w-64"}
-          max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:shadow-2xl max-md:transform max-md:transition-transform max-md:duration-300
+          max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:rounded-r-[28px] max-md:shadow-2xl max-md:transform max-md:transition-transform max-md:duration-300
           ${mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"}`}
       >
         {/* Logo + Collapse */}

@@ -415,6 +415,7 @@ export interface BookingReview {
 
 // ── Status metadata ───────────────────────────────────────────────────────────
 export const STATUS_META: Record<string, { label: string; color: string; bg: string; next?: string; nextLabel?: string }> = {
+  schedulePending: { label: "Scheduling", color: "#00535B", bg: "#E6F4F5" },
   upcoming:  { label: "Pending",        color: "#7C3AED", bg: "#F5F3FF" },
   accepted:  { label: "Accepted",       color: "#2563EB", bg: "#EFF6FF", next: "started",   nextLabel: "Start Journey" },
   started:   { label: "On the Way",     color: "#D97706", bg: "#FEF3C7", next: "reached",   nextLabel: "Arrived at Location" },

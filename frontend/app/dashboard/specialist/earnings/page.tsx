@@ -205,11 +205,11 @@ export default function SpecialistEarningsPage() {
   return (
     <>
     {currentProfile?.verificationStatus === "pending" ? (
-      <div className="p-6 max-w-screen-2xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto">
         <VerificationPendingCard centered />
       </div>
     ) : (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>

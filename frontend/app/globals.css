@@ -31,19 +31,19 @@
   --color-on-tertiary-fixed: #00201e;
   --color-on-tertiary-fixed-variant: #00504b;
 
-  --color-background: #fbf8ff;
+  --color-background: #ffffff;
   --color-on-background: #181a2e;
-  --color-surface: #fbf8ff;
+  --color-surface: #ffffff;
   --color-on-surface: #181a2e;
   --color-on-surface-variant: #3e494a;
-  --color-surface-variant: #e0e0fc;
-  --color-surface-bright: #fbf8ff;
-  --color-surface-dim: #d7d8f4;
-  --color-surface-container: #edecff;
+  --color-surface-variant: #eef0f2;
+  --color-surface-bright: #ffffff;
+  --color-surface-dim: #f1f3f5;
+  --color-surface-container: #ffffff;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f4f2ff;
-  --color-surface-container-high: #e6e6ff;
-  --color-surface-container-highest: #e0e0fc;
+  --color-surface-container-low: #f6f7f9;
+  --color-surface-container-high: #eef0f2;
+  --color-surface-container-highest: #e6e8eb;
 
   --color-outline: #6f797a;
   --color-outline-variant: #bec8ca;
@@ -52,7 +52,7 @@
 
   /* shadcn-compatible tokens used by SmoothUI stepper/dropdown components */
   --color-primary-foreground: #ffffff;
-  --color-muted: #e0e0fc;
+  --color-muted: #eef0f2;
   --color-muted-foreground: #6f797a;
   --color-ring: #00535b;
   --color-error: #ba1a1a;
@@ -101,7 +101,33 @@
   --color-brand: 13 148 136;
   --color-brand-light: 94 234 212;
   --color-surface: 255 255 255;
-  --color-surface-2: 245 243 255;
+  --color-surface-2: 246 247 249;
+  --chart-1: oklch(0.32 0 none);
+  --chart-2: oklch(0.41 0 none);
+  --chart-3: oklch(0.54 0 none);
+  --chart-4: oklch(0.71 0 none);
+  --chart-5: oklch(0.89 0 none);
+  --chart-background: oklch(1 0 0);
+  --chart-foreground: oklch(0.145 0.004 285);
+  --chart-foreground-muted: oklch(0.55 0.014 260);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
+  --chart-crosshair: oklch(0.4 0.1828 274.34);
+  --chart-grid: oklch(0.9 0 0);
+  --chart-brush-border: var(--chart-grid);
+  --chart-tooltip-background: oklch(1 0 0 / 0.92);
+  --chart-tooltip-foreground: oklch(0.21 0.006 285);
+  --chart-tooltip-muted: oklch(0.5 0.01 260);
+  --chart-marker-background: oklch(0.97 0.005 260);
+  --chart-marker-border: oklch(0.85 0.01 260);
+  --chart-marker-foreground: oklch(0.3 0.01 260);
+  --chart-label: oklch(0.45 0.01 260);
+  --chart-scale-01: oklch(0.98 0.003 106);
+  --chart-scale-02: oklch(0.92 0.008 106);
+  --chart-scale-03: oklch(0.82 0.015 106);
+  --chart-scale-04: oklch(0.68 0.02 106);
+  --chart-scale-05: oklch(0.55 0.025 106);
+  --chart-scale-pattern-color: oklch(0.96 0.005 106);
 }
 
 /* â”€â”€ Dark theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -267,6 +293,30 @@
   --color-amber-700: #fbbf24;
   --color-amber-800: #fcd34d;
   --color-amber-900: #fde68a;
+  --chart-1: oklch(1 0 none);
+  --chart-2: oklch(0.73 0 none);
+  --chart-3: oklch(0.51 0 none);
+  --chart-4: oklch(0.39 0 none);
+  --chart-5: oklch(0.32 0 none);
+  --chart-background: oklch(0.145 0 0);
+  --chart-foreground: oklch(0.45 0 0);
+  --chart-foreground-muted: oklch(0.65 0.01 260);
+  --chart-crosshair: oklch(0.45 0 0);
+  --chart-grid: oklch(0.25 0 0);
+  --chart-brush-border: var(--chart-grid);
+  --chart-marker-background: oklch(0.25 0.01 260);
+  --chart-marker-border: oklch(0.4 0.01 260);
+  --chart-marker-foreground: oklch(0.9 0 0);
+  --chart-label: oklch(0.75 0.01 260);
+  --chart-scale-01: oklch(0.28 0.03 270);
+  --chart-scale-02: oklch(0.38 0.04 270);
+  --chart-scale-03: oklch(0.48 0.05 270);
+  --chart-scale-04: oklch(0.58 0.06 270);
+  --chart-scale-05: oklch(0.68 0.07 270);
+  --chart-scale-pattern-color: oklch(0.145 0 0);
+  --chart-tooltip-background: oklch(0.21 0.006 285 / 0.8);
+  --chart-tooltip-foreground: oklch(0.985 0 0);
+  --chart-tooltip-muted: oklch(0.65 0.01 260);
 }
 
 /* â”€â”€ Base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -305,6 +355,15 @@ body {
 
 .dark ::-webkit-scrollbar-thumb {
   background: #00535b;
+}
+
+/* Hide scrollbar for horizontally-scrollable rows (e.g. pagination) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* â”€â”€ No scrollbar (hidden but scrollable) â”€â”€â”€â”€ */
@@ -587,3 +646,61 @@ button:hover .icon-menu {
 }
 .loader-loading-dots > span:nth-child(2) { animation-delay: 0.2s; }
 .loader-loading-dots > span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Alias shadcn-style tokens (used by @roiui/card-progress) onto the
+   ShuroqX --color-* theme so the progress card resolves its CSS vars. */
+:root {
+  --card: var(--color-surface-container-lowest);
+  --border: var(--color-outline-variant);
+  --foreground: var(--color-on-surface);
+  --background: var(--color-surface);
+  --muted-foreground: var(--color-on-surface-variant);
+  --warning: var(--color-tertiary, #b45309);
+  --warning-foreground: var(--color-on-tertiary, #ffffff);
+  --destructive: var(--color-error, #dc2626);
+  --destructive-foreground: var(--color-on-error, #ffffff);
+  --success: var(--color-primary, #22c55e);
+  --radius: 1rem;
+}
+.dark {
+  --card: var(--color-surface-container-lowest);
+  --border: var(--color-outline-variant);
+  --foreground: var(--color-on-surface);
+  --background: var(--color-surface);
+  --muted-foreground: var(--color-on-surface-variant);
+  --warning: var(--color-tertiary, #b45309);
+  --warning-foreground: var(--color-on-tertiary, #ffffff);
+  --destructive: var(--color-error, #dc2626);
+  --destructive-foreground: var(--color-on-error, #ffffff);
+  --success: var(--color-primary, #22c55e);
+  --radius: 1rem;
+}
+
+@theme inline {
+  --color-chart-1: var(----chart-1);
+  --color-chart-2: var(----chart-2);
+  --color-chart-3: var(----chart-3);
+  --color-chart-4: var(----chart-4);
+  --color-chart-5: var(----chart-5);
+  --color-chart-background: var(----chart-background);
+  --color-chart-foreground: var(----chart-foreground);
+  --color-chart-foreground-muted: var(----chart-foreground-muted);
+  --chart-line-primary: var(----chart-line-primary);
+  --chart-line-secondary: var(----chart-line-secondary);
+  --color-chart-crosshair: var(----chart-crosshair);
+  --color-chart-grid: var(----chart-grid);
+  --chart-brush-border: var(----chart-brush-border);
+  --color-chart-tooltip-background: var(----chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(----chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(----chart-tooltip-muted);
+  --color-chart-marker-background: var(----chart-marker-background);
+  --color-chart-marker-border: var(----chart-marker-border);
+  --color-chart-marker-foreground: var(----chart-marker-foreground);
+  --color-chart-label: var(----chart-label);
+  --color-chart-scale-01: var(----chart-scale-01);
+  --color-chart-scale-02: var(----chart-scale-02);
+  --color-chart-scale-03: var(----chart-scale-03);
+  --color-chart-scale-04: var(----chart-scale-04);
+  --color-chart-scale-05: var(----chart-scale-05);
+  --color-chart-scale-pattern-color: var(----chart-scale-pattern-color);
+}

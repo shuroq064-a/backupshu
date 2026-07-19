@@ -7,16 +7,17 @@ import { fetchSpecialistProfile } from "@/store/slices/authSlice";
 import { servicesApi, workerApi, bookingApi, workerExtApi } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { WS_BASE_URL as WS_BASE } from "@/lib/config";
-import { Toast, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
-import type { BookingDetail, ServiceOption } from "@/types";
+import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
+import type { BookingDetail, BookingStatus, ServiceOption } from "@/types";
 import { STATUS_META as SM } from "@/types";
 
 const SPECIALIST_ACTIONS: Record<string, { label: string; icon: string; next: string; color: string }> = {
-   accepted: { label: "Start Journey",       icon: "🚗", next: "started",   color: "bg-primary hover:bg-primary-container text-white" },
-   started:  { label: "Arrived at Location", icon: "📍", next: "reached",   color: "bg-primary-container hover:bg-primary text-white" },
-   reached:  { label: "Start Work",          icon: "🔧", next: "ongoing",   color: "bg-amber-500 hover:bg-amber-600 text-white" },
-   ongoing:  { label: "Mark Complete",       icon: "✅", next: "completed", color: "bg-green-600 hover:bg-green-700 text-white" },
+   accepted: { label: "Start Journey",       icon: "directions_car", next: "started",   color: "bg-primary hover:bg-primary-container text-white" },
+   started:  { label: "Arrived at Location", icon: "location_on", next: "reached",   color: "bg-primary-container hover:bg-primary text-white" },
+   reached:  { label: "Start Work",          icon: "build", next: "ongoing",   color: "bg-amber-500 hover:bg-amber-600 text-white" },
+   ongoing:  { label: "Mark Complete",       icon: "check_circle", next: "completed", color: "bg-green-600 hover:bg-green-700 text-white" },
 };
 
 const REQUESTS_PER_PAGE = 5;
@@ -81,10 +82,12 @@ export default function BookingsManagerPage() {
   workerIdRef.current = workerId;
 
   // ── Fetch Bookings Data ──
-  const loadData = useCallback(async () => {
+  // `showLoading` is false for background/WebSocket refreshes so the UI
+  // (incl. optimistic status updates) never flickers a full reload.
+  const loadData = useCallback(async (showLoading = true) => {
     const liveWorkerId = workerIdRef.current;
     if (!liveWorkerId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     setLoadError(null);
     try {
       // Load independently: a failure in one call must not blank the others.
@@ -141,9 +144,10 @@ export default function BookingsManagerPage() {
     if (!workerId) return;
     let cancelled = false;
     let ws: WebSocket | null = null;
+    let opened = false;
 
     const loadOnce = () => {
-      if (!cancelled) void loadData();
+      if (!cancelled) void loadData(false);
     };
 
     const connect = () => {
@@ -155,11 +159,14 @@ export default function BookingsManagerPage() {
         `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}?${params.toString()}`
       );
       ws = socket;
-      socket.onopen = () => loadOnce();
+      socket.onopen = () => {
+        opened = true;
+        loadOnce();
+      };
       socket.onmessage = () => loadOnce();
       socket.onclose = () => {
         // Reconnect once if the tab is still alive and visible.
-        if (!cancelled && !document.hidden) {
+        if (!cancelled && !document.hidden && opened) {
           setTimeout(connect, 2000);
         }
       };
@@ -170,7 +177,16 @@ export default function BookingsManagerPage() {
 
     return () => {
       cancelled = true;
-      if (ws) ws.close();
+      if (ws) {
+        // If the socket is still connecting (e.g. React StrictMode's dev
+        // double-invoke), closing it now triggers a browser warning. Defer the
+        // close until it actually opens so we never close a not-yet-open socket.
+        if (opened) {
+          ws.close();
+        } else {
+          ws.onopen = () => ws?.close();
+        }
+      }
     };
   }, [workerId, loadData]);
 
@@ -180,10 +196,14 @@ export default function BookingsManagerPage() {
     try {
       await bookingApi.updateStatus(bookingId, nextStatus);
       showToast(
-        nextStatus === "completed" ? "🎉 Job completed successfully!" : `Job status progressed to: ${SM[nextStatus]?.label || nextStatus}`,
+        nextStatus === "completed" ? "Job completed successfully!" : `Job status progressed to: ${SM[nextStatus]?.label || nextStatus}`,
         nextStatus === "completed" ? "success" : "info"
       );
-      await loadData();
+      // Optimistically update the local job so the stepper/UI reflects the new
+      // status instantly — no full data re-fetch (which caused a visible refresh).
+      setActiveJobs((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: nextStatus as BookingStatus } : b))
+      );
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to update status", "error");
     } finally {
@@ -198,7 +218,7 @@ export default function BookingsManagerPage() {
       await bookingApi.updateStatus(bookingId, "accepted");
       showToast("Booking accepted! Client has been notified.", "success");
       setRequests((prev) => prev.filter((b) => b.id !== bookingId));
-      await loadData();
+      await loadData(false);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to accept booking", "error");
     } finally {
@@ -228,7 +248,7 @@ export default function BookingsManagerPage() {
       <div className="flex h-screen items-center justify-center p-6 bg-background">
         <div className="w-full max-w-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-6 text-center shadow-md">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-fixed text-xl font-bold text-on-primary-fixed-variant">
-            🔧
+            <span className="material-symbols-outlined">build</span>
           </div>
           <h1 className="text-xl font-bold text-gray-900">Become a Specialist</h1>
           <button
@@ -243,8 +263,7 @@ export default function BookingsManagerPage() {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-8 space-y-8 font-sans text-on-surface">
-      <Toast toast={toast} onDismiss={dismiss} />
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 font-sans text-on-surface">
 
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/60 pb-5">
@@ -255,7 +274,7 @@ export default function BookingsManagerPage() {
           </p>
         </div>
         <button
-          onClick={() => showToast("Manual booking insertion is restricted to client dispatcher mode. 🛡️", "info")}
+          onClick={() => showToast("Manual booking insertion is restricted to client dispatcher mode.", "info")}
           className="px-5 py-2.5 bg-primary text-white font-bold text-xs rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center gap-2 cursor-pointer"
         >
           <span className="material-symbols-outlined text-sm">add</span>
@@ -274,7 +293,80 @@ export default function BookingsManagerPage() {
         {/* Left Column: Active Jobs & History */}
         <div className="lg:col-span-2 space-y-8">
 
-          {/* Incoming Requests — Service Request Cards */}
+          {/* Active Jobs — single unified box at the top (only when there is an active job) */}
+          {loading ? (
+            <div className="bg-surface-container-lowest h-44 rounded-2xl animate-pulse" />
+          ) : activeJobs.length > 0 && (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm space-y-5">
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-bold text-on-surface">Active Jobs</h3>
+                <span className="px-3 py-1 bg-primary-container text-on-primary-container rounded-full text-xs font-bold">
+                  {activeJobs.length} Ongoing
+                </span>
+              </div>
+              <BookingProgressCard booking={activeJobs[0]} />
+
+              <div className="space-y-4 pt-1">
+                {activeJobs.map((job) => {
+                  const action = SPECIALIST_ACTIONS[job.status];
+                  return (
+                    <div
+                      key={job.id}
+                      className="border border-outline-variant rounded-2xl p-5 shadow-sm flex flex-col gap-5 bg-surface-container-lowest"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                              {SM[job.status]?.label || job.status}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-bold uppercase">
+                              ID: {job.id.slice(0, 8)}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-gray-900 text-lg leading-tight">
+                            {job.serviceType}
+                          </h4>
+                          <div className="space-y-1.5 text-xs text-on-surface-variant">
+                            <p className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-sm text-outline">person</span>
+                              Client: {job.clientName}
+                            </p>
+                            <p className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-sm text-outline">location_on</span>
+                              Address: {job.address || job.clientAddress || "Hyderabad, India"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2.5 shrink-0 items-center md:ml-auto">
+                          <button
+                            onClick={() => router.push(`/dashboard/specialist/chat?clientName=${encodeURIComponent(job.clientName || "")}`)}
+                            className="p-3 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all cursor-pointer"
+                            aria-label="Chat"
+                          >
+                            <span className="material-symbols-outlined text-sm">chat</span>
+                          </button>
+                          {action && (
+                            <button
+                              onClick={() => handleStatusUpdate(job.id, action.next)}
+                              disabled={statusUpdating === job.id}
+                              className={`px-6 py-3 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all flex items-center gap-2 cursor-pointer ${action.color}`}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">{action.icon}</span>
+                              {statusUpdating === job.id ? "Progressing..." : action.label}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Incoming Requests — Service Request Cards (after Active Jobs) */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-bold text-on-surface">Incoming Requests</h3>
@@ -369,84 +461,6 @@ export default function BookingsManagerPage() {
               onPage={setRequestPage}
             />
 
-          </div>
-
-          {/* Active Jobs Widget */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-lg font-bold text-on-surface">Active Jobs</h3>
-              {activeJobs.length > 0 && (
-                <span className="px-3 py-1 bg-primary-container text-on-primary-container rounded-full text-xs font-bold">
-                  {activeJobs.length} Ongoing
-                </span>
-              )}
-            </div>
-
-            {loading ? (
-              <div className="bg-surface-container-lowest h-32 rounded-2xl animate-pulse" />
-            ) : activeJobs.length === 0 ? (
-              <div className="text-center py-10 bg-surface-container-lowest border border-outline-variant rounded-2xl text-on-surface-variant">
-                <span className="material-symbols-outlined text-4xl text-outline mb-2">construction</span>
-                <p className="font-semibold text-sm">No ongoing active jobs right now.</p>
-                <p className="text-xs text-gray-400 mt-1">Accept requests from the dashboard to get started.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activeJobs.map((job) => {
-                  const action = SPECIALIST_ACTIONS[job.status];
-                  return (
-                    <div
-                      key={job.id}
-                      className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6"
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-primary uppercase tracking-wider">
-                            {SM[job.status]?.label || job.status}
-                          </span>
-                          <span className="text-[10px] text-gray-400 font-bold uppercase">
-                            ID: {job.id.slice(0, 8)}
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-gray-900 text-lg leading-tight flex items-center gap-2">
-                          {job.serviceType}
-                        </h4>
-                        <div className="space-y-1.5 text-xs text-on-surface-variant">
-                          <p className="flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-sm text-outline">person</span>
-                            Client: {job.clientName}
-                          </p>
-                          <p className="flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-sm text-outline">location_on</span>
-                            Address: {job.address || job.clientAddress || "Hyderabad, India"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2.5 shrink-0 items-center">
-                        <button
-                          onClick={() => router.push(`/dashboard/specialist/chat?clientName=${encodeURIComponent(job.clientName || "")}`)}
-                          className="p-3 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all cursor-pointer"
-                          aria-label="Chat"
-                        >
-                          <span className="material-symbols-outlined text-sm">chat</span>
-                        </button>
-                        {action && (
-                          <button
-                            onClick={() => handleStatusUpdate(job.id, action.next)}
-                            disabled={statusUpdating === job.id}
-                            className={`px-6 py-3 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all flex items-center gap-2 cursor-pointer ${action.color}`}
-                          >
-                            <span>{action.icon}</span>
-                            {statusUpdating === job.id ? "Progressing..." : action.label}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Job History Table */}
@@ -641,25 +655,25 @@ function PaginationBar({
         <span className="font-semibold text-on-surface">{to}</span> of{" "}
         <span className="font-semibold text-on-surface">{total}</span>
       </p>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 no-scrollbar">
         <button
           onClick={() => onPage(page - 1)}
           disabled={page <= 1}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-bold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-bold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
         >
           <span className="material-symbols-outlined text-sm">chevron_left</span>
-          Prev
+          <span className="hidden sm:inline">Prev</span>
         </button>
         {getPageItems(page, pageCount).map((it, idx) =>
           it === "..." ? (
-            <span key={`e${idx}`} className="px-2 text-xs text-on-surface-variant">
+            <span key={`e${idx}`} className="px-1.5 sm:px-2 text-xs text-on-surface-variant shrink-0">
               …
             </span>
           ) : (
             <button
               key={it}
               onClick={() => onPage(it)}
-              className={`min-w-[34px] h-[34px] rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`min-w-[34px] h-[34px] rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 it === page
                   ? "bg-primary text-white shadow-sm"
                   : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
@@ -672,9 +686,9 @@ function PaginationBar({
         <button
           onClick={() => onPage(page + 1)}
           disabled={page >= pageCount}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-bold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg border border-outline-variant text-xs font-bold text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
         >
-          Next
+          <span className="hidden sm:inline">Next</span>
           <span className="material-symbols-outlined text-sm">chevron_right</span>
         </button>
       </div>
@@ -700,14 +714,14 @@ function AddSkillModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const ICONS: Record<string, string> = {
-    Electrical: "⚡",
-    Plumbing: "🔧",
-    Carpentry: "🪛",
-    Painting: "🎨",
-    "AC Repair": "❄️",
-    Massage: "💆",
-    Cleaning: "🧹",
-    Gardening: "🌱",
+    Electrical: "bolt",
+    Plumbing: "plumbing",
+    Carpentry: "handyman",
+    Painting: "format_paint",
+    "AC Repair": "ac_unit",
+    Massage: "spa",
+    Cleaning: "cleaning_services",
+    Gardening: "yard",
   };
 
   useEffect(() => {
@@ -756,7 +770,7 @@ function AddSkillModal({
                   : "border-gray-200 hover:border-primary-fixed-dim"
               }`}
             >
-              <span className="text-2xl">{ICONS[s.name] || "💼"}</span>
+              <span className="material-symbols-outlined text-2xl">{ICONS[s.name] || "work"}</span>
               <span className="text-[11px] font-bold text-center truncate w-full text-on-surface">{s.name}</span>
             </button>
           ))}

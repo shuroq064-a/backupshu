@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchSpecialistProfile } from "@/store/slices/authSlice";
 import { workerExtApi } from "@/lib/api";
-import { Toast, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
 
 interface ChatMessage {
@@ -292,8 +292,6 @@ export default function SpecialistCommunicationHub() {
 
   return (
     <>
-      <Toast toast={toast} onDismiss={dismiss} />
-
       {currentProfile?.verificationStatus === "pending" ? (
         <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
           <VerificationPendingCard centered />
@@ -366,7 +364,7 @@ export default function SpecialistCommunicationHub() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => showToast("Starting Video Dispatch Flow... 📞", "success")}
+              onClick={() => showToast("Starting Video Dispatch Flow...", "success")}
               className="p-2 hover:bg-surface-container text-on-surface-variant rounded-xl cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">video_call</span>
@@ -550,14 +548,14 @@ export default function SpecialistCommunicationHub() {
         {/* Right side panel actions */}
         <div className="space-y-3 pt-1">
           <button
-            onClick={() => showToast("Initiating secure video call session... 📞", "success")}
+            onClick={() => showToast("Initiating secure video call session...", "success")}
             className="w-full py-3 px-4 bg-surface-container-lowest border border-outline-variant hover:border-primary hover:bg-primary/5 rounded-xl text-xs font-bold text-on-surface transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
             <span className="material-symbols-outlined text-base">video_call</span>
             Start Video Call
           </button>
           <button
-            onClick={() => showToast("Requesting job reschedule details... 📅", "info")}
+            onClick={() => showToast("Requesting job reschedule details...", "info")}
             className="w-full py-3 px-4 bg-surface-container-lowest border border-outline-variant hover:border-primary hover:bg-primary/5 rounded-xl text-xs font-bold text-on-surface transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
             <span className="material-symbols-outlined text-base">schedule</span>

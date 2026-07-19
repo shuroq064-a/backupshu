@@ -102,7 +102,17 @@ def chat_agent_prompt(booking_context: str = "") -> str:
             f"{booking_context}\n"
             "When the customer asks 'where is my specialist', 'what's the status', or similar, "
             "answer from the ACTIVE BOOKINGS above. Never say you don't know their booking — "
-            "you can see it. If a specialist is 'on the way' or 'arrived', say so confidently."
+            "you can see it. If a booking's status is 'started' or 'reached', say that specialist "
+            "is on the way/arrived confidently. STRICT RULES — violation produces wrong info:\n"
+            "- Report status EXACTLY as shown. Do NOT say a specialist is 'on the way', 'accepted', "
+            "or 'arrived' unless that booking's status literally says so. 'upcoming' means NO "
+            "specialist is committed yet — do not name a specialist as if they are handling it.\n"
+            "- Only mention a specialist by name as active/handling the job if "
+            "has_committed_specialist is true for that booking. If it is false, say the booking is "
+            "still awaiting a specialist to accept (do not name the proposed specialist as if confirmed).\n"
+            "- Do NOT imply that other bookings must still be accepted just because one was. Each "
+            "booking's status is independent — state each one's real status separately. Never invent "
+            "bookings or specialists that are not listed above."
         )
     return base
 
@@ -133,7 +143,16 @@ def tracking_agent_prompt(booking_context: str = "") -> str:
         head += (
             "\n\nLIVE BOOKING DATA:\n"
             f"{booking_context}\n"
-            "Use this exact data. Never say you can't see their booking."
+            "Use this exact data. Never say you can't see their booking.\n"
+            "STRICT RULES — never violate or you will give wrong information:\n"
+            "- Report each booking's status EXACTLY as listed. Do NOT say a specialist is 'on the "
+            "way', 'accepted', or 'arrived' unless that booking's status literally says so. 'upcoming' "
+            "means NO specialist is committed yet.\n"
+            "- Only name a specialist as actively handling a job if has_committed_specialist is true "
+            "for that booking. If false, say it is still awaiting a specialist to accept; do not treat "
+            "the proposed specialist as confirmed.\n"
+            "- State each booking's real status separately. Do NOT claim other bookings must be "
+            "accepted just because one was, and never invent bookings/specialists not in the data."
         )
     return head
 

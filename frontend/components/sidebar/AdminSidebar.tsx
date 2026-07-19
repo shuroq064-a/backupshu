@@ -11,7 +11,7 @@ import { Logo } from "../ui";
 //  Admin Sidebar
 // ─────────────────────────────────────────────
 
-export function AdminSidebar() {
+export function AdminSidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
@@ -48,26 +48,43 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside
-      className={`flex flex-col bg-gray-950 border-r border-gray-800 transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
-      } min-h-screen`}
-    >
-      {/* Logo + Collapse */}
-       <div className="flex items-center justify-between px-4 py-5 border-b border-gray-800">
-        {!collapsed && (
-          <div className="flex flex-col">
-            <Logo size="sm" textColor="light" />
-            <p className="text-xs text-gray-500 mt-0.5 ml-10">Admin Panel</p>
-          </div>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-gray-300 transition-colors ml-auto"
-        >
-          {collapsed ? "→" : "←"}
-        </button>
-      </div>
+    <>
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`flex flex-col bg-gray-950 border-r border-gray-800 transition-all duration-300
+          ${collapsed ? "md:w-16" : "md:w-64"}
+          max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:shadow-2xl max-md:transform max-md:transition-transform
+          ${mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"}`}
+      >
+        {/* Logo + Collapse */}
+         <div className="flex items-center justify-between px-4 py-5 border-b border-gray-800">
+          {!collapsed && (
+            <div className="flex flex-col">
+              <Logo size="sm" textColor="light" />
+              <p className="text-xs text-gray-500 mt-0.5 ml-10">Admin Panel</p>
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-500 hover:text-gray-300 transition-colors ml-auto max-md:hidden"
+          >
+            {collapsed ? "→" : "←"}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-gray-200 transition-colors md:hidden ml-auto"
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
 
       {/* Stats strip */}
       {!collapsed && (
@@ -138,5 +155,6 @@ export function AdminSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

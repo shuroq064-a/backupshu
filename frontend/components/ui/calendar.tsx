@@ -15,7 +15,11 @@ export const Calendar = (
   const { lazyMount = true, unmountOnExit = true, className, ...rest } = props;
   return (
     <ArkCalendar.Root
-      className={cn("[--cell-size:--spacing(9)]", "w-fit", className)}
+      className={cn(
+        "[--cell-size:2.25rem] md:[--cell-size:--spacing(9)]",
+        "w-full",
+        className
+      )}
       data-slot="calendar"
       inline
       lazyMount={lazyMount}
@@ -149,7 +153,7 @@ export const CalendarTable = (
   const { className, ...rest } = props;
   return (
     <ArkCalendar.Table
-      className={cn("group", "w-full min-w-60", "border-collapse", className)}
+      className={cn("group", "w-full min-w-0", "border-collapse", className)}
       data-slot="calendar-table"
       {...rest}
     />
@@ -245,7 +249,7 @@ export const CalendarTableCell = (
       <ArkCalendar.TableCellTrigger
         className={cn(
           "inline-flex items-center justify-center gap-1",
-          "h-(--cell-size) w-full min-w-(--cell-size) data-[view=day]:h-(--cell-size)",
+          "h-(--cell-size) w-full data-[view=day]:h-(--cell-size)",
           "select-none whitespace-nowrap font-semibold text-sm text-on-surface leading-none",
           "rounded-xl border border-transparent",
           // Hover

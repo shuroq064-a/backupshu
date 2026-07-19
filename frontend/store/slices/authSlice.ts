@@ -218,12 +218,13 @@ const authSlice = createSlice({
         if (action.payload) {
           state.user = action.payload.user;
           state.token = action.payload.token;
-          const profile =
-            action.payload.specialistProfile?.userId === action.payload.user.id
-              ? action.payload.specialistProfile
-              : null;
-          state.specialistProfile = profile;
-          state.activeMode = profile ? action.payload.activeMode : "client";
+          // Never trust the persisted specialist profile's verification status —
+          // it can be stale (e.g. "pending" from onboarding while an admin later
+          // approved the account). The dashboard refetches the live profile on
+          // mount, so we start from null and let the live data be the source of
+          // truth. This fixes "profile is approved in DB but UI still says pending".
+          state.specialistProfile = null;
+          state.activeMode = action.payload.activeMode;
           state.location = action.payload.user?.location || "";
         }
         state.isHydrated = true;

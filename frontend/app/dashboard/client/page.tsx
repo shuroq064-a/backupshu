@@ -115,7 +115,7 @@ export default function ServiceDiscoveryPage() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="max-w-[1440px] mx-auto px-6 py-8 space-y-12 font-sans text-on-surface"
+      className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 sm:space-y-12 font-sans text-on-surface"
     >
 
       {/* Hero + Mode Toggle */}

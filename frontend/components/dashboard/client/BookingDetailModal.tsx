@@ -469,8 +469,8 @@ function StatusChip({ status, small = false }: { status: string; small?: boolean
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-semibold ${small ? "px-2 py-0.5" : ""}`}
-      style={{ color: meta.color, background: meta.bg, borderColor: `${meta.color}25` }}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm ${small ? "px-2.5 py-0.5 text-[11px]" : ""}`}
+      style={{ color: meta.color, background: meta.bg, borderColor: `${meta.color}30` }}
     >
       <span className="material-symbols-outlined text-[14px] leading-none">
         {iconMap[status] || "schedule"}

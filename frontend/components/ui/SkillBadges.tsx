@@ -21,22 +21,30 @@ export function SkillBadges({
         const verified = service.status === "verified";
         const cls = verified
           ? dark
-            ? "bg-green-500/10 text-green-300 border-green-700/50"
-            : "bg-green-50 text-green-700 border-green-200"
+            ? "bg-primary-container/20 text-on-primary-container border-primary-container/40"
+            : "bg-primary-container/15 text-primary-container border-primary-container/40"
           : dark
-          ? "bg-gray-800 text-gray-400 border-gray-700"
-          : "bg-gray-100 text-gray-500 border-gray-200";
+            ? "bg-surface-container-highest text-on-surface-variant border-outline-variant/50"
+            : "bg-surface-container-low text-on-surface-variant border-outline-variant/60";
 
         return (
           <span
             key={service.service_id}
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none tracking-wide ${cls}`}
           >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                verified ? "bg-primary-container" : "bg-outline-variant"
+              }`}
+            />
             {service.service_name}
-            {!verified && <span className="font-semibold">Pending</span>}
+            {!verified && (
+              <span className="font-bold uppercase text-[9px] opacity-70">Pending</span>
+            )}
           </span>
         );
       })}
     </div>
   );
 }
+

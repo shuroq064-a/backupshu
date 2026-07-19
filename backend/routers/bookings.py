@@ -166,9 +166,26 @@ specialist_manager = SpecialistConnectionManager()
 
 
 async def notify_specialists_of_request(booking_id: str, db: Session):
-    """Notify every available, verified specialist whose skills match the new booking."""
+    """Notify the right specialists that a new booking exists.
+
+    - Assigned bookings (worker_id set) → push NEW_REQUEST straight to that
+      specialist. They must always see a request sent directly to them, even
+      if they are currently offline (the UI shows assigned requests regardless
+      of availability).
+    - Unassigned bookings → broadcast NEW_REQUEST to every available, verified
+      specialist whose skills match, so the open request can be picked up.
+    """
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    if not booking or booking.worker_id is not None or booking.status != "upcoming":
+    if not booking or booking.status != "upcoming":
+        return
+
+    if booking.worker_id is not None:
+        await specialist_manager.broadcast(booking.worker_id, {
+            "type": "NEW_REQUEST",
+            "bookingId": booking.id,
+            "serviceType": booking.service_type,
+            "bookingNumber": booking.booking_number,
+        })
         return
 
     from services.worker_matching import find_available_workers_by_intent
@@ -426,6 +443,28 @@ def create_booking(
     except ValueError:
         raise HTTPException(status_code=422, detail="scheduled_date must be YYYY-MM-DD.")
 
+    # Prevent duplicate active bookings for the SAME client + service type. A client
+    # should only ever have one open request per service; otherwise the assistant ends
+    # up reporting several "still waiting for acceptance" bookings for the same job.
+    existing = (
+        db.query(Booking)
+        .filter(
+            Booking.client_id == current_user.id,
+            Booking.service_type == payload.service_type,
+            Booking.status.in_(list(ACTIVE_STATUSES)),
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"You already have an active {payload.service_type} booking "
+                f"(#{(existing.booking_number or '').upper()}). Please wait for it to be "
+                f"completed or cancel it before requesting another."
+            ),
+        )
+
     # If a specific worker was given, validate them
     if payload.worker_id:
         worker = db.query(Worker).filter(Worker.id == payload.worker_id).first()
@@ -639,6 +678,31 @@ async def update_booking_status(
             booking.updated_at = datetime.utcnow()
             db.commit()
             db.refresh(booking)
+
+        # Prevent the client from being left "waiting for acceptance" on duplicate
+        # pending bookings for the SAME service. Once one specialist accepts, cancel
+        # the other still-upcoming bookings for this client + service type so the
+        # customer isn't told multiple specialists still need to accept the same job.
+        dup_rows = (
+            db.query(Booking)
+            .filter(
+                Booking.client_id == booking.client_id,
+                Booking.service_type == booking.service_type,
+                Booking.status == "upcoming",
+                Booking.id != booking.id,
+            )
+            .update(
+                {
+                    "status": "cancelled",
+                    "cancellation_reason": "Superseded — another specialist accepted the same request",
+                    "cancelled_by": "system",
+                    "updated_at": datetime.utcnow(),
+                },
+                synchronize_session=False,
+            )
+        )
+        db.commit()
+        db.refresh(booking)
 
     else:
         # All other transitions: specialist must own the booking
@@ -866,8 +930,21 @@ def get_worker_requests(
     if worker.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied.")
 
+    # Bookings explicitly assigned to this specialist must ALWAYS show, even when
+    # the specialist is offline — they were sent directly to them, not pulled from
+    # the open broadcast pool. Gating these behind `is_available` made specialists
+    # miss requests the moment they toggled offline.
+    assigned = (
+        db.query(Booking)
+        .filter(Booking.worker_id == worker_id, Booking.status == "upcoming")
+        .order_by(Booking.created_at.desc())
+        .all()
+    )
+
+    # The open broadcast pool (unassigned bookings matched by skill) is only shown
+    # when the specialist is listed available.
     if not worker.is_available:
-        return []
+        return [_build_detail(b, db) for b in assigned]
 
     # Get specialist's verified service names and match with the same alias
     # rules used by marketplace/intent search.
@@ -878,7 +955,7 @@ def get_worker_requests(
     ]
 
     if not my_services:
-        return []
+        return [_build_detail(b, db) for b in assigned]
 
     # Fetch all upcoming unassigned bookings
     unassigned = (
@@ -894,17 +971,11 @@ def get_worker_requests(
         if any(service_matches_intent(service_name, b.service_type) for service_name in my_services)
     ]
 
-    # Also include bookings directly assigned to this specialist (upcoming)
-    assigned = (
-        db.query(Booking)
-        .filter(Booking.worker_id == worker_id, Booking.status == "upcoming")
-        .order_by(Booking.created_at.desc())
-        .all()
-    )
-
     seen = set()
     all_requests = []
-    for b in matched + assigned:
+    # Assigned bookings (sent directly to this specialist) come FIRST — they are
+    # the most relevant and must not be buried under the open broadcast pool.
+    for b in assigned + matched:
         if b.id not in seen:
             seen.add(b.id)
             all_requests.append(b)

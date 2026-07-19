@@ -10,7 +10,7 @@ import {
   setActiveMode,
   patchUser,
 } from "@/store/slices/authSlice";
-import { Toast, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
 import AnimatedStepper from "@/components/smoothui/components/animated-stepper";
 import type { ServiceOption } from "@/types";
 
@@ -181,7 +181,7 @@ export default function SpecialistOnboarding() {
       await dispatch(fetchSpecialistProfile(user.id));
       dispatch(setActiveMode("specialist"));
 
-      showToast("Submitted for verification! 🎉 Admin will review shortly.", "success");
+      showToast("Submitted for verification! Admin will review shortly.", "success");
       router.replace("/dashboard/specialist");
     } catch (err) {
       showToast(
@@ -214,12 +214,11 @@ export default function SpecialistOnboarding() {
 
   return (
     <div className="min-h-screen bg-background font-sans text-on-surface">
-      <Toast toast={toast} onDismiss={dismiss} />
 
       {/* ── Main Content (sidebar is provided by the dashboard layout) ── */}
       <main className="flex-1 min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 border-b border-outline-variant bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 lg:px-10">
+        <header className="sticky top-0 z-30 h-16 border-b border-outline-variant bg-surface shadow-sm flex items-center justify-between px-6 lg:px-10">
           <div className="flex items-center gap-3">
             <button
               type="button"

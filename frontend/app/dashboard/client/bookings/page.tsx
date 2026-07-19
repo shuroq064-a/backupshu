@@ -9,7 +9,8 @@ import type { BookingDetail } from "@/types";
 import { STATUS_META } from "@/types";
 import { BookingDetailModal } from "@/components/dashboard/client/BookingDetailModal";
 import { ReviewForm } from "@/components/dashboard/client/ReviewForm";
-import { Toast, useToast } from "@/components/ui/Toast";
+import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
+import { useToast } from "@/components/ui/Toast";
 import {
   Calendar,
   CalendarNextTrigger,
@@ -102,7 +103,7 @@ export default function ClientBookingsPage() {
     // Close sockets for bookings that are no longer active.
     wsRefs.current.forEach((ws, id) => {
       if (!bookings.some(b => b.id === id && ACTIVE.includes(b.status))) {
-        ws.close();
+        (ws as unknown as { _safeClose?: () => void })._safeClose?.();
         wsRefs.current.delete(id);
       }
     });
@@ -110,7 +111,11 @@ export default function ClientBookingsPage() {
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => { wsRefs.current.forEach(ws => ws.close()); };
+    return () => {
+      wsRefs.current.forEach(ws =>
+        (ws as unknown as { _safeClose?: () => void })._safeClose?.()
+      );
+    };
   }, []);
 
   function openWs(bookingId: string) {
@@ -122,6 +127,18 @@ export default function ClientBookingsPage() {
     const ws = new WebSocket(
       `${WS_BASE}/ws/bookings/${encodeURIComponent(bookingId)}${query ? `?${query}` : ""}`
     );
+    // Track whether the socket has finished connecting. Closing a socket that is
+    // still in CONNECTING throws a browser warning ("closed before the connection
+    // is established"), which happens under React StrictMode's dev double-invoke.
+    // Defer the close until it opens to avoid that noisy error.
+    let opened = false;
+    ws.onopen = () => { opened = true; };
+    const safeClose = () => {
+      if (opened) ws.close();
+      else ws.onopen = () => ws.close();
+    };
+    (ws as unknown as { _safeClose?: () => void })._safeClose = safeClose;
+    wsRefs.current.set(bookingId, ws);
 
     ws.onmessage = (e) => {
       try {
@@ -134,18 +151,18 @@ export default function ClientBookingsPage() {
         ));
 
         const msg =
-          data.status === "accepted"  ? `✅ ${data.specialistName || "Specialist"} accepted your request!` :
-          data.status === "started"   ? `🚗 ${data.specialistName || "Specialist"} is on the way!` :
-          data.status === "reached"   ? `📍 Specialist has arrived!` :
-          data.status === "ongoing"   ? `🔧 Work has started!` :
-          data.status === "completed" ? `🎉 Job complete! Please rate your experience.` :
+          data.status === "accepted"  ? `${data.specialistName || "Specialist"} accepted your request!` :
+          data.status === "started"   ? `${data.specialistName || "Specialist"} is on the way!` :
+          data.status === "reached"   ? `Specialist has arrived!` :
+          data.status === "ongoing"   ? `Work has started!` :
+          data.status === "completed" ? `Job complete! Please rate your experience.` :
           null;
 
         if (msg) showToast(msg, data.status === "completed" ? "success" : "info");
 
         // On complete/cancel — close WS and prompt review
         if (data.status === "completed" || data.status === "cancelled") {
-          ws.close();
+          safeClose();
           wsRefs.current.delete(bookingId);
           if (data.status === "completed") {
             setBookings(prev => {
@@ -165,7 +182,6 @@ export default function ClientBookingsPage() {
     };
 
     ws.onclose = () => wsRefs.current.delete(bookingId);
-    wsRefs.current.set(bookingId, ws);
   }
 
   // Filter lists based on tab choice
@@ -212,8 +228,7 @@ export default function ClientBookingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-screen-2xl mx-auto space-y-8 animate-fade-in-up">
-      <Toast toast={toast} onDismiss={dismiss} />
+      <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto space-y-6 sm:space-y-8 animate-fade-in-up">
 
       {/* Top Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-outline-variant/60">
@@ -222,12 +237,12 @@ export default function ClientBookingsPage() {
           <p className="text-sm text-on-surface-variant mt-1.5">Manage your active progress, upcoming tasks, and transaction history.</p>
         </div>
         {/* Quick Filter Buttons */}
-        <div className="flex bg-surface-container-low p-1 rounded-xl shadow-inner border border-outline-variant/30 shrink-0">
+        <div className="flex bg-surface-container-low p-1 rounded-xl shadow-inner border border-outline-variant/30 shrink-0 overflow-x-auto max-md:w-full">
           {(["all", "active", "upcoming", "completed"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => handleTabChange(tab)}
-              className={`px-5 py-2 text-xs font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer ${
+              className={`px-5 py-2 text-xs font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === tab
                   ? "bg-surface-container-lowest text-primary shadow-sm border border-black/5"
                   : "text-on-surface-variant hover:text-primary"
@@ -516,15 +531,13 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
         )}
       </div>
 
-      {/* Progress display */}
-      <div className="space-y-2 mb-5">
+      {/* Progress display — status label + horizontal stepper */}
+      <div className="space-y-3 mb-5">
         <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
           <span className="text-primary">{statusMeta.label}</span>
           <span className="text-on-surface-variant">{progressPercent}%</span>
         </div>
-        <div className="w-full bg-surface-container rounded-full h-2">
-          <div className="bg-primary h-2 rounded-full transition-all duration-700" style={{ width: `${progressPercent}%` }}></div>
-        </div>
+        <BookingProgressCard booking={booking} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-outline-variant/60">
@@ -605,8 +618,8 @@ function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
           </div>
           <div>
             <h4 className="font-bold text-gray-900 leading-snug">{booking.serviceType}</h4>
-            <p className="text-xs text-on-surface-variant mt-0.5">📍 {booking.address}</p>
-            <p className="text-[10px] text-gray-400 mt-1">📅 {dateStr} · Time: {booking.scheduledTime}</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">{booking.address}</p>
+            <p className="text-[10px] text-gray-400 mt-1">{dateStr} · Time: {booking.scheduledTime}</p>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">

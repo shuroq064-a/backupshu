@@ -8,7 +8,7 @@ import { getToken } from "@/lib/auth";
 import { WS_BASE_URL } from "@/lib/config";
 import { useAppSelector } from "@/store";
 import { SkillBadges } from "@/components/ui/SkillBadges";
-import { Toast, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
 import { useProfileGuard } from "@/hooks/UseProfileguard";
 import { Loader } from "@/components/prompt-kit/loader";
 import { SpecialistDetailsModal } from "@/components/dashboard/client/SpecialistDetailsModal";
@@ -577,11 +577,10 @@ export default function RedesignedClientChat() {
 
   return (
     <div className="flex h-full flex-col md:flex-row overflow-hidden bg-background text-on-surface">
-      <Toast toast={toast} onDismiss={dismiss} />
 
       {/* Sidebar / Active Chats List Panel */}
       <section className="relative w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-outline-variant bg-surface-container-lowest flex flex-col h-full max-md:h-[42vh]"
-        style={{ width: sidebarWidth }}>
+        style={{ width: typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches ? sidebarWidth : undefined }}>
         <div className="p-5 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
           <div>
             <h3 className="font-semibold text-lg text-primary dark:text-white">Active Chats</h3>
@@ -733,7 +732,7 @@ export default function RedesignedClientChat() {
         </ChatContainerRoot>
 
         {/* Input Bar */}
-        <div className="border-t border-outline-variant bg-surface p-4">
+        <div className="p-4">
           <div className="mx-auto max-w-3xl">
             <ChatPromptInput
               value={input}
@@ -822,28 +821,7 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
     <Message>
       <MessageAvatar fallback="SX" />
       <MessageContent className="max-w-xl space-y-2">
-        {message.agentTrace && message.agentTrace.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            {message.agentTrace.map((step, i) => (
-              <span
-                key={i}
-                className={
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border " +
-                  (step.kind === "agent"
-                    ? "bg-primary/10 text-primary border-primary/30"
-                    : step.kind === "tool"
-                    ? "bg-secondary-container/40 text-on-secondary-container border-outline-variant"
-                    : "bg-surface-container text-on-surface-variant border-outline-variant")
-                }
-              >
-                {step.kind === "agent" && <span className="material-symbols-outlined text-[12px]">smart_toy</span>}
-                {step.kind === "tool" && <span className="material-symbols-outlined text-[12px]">build</span>}
-                {step.kind === "thought" && <span className="material-symbols-outlined text-[12px]">psychology</span>}
-                <span className="max-w-[220px] truncate">{step.text}</span>
-              </span>
-            ))}
-          </div>
-        )}
+
         {message.specialist && isAccepted && (
           <SpecialistCard
             specialist={message.specialist}
@@ -915,7 +893,11 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
                       </p>
                     </div>
                     {selected && message.bookingPending && (
-                      <span className="text-[10px] font-bold text-primary">Booked ✓</span>
+                      liveStatus === "accepted" ? (
+                        <span className="text-[10px] font-bold text-primary">Booked ✓</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-on-surface-variant">Requested</span>
+                      )
                     )}
                   </button>
                 );
@@ -933,7 +915,7 @@ function WaitingCard() {
     <div className="bg-surface-container-lowest rounded-2xl rounded-tl-sm p-5 shadow-sm border border-outline-variant max-w-sm">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0">
-          <span className="text-lg animate-bounce text-primary">🔍</span>
+          <span className="material-symbols-outlined text-lg animate-bounce text-primary">search</span>
         </div>
         <div>
           <p className="text-sm font-semibold text-on-surface">Finding specialists...</p>
@@ -1058,7 +1040,7 @@ function SpecialistDirectChat() {
         View All Contacts
       </Link>
       <div className="w-full bg-surface-container-low p-4 rounded-2xl text-xs text-on-surface-variant border border-outline-variant mt-2">
-        ℹ️ Live chat messages with specialists are archived for safety.
+        Live chat messages with specialists are archived for safety.
       </div>
     </div>
   );
