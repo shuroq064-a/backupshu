@@ -43,6 +43,9 @@ export interface AreaChartProps {
   revealSignature?: string;
   /** Aspect ratio as "width / height". Default: "2 / 1" */
   aspectRatio?: string;
+  /** Fixed pixel height. When set, overrides `aspectRatio` so the chart keeps a
+   *  constant plot height regardless of container width. */
+  height?: number;
   /** Additional class name for the container */
   className?: string;
   /** Loading vs ready — drives chart phase and loading chrome. Default: `"ready"`. */
@@ -192,6 +195,7 @@ export function AreaChart({
   enterTransition,
   revealSignature,
   aspectRatio = "2 / 1",
+  height,
   className = "",
   status = DEFAULT_CHART_STATUS,
   loadingLabel,
@@ -229,7 +233,7 @@ export function AreaChart({
     <div
       className={cn("relative w-full", className)}
       ref={containerRef}
-      style={{ aspectRatio, touchAction: "none", ...style }}
+      style={height != null ? { height, touchAction: "none", ...style } : { aspectRatio, touchAction: "none", ...style }}
     >
       <ParentSize debounceTime={10}>
         {({ width, height }) => (

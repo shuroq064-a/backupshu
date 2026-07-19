@@ -1,13 +1,13 @@
 import { ProgressCard, type Step } from "@/components/blocks/card-progress/progress-card";
 import type { BookingDetail } from "@/types";
 
-const LIFECYCLE: { key: string; title: string }[] = [
-  { key: "upcoming", title: "Requested" },
-  { key: "accepted", title: "Accepted" },
-  { key: "started", title: "On the Way" },
-  { key: "reached", title: "Arrived" },
-  { key: "ongoing", title: "Working" },
-  { key: "completed", title: "Completed" },
+const LIFECYCLE: { key: string; title: string; description: string }[] = [
+  { key: "upcoming", title: "Requested", description: "Client requested the service" },
+  { key: "accepted", title: "Accepted", description: "You accepted the job" },
+  { key: "started", title: "On the Way", description: "Heading to the location" },
+  { key: "reached", title: "Arrived", description: "Reached the client" },
+  { key: "ongoing", title: "Working", description: "Service in progress" },
+  { key: "completed", title: "Completed", description: "Job finished" },
 ];
 
 const ORDER = ["upcoming", "accepted", "started", "reached", "ongoing", "completed"];
@@ -21,8 +21,8 @@ export function BookingProgressCard({ booking }: { booking: BookingDetail }) {
 
   if (status === "cancelled" || status === "rejected") {
     const steps: Step[] = [
-      { id: "req", title: "Requested", status: "complete" },
-      { id: "end", title: status === "cancelled" ? "Cancelled" : "Rejected", status: "error" },
+      { id: "req", title: "Requested", description: "Client requested the service", status: "complete" },
+      { id: "end", title: status === "cancelled" ? "Cancelled" : "Rejected", description: "Booking did not proceed", status: "error" },
     ];
     return <ProgressCard steps={steps} />;
   }
@@ -31,6 +31,7 @@ export function BookingProgressCard({ booking }: { booking: BookingDetail }) {
   const steps: Step[] = LIFECYCLE.map((s, i) => ({
     id: s.key,
     title: s.title,
+    description: s.description,
     status:
       curIdx < 0
         ? "pending"

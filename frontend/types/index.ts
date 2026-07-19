@@ -414,14 +414,14 @@ export interface BookingReview {
 }
 
 // ── Status metadata ───────────────────────────────────────────────────────────
-export const STATUS_META: Record<string, { label: string; color: string; bg: string; next?: string; nextLabel?: string }> = {
-  schedulePending: { label: "Scheduling", color: "#00535B", bg: "#E6F4F5" },
-  upcoming:  { label: "Pending",        color: "#7C3AED", bg: "#F5F3FF" },
-  accepted:  { label: "Accepted",       color: "#2563EB", bg: "#EFF6FF", next: "started",   nextLabel: "Start Journey" },
-  started:   { label: "On the Way",     color: "#D97706", bg: "#FEF3C7", next: "reached",   nextLabel: "Arrived at Location" },
-  reached:   { label: "Arrived",        color: "#059669", bg: "#ECFDF5", next: "ongoing",   nextLabel: "Start Work" },
-  ongoing:   { label: "Work in Progress",color: "#0891B2",bg: "#ECFEFF", next: "completed", nextLabel: "Mark Complete" },
-  completed: { label: "Completed",      color: "#059669", bg: "#ECFDF5" },
-  cancelled: { label: "Cancelled",      color: "#DC2626", bg: "#FEF2F2" },
-  rejected:  { label: "Rejected",       color: "#DC2626", bg: "#FEF2F2" },
+export const STATUS_META: Record<string, { label: string; color: string; bg: string; className: string; next?: string; nextLabel?: string }> = {
+  schedulePending: { label: "Scheduling", color: "#00535B", bg: "#E6F4F5", className: "bg-primary/15 text-primary" },
+  upcoming:  { label: "Pending",        color: "#7C3AED", bg: "#F5F3FF", className: "bg-violet-600/15 text-violet-600" },
+  accepted:  { label: "Accepted",       color: "#2563EB", bg: "#EFF6FF", className: "bg-blue-600/15 text-blue-600", next: "started",   nextLabel: "Start Journey" },
+  started:   { label: "On the Way",     color: "#D97706", bg: "#FEF3C7", className: "bg-amber-50 text-amber-700 border border-amber-100", next: "reached",   nextLabel: "Arrived at Location" },
+  reached:   { label: "Arrived",        color: "#059669", bg: "#ECFDF5", className: "bg-green-600/15 text-green-600", next: "ongoing",   nextLabel: "Start Work" },
+  ongoing:   { label: "Work in Progress",color: "#0891B2",bg: "#ECFEFF", className: "bg-cyan-600/15 text-cyan-600", next: "completed", nextLabel: "Mark Complete" },
+  completed: { label: "Completed",      color: "#059669", bg: "#ECFDF5", className: "bg-green-600/15 text-green-600" },
+  cancelled: { label: "Cancelled",      color: "#DC2626", bg: "#FEF2F2", className: "bg-red-600/15 text-red-600" },
+  rejected:  { label: "Rejected",       color: "#DC2626", bg: "#FEF2F2", className: "bg-red-600/15 text-red-600" },
 };

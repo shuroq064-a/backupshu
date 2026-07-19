@@ -14,6 +14,7 @@ if __package__ and "." in __package__:
     from ..database import get_db
     from ..services.nlp_service import predict_pipeline
     from ..services.worker_matching import find_available_workers_by_intent
+    from sqlalchemy import func
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
     if BACKEND_DIR not in sys.path:
@@ -25,6 +26,7 @@ else:
     from database import get_db
     from services.nlp_service import predict_pipeline
     from services.worker_matching import find_available_workers_by_intent
+    from sqlalchemy import func
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
@@ -38,10 +40,25 @@ def _resolve_search_intent(query: str) -> str:
         return ""
 
 
+def _worker_rating(worker_id: str, db: Session):
+    """Real average rating from completed-service customer reviews (1–5)."""
+    result = db.query(
+        func.avg(dbmodels.Booking.customer_rating),
+        func.count(dbmodels.Booking.customer_rating),
+    ).filter(
+        dbmodels.Booking.worker_id == worker_id,
+        dbmodels.Booking.customer_rating.isnot(None),
+    ).first()
+    return (round(float(result[0]), 1) if result[0] else 0.0), (result[1] or 0)
+
+
 def _to_marketplace_specialist(
     worker: models.MatchedWorkerOut,
+    db: Session,
 ) -> models.MarketplaceSpecialistOut:
     display_name = (worker.name or "").strip() or worker.email.split("@")[0] or "Specialist"
+
+    avg_rating, _review_count = _worker_rating(worker.id, db)
 
     return models.MarketplaceSpecialistOut(
         workerId=worker.id,
@@ -52,6 +69,7 @@ def _to_marketplace_specialist(
         email=worker.email,
         isAvailable=worker.isAvailable,
         isVerified=worker.isVerified,
+        rating=avg_rating or None,
     )
 
 
@@ -71,4 +89,4 @@ def search_specialists(
     intent = _resolve_search_intent(query)
     workers = find_available_workers_by_intent(db, intent)
 
-    return [_to_marketplace_specialist(worker) for worker in workers]
+    return [_to_marketplace_specialist(worker, db) for worker in workers]

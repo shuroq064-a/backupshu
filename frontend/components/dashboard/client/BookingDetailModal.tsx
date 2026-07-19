@@ -455,7 +455,7 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
 // ─────────────────────────────────────────────
 
 function StatusChip({ status, small = false }: { status: string; small?: boolean }) {
-  const meta = STATUS_META[status] || { label: status, color: "#00535b", bg: "#F0FDFA" };
+  const meta = STATUS_META[status] || { label: status, color: "#00535b", bg: "#F0FDFA", className: "bg-slate-600/15 text-slate-600" };
   const iconMap: Record<string, string> = {
     ongoing: "autorenew",
     upcoming: "schedule",
@@ -469,8 +469,7 @@ function StatusChip({ status, small = false }: { status: string; small?: boolean
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm ${small ? "px-2.5 py-0.5 text-[11px]" : ""}`}
-      style={{ color: meta.color, background: meta.bg, borderColor: `${meta.color}30` }}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${meta.className} ${small ? "px-2.5 py-0.5 text-[10px]" : ""}`}
     >
       <span className="material-symbols-outlined text-[14px] leading-none">
         {iconMap[status] || "schedule"}

@@ -266,7 +266,7 @@ export default function ServiceDiscoveryPage() {
                       </div>
                       <div className="flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/30 text-xs font-bold text-on-surface">
                         <span className="material-symbols-outlined text-amber-400 text-sm font-fill" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                        <span>4.9</span>
+                        <span>{sp.rating != null ? sp.rating.toFixed(1) : "New"}</span>
                       </div>
                     </div>
 
@@ -344,7 +344,11 @@ export default function ServiceDiscoveryPage() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-sm text-primary">â‚¹{tx.amount}</p>
+                  {tx.status === "cancelled" ? (
+                    <p className="font-bold text-sm text-on-surface-variant">—</p>
+                  ) : (
+                    <p className="font-bold text-sm text-primary">₹{tx.amount}</p>
+                  )}
                   <span
                     className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
                       tx.status === "completed"

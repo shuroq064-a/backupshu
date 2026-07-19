@@ -73,6 +73,9 @@ export interface BarChartProps {
   revealSignature?: string;
   /** Aspect ratio as "width / height". Default: "2 / 1" */
   aspectRatio?: string;
+  /** Fixed pixel height. When set, overrides `aspectRatio` so the chart keeps a
+   *  constant plot height regardless of container width. */
+  height?: number;
   /** Additional class name for the container */
   className?: string;
   /** Gap between bar groups as a fraction of band width (0-1). Default: 0.2 */
@@ -678,6 +681,7 @@ export function BarChart({
   enterTransition,
   revealSignature,
   aspectRatio = "2 / 1",
+  height,
   className = "",
   barGap = 0.2,
   barWidth,
@@ -696,7 +700,7 @@ export function BarChart({
     <div
       className={cn("relative w-full overflow-visible", className)}
       ref={containerRef}
-      style={{ aspectRatio }}
+      style={height != null ? { height } : { aspectRatio }}
     >
       <ParentSize debounceTime={10}>
         {({ width, height }) => (

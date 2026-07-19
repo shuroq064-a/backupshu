@@ -424,7 +424,7 @@ export default function SpecialistDashboard() {
         <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-sm relative overflow-hidden group">
           <h3 className="text-on-surface-variant font-bold text-xs uppercase tracking-wider mb-2">Total Earnings</h3>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-primary">
+            <span className="text-3xl font-extrabold text-green-600">
               ₹{Math.round(earnings.total).toLocaleString("en-IN")}
             </span>
             <span className="flex items-center text-tertiary text-xs font-bold gap-0.5">
@@ -596,8 +596,8 @@ export default function SpecialistDashboard() {
         {/* Right Side: Profit & Actions */}
         <div className="space-y-10">
           {/* Earnings chart (switchable via dropdown) */}
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 pb-8 shadow-sm">
-            <div className="flex items-center justify-between mb-4 gap-3">
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-2 gap-3">
               <h3 className="text-on-surface font-bold text-base">
                 {chartType === "profit" ? "Profit" : "Completed Jobs"}
               </h3>
@@ -618,7 +618,7 @@ export default function SpecialistDashboard() {
               </div>
             </div>
             {chartStyle === "area" ? (
-              <AreaChart data={chartData} xDataKey="date" aspectRatio="2 / 1">
+              <AreaChart data={chartData} xDataKey="date" aspectRatio="2 / 1" margin={{ top: 10, right: 14, bottom: 24, left: 14 }}>
                 <Grid horizontal />
                 <Area
                   dataKey={chartKey}
@@ -627,11 +627,11 @@ export default function SpecialistDashboard() {
                   showMarkers
                   markers={{ radius: 5, ringGap: 2, strokeWidth: 2 }}
                 />
-                <XAxis tickMode="data" />
+                <XAxis tickMode="data" numTicks={4} />
                 <ChartTooltip />
               </AreaChart>
             ) : (
-              <BarChart data={chartData} xDataKey="day" aspectRatio="2 / 1">
+              <BarChart data={chartData} xDataKey="day" aspectRatio="2 / 1" margin={{ top: 10, right: 14, bottom: 24, left: 14 }}>
                 <Grid horizontal />
                 <Bar dataKey={chartKey} fill="#16a34a" lineCap="round" />
                 <BarXAxis />

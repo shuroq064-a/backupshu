@@ -15,8 +15,12 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
-        <span key={s} className={`text-base ${s <= Math.round(rating) ? "text-amber-400" : "text-surface-container-highest"}`}>
-          â˜…
+        <span
+          key={s}
+          className={`material-symbols-outlined text-base ${s <= Math.round(rating) ? "text-amber-400" : "text-surface-container-highest"}`}
+          style={s <= Math.round(rating) ? { fontVariationSettings: "'FILL' 1" } : undefined}
+        >
+          star
         </span>
       ))}
     </div>

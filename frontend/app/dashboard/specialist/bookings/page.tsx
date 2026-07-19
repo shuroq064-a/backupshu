@@ -15,14 +15,14 @@ import { STATUS_META as SM } from "@/types";
 
 const SPECIALIST_ACTIONS: Record<string, { label: string; icon: string; next: string; color: string }> = {
    accepted: { label: "Start Journey",       icon: "directions_car", next: "started",   color: "bg-primary hover:bg-primary-container text-white" },
-   started:  { label: "Arrived at Location", icon: "location_on", next: "reached",   color: "bg-primary-container hover:bg-primary text-white" },
-   reached:  { label: "Start Work",          icon: "build", next: "ongoing",   color: "bg-amber-500 hover:bg-amber-600 text-white" },
-   ongoing:  { label: "Mark Complete",       icon: "check_circle", next: "completed", color: "bg-green-600 hover:bg-green-700 text-white" },
+   started:  { label: "Arrived at Location", icon: "location_on", next: "reached",   color: "bg-primary hover:bg-primary-container text-white" },
+   reached:  { label: "Start Work",          icon: "build", next: "ongoing",   color: "bg-primary hover:bg-primary-container text-white" },
+   ongoing:  { label: "Mark Complete",       icon: "check_circle", next: "completed", color: "bg-primary hover:bg-primary-container text-white" },
 };
 
 const REQUESTS_PER_PAGE = 5;
 const APPOINTMENTS_PER_PAGE = 6;
-const HISTORY_PER_PAGE = 8;
+const HISTORY_PER_PAGE = 5;
 
 export default function BookingsManagerPage() {
   const dispatch = useAppDispatch();
@@ -43,6 +43,7 @@ export default function BookingsManagerPage() {
   const [requestPage, setRequestPage] = useState(1);
   const [apptPage, setApptPage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
+  const [activePage, setActivePage] = useState(1);
 
   const currentProfile = specialistProfile?.userId === user?.id ? specialistProfile : null;
   const workerId = currentProfile?.id;
@@ -64,6 +65,12 @@ export default function BookingsManagerPage() {
   const pagedHistory = completedJobs.slice(
     (Math.min(historyPage, historyPageCount) - 1) * HISTORY_PER_PAGE,
     Math.min(historyPage, historyPageCount) * HISTORY_PER_PAGE
+  );
+
+  const activePageCount = Math.max(1, Math.ceil(activeJobs.length / 4));
+  const pagedActiveJobs = activeJobs.slice(
+    (Math.min(activePage, activePageCount) - 1) * 4,
+    Math.min(activePage, activePageCount) * 4
   );
 
   // ── Load Profile ──
@@ -304,10 +311,20 @@ export default function BookingsManagerPage() {
                   {activeJobs.length} Ongoing
                 </span>
               </div>
-              <BookingProgressCard booking={activeJobs[0]} />
+              <div className="rounded-2xl bg-surface-container px-4 py-5 border border-outline-variant/60">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                    Booking Progress
+                  </p>
+                  <span className="text-xs font-semibold text-primary">
+                    {SM[activeJobs[0].status]?.label || activeJobs[0].status}
+                  </span>
+                </div>
+                <BookingProgressCard booking={activeJobs[0]} />
+              </div>
 
               <div className="space-y-4 pt-1">
-                {activeJobs.map((job) => {
+                {pagedActiveJobs.map((job) => {
                   const action = SPECIALIST_ACTIONS[job.status];
                   return (
                     <div
@@ -341,12 +358,13 @@ export default function BookingsManagerPage() {
 
                         <div className="flex gap-2.5 shrink-0 items-center md:ml-auto">
                           <button
-                            onClick={() => router.push(`/dashboard/specialist/chat?clientName=${encodeURIComponent(job.clientName || "")}`)}
-                            className="p-3 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl transition-all cursor-pointer"
-                            aria-label="Chat"
-                          >
-                            <span className="material-symbols-outlined text-sm">chat</span>
-                          </button>
+                             onClick={() => router.push(`/dashboard/specialist/chat?clientName=${encodeURIComponent(job.clientName || "")}`)}
+                             className="flex items-center justify-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer"
+                             aria-label="Chat"
+                           >
+                             <span className="material-symbols-outlined text-[18px]">chat</span>
+                             <span className="text-xs font-bold">Chat</span>
+                           </button>
                           {action && (
                             <button
                               onClick={() => handleStatusUpdate(job.id, action.next)}
@@ -362,6 +380,13 @@ export default function BookingsManagerPage() {
                     </div>
                   );
                 })}
+                <PaginationBar
+                  page={Math.min(activePage, activePageCount)}
+                  pageCount={activePageCount}
+                  perPage={4}
+                  total={activeJobs.length}
+                  onPage={setActivePage}
+                />
               </div>
             </div>
           )}
@@ -474,6 +499,7 @@ export default function BookingsManagerPage() {
                 <p className="font-semibold text-sm">No transaction history found.</p>
               </div>
             ) : (
+              <>
               <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
@@ -493,24 +519,25 @@ export default function BookingsManagerPage() {
                           <td className="p-4 font-bold text-on-surface">{job.clientName}</td>
                           <td className="p-4">{job.serviceType}</td>
                           <td className="p-4 font-bold text-primary">₹{job.costBreakdown?.total || job.amount || 100}</td>
-                          <td className="p-4">
-                            <span className="px-2.5 py-1 bg-primary/10 text-primary text-[10px] font-extrabold rounded-full uppercase">
-                              {job.status}
-                            </span>
-                          </td>
+                           <td className="p-4">
+                             <span className="px-2.5 py-1 bg-green-600/15 text-green-600 text-[10px] font-extrabold rounded-full uppercase">
+                               {job.status}
+                             </span>
+                           </td>
                         </tr>
                       ))}
                     </tbody>
                    </table>
                  </div>
-                 <PaginationBar
-                   page={Math.min(historyPage, historyPageCount)}
-                   pageCount={historyPageCount}
-                   perPage={HISTORY_PER_PAGE}
-                   total={completedJobs.length}
-                   onPage={setHistoryPage}
-                 />
                </div>
+               <PaginationBar
+                 page={Math.min(historyPage, historyPageCount)}
+                 pageCount={historyPageCount}
+                 perPage={HISTORY_PER_PAGE}
+                 total={completedJobs.length}
+                 onPage={setHistoryPage}
+               />
+               </>
              )}
           </div>
 
@@ -586,7 +613,7 @@ export default function BookingsManagerPage() {
                         <p className="text-[10px] text-gray-400 capitalize">{srv.status || "verified"}</p>
                       </div>
                     </div>
-                    <span className="px-2.5 py-1 bg-green-50 text-green-700 text-[10px] font-bold rounded-full uppercase">
+                    <span className="px-2.5 py-1 bg-green-600/15 text-green-600 text-[10px] font-bold rounded-full uppercase">
                       Active
                     </span>
                   </div>
@@ -645,7 +672,6 @@ function PaginationBar({
   total: number;
   onPage: (p: number) => void;
 }) {
-  if (pageCount <= 1) return null;
   const from = total === 0 ? 0 : (page - 1) * perPage + 1;
   const to = Math.min(page * perPage, total);
   return (
@@ -655,6 +681,7 @@ function PaginationBar({
         <span className="font-semibold text-on-surface">{to}</span> of{" "}
         <span className="font-semibold text-on-surface">{total}</span>
       </p>
+      {pageCount > 1 && (
       <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 no-scrollbar">
         <button
           onClick={() => onPage(page - 1)}
@@ -692,6 +719,7 @@ function PaginationBar({
           <span className="material-symbols-outlined text-sm">chevron_right</span>
         </button>
       </div>
+      )}
     </div>
   );
 }

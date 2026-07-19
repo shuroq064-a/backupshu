@@ -22,7 +22,7 @@ export function SkillBadges({
         const cls = verified
           ? dark
             ? "bg-primary-container/20 text-on-primary-container border-primary-container/40"
-            : "bg-primary-container/15 text-primary-container border-primary-container/40"
+            : "bg-primary/10 text-primary border-primary/30"
           : dark
             ? "bg-surface-container-highest text-on-surface-variant border-outline-variant/50"
             : "bg-surface-container-low text-on-surface-variant border-outline-variant/60";
@@ -34,7 +34,7 @@ export function SkillBadges({
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                verified ? "bg-primary-container" : "bg-outline-variant"
+                verified ? "bg-primary" : "bg-outline-variant"
               }`}
             />
             {service.service_name}

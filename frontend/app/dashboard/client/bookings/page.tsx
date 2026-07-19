@@ -504,7 +504,7 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
 }) {
   const icon = SERVICE_ICONS_OUTLINED[booking.serviceType] || "build";
   const progressPercent = STATUS_PROGRESS[booking.status] || 0;
-  const statusMeta = STATUS_META[booking.status] || { label: booking.status, color: "#475569", bg: "#f1f5f9" };
+  const statusMeta = STATUS_META[booking.status] || { label: booking.status, color: "#475569", bg: "#f1f5f9", className: "bg-slate-600/15 text-slate-600" };
 
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm border-l-4 border-primary transition-all hover:shadow-md">
@@ -607,7 +607,7 @@ function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
   const dateStr = booking.scheduledDate
     ? new Date(booking.scheduledDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : "";
-  const statusMeta = STATUS_META[booking.status] || { label: booking.status, color: "#64748B", bg: "#F1F5F9" };
+  const statusMeta = STATUS_META[booking.status] || { label: booking.status, color: "#64748B", bg: "#F1F5F9", className: "bg-slate-600/15 text-slate-600" };
 
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-primary/10 transition-all">
@@ -624,8 +624,7 @@ function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
           <span className="font-extrabold text-gray-900">₹{booking.amount}</span>
-          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
-            style={{ color: statusMeta.color, background: statusMeta.bg, borderColor: `${statusMeta.color}15` }}>
+          <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase ${statusMeta.className}`}>
             {statusMeta.label}
           </span>
         </div>

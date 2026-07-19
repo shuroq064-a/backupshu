@@ -28,15 +28,15 @@ const PERIOD_LABEL: Record<Period, string> = {
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const SERVICE_ICONS: Record<string, string> = {
-  plumbing: "🔧",
-  plumber: "🔧",
-  "ac repair": "❄️",
-  carpenter: "🪚",
-  carpentry: "🪚",
-  electrical: "⚡",
-  electrician: "⚡",
-  cleaning: "🧹",
-  painting: "🎨",
+  plumbing: "plumbing",
+  plumber: "plumbing",
+  "ac repair": "ac_unit",
+  carpenter: "construction",
+  carpentry: "construction",
+  electrical: "bolt",
+  electrician: "bolt",
+  cleaning: "clean_hands",
+  painting: "brush",
 };
 
 function startOfDay(date: Date) {
@@ -268,22 +268,28 @@ export default function SpecialistEarningsPage() {
 
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-5 shadow-sm">
         <h2 className="text-base font-bold text-gray-900 mb-4">Daily Breakdown (This Week)</h2>
-        <div className="flex items-end gap-2 h-32">
+        <div className="flex items-end gap-2 sm:gap-3 h-40">
           {weeklyData.map((day, index) => {
             const heightPct = Math.max(4, Math.round((day.amount / maxAmount) * 100));
             const isToday = index === todayIndex;
+            const hasEarnings = day.amount > 0;
             return (
-              <div key={day.day} className="flex-1 flex flex-col items-center gap-1">
-                <p className="text-xs text-gray-500">{formatCurrency(day.amount)}</p>
-                <div className="w-full flex items-end" style={{ height: "80px" }}>
+              <div key={day.day} className="flex-1 flex flex-col items-center gap-1.5">
+                <p className={`text-[11px] font-semibold ${hasEarnings ? "text-gray-700" : "text-gray-400"}`}>{formatCurrency(day.amount)}</p>
+                <div className="w-full flex items-end" style={{ height: "96px" }}>
                   <div
                     className={`w-full rounded-t-lg transition-all ${
-                      isToday ? "bg-gradient-to-t from-primary to-primary-container" : "bg-primary-container hover:bg-primary-fixed-dim"
+                      isToday
+                        ? "bg-gradient-to-t from-primary to-primary-container"
+                        : hasEarnings
+                        ? "bg-primary-container hover:bg-primary-fixed-dim"
+                        : "bg-surface-container-high"
                     }`}
                     style={{ height: `${heightPct}%` }}
+                    title={`${day.day}: ${formatCurrency(day.amount)}`}
                   />
                 </div>
-                <p className="text-xs font-medium text-gray-600">{day.day}</p>
+                <p className={`text-xs font-medium ${isToday ? "text-primary" : "text-gray-500"}`}>{day.day}</p>
               </div>
             );
           })}
@@ -310,12 +316,12 @@ export default function SpecialistEarningsPage() {
           <div className="divide-y divide-gray-50">
             {periodBookings.map(booking => {
               const date = getBookingDate(booking);
-              const icon = SERVICE_ICONS[booking.serviceType.toLowerCase()] || "₹";
+              const icon = SERVICE_ICONS[booking.serviceType.toLowerCase()] || "handyman";
               return (
                 <div key={booking.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="w-10 h-10 rounded-xl bg-primary-container/40 flex items-center justify-center text-xl flex-shrink-0">
-                    {icon}
-                  </div>
+                   <div className="w-10 h-10 rounded-xl bg-primary-container/40 flex items-center justify-center text-primary flex-shrink-0">
+                     <span className="material-symbols-outlined text-[20px]">{icon}</span>
+                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900">{booking.serviceType}</p>
                     <p className="text-xs text-gray-400 truncate">
