@@ -36,7 +36,7 @@ if __package__ and "." in __package__:
     from ..database import get_db
     from .. import models, dbmodels
     from ..auth_utils import get_current_user
-    from ..services.llm.frenix_client import LLMUnavailable
+    from ..services.llm.model_client import LLMUnavailable
     from ..agents import run_agents
     from ..agents.sse import ev_start, ev_error, ev_done
 else:
@@ -46,7 +46,7 @@ else:
     from database import get_db
     import models, dbmodels
     from auth_utils import get_current_user
-    from services.llm.frenix_client import LLMUnavailable
+    from services.llm.model_client import LLMUnavailable
     from agents import run_agents
     from agents.sse import ev_start, ev_error, ev_done
 

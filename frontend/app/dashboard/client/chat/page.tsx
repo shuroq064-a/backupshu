@@ -823,7 +823,7 @@ export default function RedesignedClientChat() {
         ) : activeConversation ? (
           <SpecialistDirectChat
             conversation={activeConversation}
-            currentUserId={user?.id || ""}
+            currentUser={user}
             onSent={() => void loadConversations()}
             onError={(m) => showToast(m, "error")}
           />
@@ -1132,12 +1132,12 @@ function fmtTime(iso: string): string {
 
 function SpecialistDirectChat({
   conversation,
-  currentUserId,
+  currentUser,
   onSent,
   onError,
 }: {
   conversation: ConversationDTO;
-  currentUserId: string;
+  currentUser: User | null;
   onSent: () => void;
   onError: (message: string) => void;
 }) {
@@ -1145,7 +1145,6 @@ function SpecialistDirectChat({
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
   const bookingId = conversation.bookingId;
 
@@ -1218,10 +1217,6 @@ function SpecialistDirectChat({
     return () => ws.close();
   }, [bookingId, appendPush, load]);
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs]);
-
   async function send() {
     const body = text.trim();
     if (!body || sending) return;
@@ -1231,7 +1226,7 @@ function SpecialistDirectChat({
       id: `temp-${Date.now()}`,
       bookingId,
       senderType: "client",
-      senderId: currentUserId,
+      senderId: currentUser?.id || "",
       recipientType: "worker",
       recipientId: conversation.otherId,
       text: body,
@@ -1253,66 +1248,74 @@ function SpecialistDirectChat({
     }
   }
 
+  const clientAvatar = getSpecialistAvatar(
+    currentUser?.name || currentUser?.email?.split("@")[0] || "You",
+  );
+  const specialistAvatar = getSpecialistAvatar(conversation.otherName, conversation.serviceType || undefined);
+
   return (
     <>
-      <div className="flex-1 min-h-0 overflow-y-auto chat-scrollbar p-4 md:p-6 space-y-3">
-        {loading && msgs.length === 0 ? (
-          <div className="flex justify-center py-10">
-            <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-          </div>
-        ) : msgs.length === 0 ? (
-          <div className="text-center text-sm text-on-surface-variant py-10">
-            No messages yet. Say hello to {conversation.otherName}!
-          </div>
-        ) : (
-          msgs.map((m) => {
-            // A message is "mine" if it was NOT sent by the person I'm chatting
-            // with. comparing against the known other-party id is robust against
-            // mismatches between the local user.id and the server-stored sender id.
-            const isMe = m.senderId !== conversation.otherId;
-            return (
-              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-                  <div
-                    className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      isMe
-                        ? "bg-primary text-on-primary rounded-tr-sm"
-                        : "bg-surface-container-lowest text-on-surface border border-outline-variant rounded-tl-sm"
-                    }`}
-                  >
-                    {m.text}
-                  </div>
-                  <span className="text-[10px] text-on-surface-variant px-1">{fmtTime(m.createdAt)}</span>
-                </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={endRef} />
-      </div>
-
-      {/* Specialist Direct Message Input */}
-      <div className="p-4 border-t border-outline-variant bg-surface-container-low">
-        <div className="mx-auto max-w-3xl flex items-center gap-3">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
+      <ChatContainerRoot className="chat-scrollbar">
+        <ChatContainerContent className="p-4 md:p-6 space-y-4">
+          {loading && msgs.length === 0 ? (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            </div>
+          ) : msgs.length === 0 ? (
+            <div className="text-center text-sm text-on-surface-variant py-10">
+              No messages yet. Say hello to {conversation.otherName}!
+            </div>
+          ) : (
+            msgs.map((m) => {
+              // In the client hub, "mine" means the message was sent by the client.
+              const isMe = m.senderType === "client";
+              const initial = currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase() || "U";
+              if (isMe) {
+                return (
+                  <Message key={m.id} className="justify-end">
+                    <div className="max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4.5 py-3 text-on-primary shadow-md shadow-primary/5">
+                      <p className="text-sm leading-relaxed">{m.text}</p>
+                      <span className="mt-1 block text-right text-[10px] text-white/70">
+                        {fmtTime(m.createdAt)}
+                      </span>
+                    </div>
+                    <MessageAvatar
+                      src={clientAvatar}
+                      fallback={initial}
+                      className="border border-primary/20 bg-primary/15 text-primary"
+                    />
+                  </Message>
+                );
               }
-            }}
+              return (
+                <Message key={m.id}>
+                  <MessageAvatar src={specialistAvatar} fallback={conversation.otherName?.[0] || "S"} />
+                  <MessageContent className="max-w-xl space-y-2">
+                    <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
+                      <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{m.text}</p>
+                      <span className="mt-1 block text-right text-[10px] text-on-surface-variant">
+                        {fmtTime(m.createdAt)}
+                      </span>
+                    </div>
+                  </MessageContent>
+                </Message>
+              );
+            })
+          )}
+          <ChatContainerScrollAnchor />
+        </ChatContainerContent>
+      </ChatContainerRoot>
+
+      {/* Specialist Direct Message Input — same ChatPromptInput as the AI chat */}
+      <div className="p-4">
+        <div className="mx-auto max-w-3xl">
+          <ChatPromptInput
+            value={text}
+            onChange={setText}
+            onSend={send}
+            isLoading={sending}
             placeholder={`Message ${conversation.otherName}...`}
-            className="flex-1 bg-surface-container border border-outline-variant/60 focus:border-primary rounded-xl px-4 py-2.5 text-sm resize-none h-11 focus:outline-none"
           />
-          <button
-            onClick={() => void send()}
-            disabled={!text.trim() || sending}
-            className="w-11 h-11 shrink-0 bg-primary text-on-primary rounded-xl flex items-center justify-center hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base">send</span>
-          </button>
         </div>
       </div>
     </>

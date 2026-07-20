@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchSpecialistProfile } from "@/store/slices/authSlice";
@@ -9,6 +9,17 @@ import { getToken } from "@/lib/auth";
 import { WS_BASE_URL } from "@/lib/config";
 import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
+import {
+  ChatContainerRoot,
+  ChatContainerContent,
+  ChatContainerScrollAnchor,
+} from "@/components/prompt-kit/chat-container";
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+} from "@/components/prompt-kit/message";
+import { ChatPromptInput } from "@/components/chat-prompt-input";
 
 function formatTime(iso: string): string {
   if (!iso) return "";
@@ -115,9 +126,20 @@ export default function SpecialistCommunicationHub() {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data) as ChatMessageDTO;
-        setMessages((prev) =>
-          prev.some((m) => m.id === data.id) ? prev : [...prev, data],
-        );
+        // Dedup by id so an optimistic send + WS echo doesn't double up.
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === data.id);
+          if (exists) return prev.map((m) => (m.id === data.id ? data : m));
+          const tempIdx = prev.findIndex(
+            (m) => m.id.startsWith("temp-") && m.text === data.text && m.senderType === data.senderType,
+          );
+          if (tempIdx >= 0) {
+            const next = prev.slice();
+            next[tempIdx] = data;
+            return next;
+          }
+          return [...prev, data];
+        });
       } catch {}
     };
     return () => ws.close();
@@ -127,12 +149,6 @@ export default function SpecialistCommunicationHub() {
     () => conversations.find((c) => c.bookingId === selectedBookingId) || conversations[0],
     [conversations, selectedBookingId]
   );
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
 
   if (profileChecked && activeMode === "specialist" && !currentProfile) {
     return null;
@@ -173,13 +189,6 @@ export default function SpecialistCommunicationHub() {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
     } finally {
       setSending(false);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSendMessage();
     }
   }
 
@@ -256,128 +265,85 @@ export default function SpecialistCommunicationHub() {
               </div>
             ) : (
               <>
-                {/* Chat window header */}
-                <header className="p-4 border-b border-outline-variant/60 bg-surface-container-lowest flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center">
-                      {initials(activeClient.otherName)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-sm text-on-surface">{activeClient.otherName}</h4>
-                        {activeClient.bookingNumber && (
-                          <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded uppercase">
-                            {activeClient.bookingNumber}
-                          </span>
-                        )}
+                {/* Message Feed — same bubbles as the AI chat */}
+                <ChatContainerRoot className="chat-scrollbar">
+                  <ChatContainerContent className="p-4 md:p-6 space-y-4">
+                    {loadingMsgs ? (
+                      <div className="flex justify-center py-10">
+                        <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                       </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px] text-on-surface-variant">
-                        <span className="flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-xs">home_repair_service</span>
-                          {activeClient.serviceType || "Service"}
-                        </span>
+                    ) : messages.length === 0 ? (
+                      <div className="text-center text-sm text-on-surface-variant py-10">
+                        No messages yet. Say hello to {activeClient.otherName}!
                       </div>
-                    </div>
-                  </div>
+                    ) : (
+                      messages.map((msg, idx) => {
+                        // In the specialist hub, "mine" means the message was sent
+                        // by the worker (the specialist). Use senderType so the
+                        // specialist's own messages align right and the client's
+                        // messages align left.
+                        const isMe = msg.senderType === "worker";
+                        if (isMe) {
+                          return (
+                            <Message key={`${msg.id}-${idx}`} className="justify-end">
+                              <div className="max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4.5 py-3 text-on-primary shadow-md shadow-primary/5">
+                                <p className="text-sm leading-relaxed">{msg.text}</p>
+                                <span className="mt-1 block text-right text-[10px] text-white/70">
+                                  {formatTime(msg.createdAt)}
+                                </span>
+                              </div>
+                              <MessageAvatar
+                                fallback={initials(user?.name || "S")}
+                                className="border border-primary/20 bg-primary/15 text-primary"
+                              />
+                            </Message>
+                          );
+                        }
+                        return (
+                          <Message key={`${msg.id}-${idx}`}>
+                            <MessageAvatar
+                              fallback={activeClient?.otherName?.[0] || "C"}
+                            />
+                            <MessageContent className="max-w-xl space-y-2">
+                              <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
+                                <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{msg.text}</p>
+                                <span className="mt-1 block text-right text-[10px] text-on-surface-variant">
+                                  {formatTime(msg.createdAt)}
+                                </span>
+                              </div>
+                            </MessageContent>
+                          </Message>
+                        );
+                      })
+                    )}
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => showToast("Starting Video Dispatch Flow...", "success")}
-                      className="p-2 hover:bg-surface-container text-on-surface-variant rounded-xl cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">video_call</span>
-                    </button>
-                    <button
-                      onClick={() => showToast("Settings config is in progress.", "info")}
-                      className="p-2 hover:bg-surface-container text-on-surface-variant rounded-xl cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">settings</span>
-                    </button>
-                  </div>
-                </header>
-
-                {/* Message Feed */}
-                <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                  {loadingMsgs ? (
-                    <div className="flex justify-center py-10">
-                      <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="text-center text-sm text-on-surface-variant py-10">
-                      No messages yet. Say hello to {activeClient.otherName}!
-                    </div>
-                  ) : (
-                    messages.map((msg) => {
-                      // A message is "mine" if it was NOT sent by the person I'm
-                      // chatting with. Comparing against the known client id is
-                      // robust against local/sender id mismatches.
-                      const isMe = msg.senderId !== activeClient?.otherId;
-                      return (
-                        <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[70%] flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-                            <div
-                              className={`px-4 py-3 rounded-2xl text-xs font-semibold leading-relaxed ${
-                                isMe
-                                  ? "bg-primary text-white rounded-tr-none"
-                                  : "bg-surface-container-lowest text-on-surface border border-outline-variant/60 rounded-tl-none"
-                              }`}
-                            >
-                              {msg.text}
-                            </div>
-                            <span className="text-[9px] text-gray-400 px-1">{formatTime(msg.createdAt)}</span>
-                          </div>
+                    {isTyping && (
+                      <div className="flex justify-start">
+                        <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl rounded-tl-none px-4 py-3 text-xs italic text-on-surface-variant flex items-center gap-2 shadow-sm animate-pulse">
+                          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce delay-100" />
+                          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce delay-200" />
+                          <span>{activeClient?.otherName} is typing...</span>
                         </div>
-                      );
-                    })
-                  )}
-
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-2xl rounded-tl-none px-4 py-3 text-xs italic text-on-surface-variant flex items-center gap-2 shadow-sm animate-pulse">
-                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
-                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce delay-100" />
-                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce delay-200" />
-                        <span>{activeClient.otherName} is typing...</span>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div ref={messagesEndRef} />
-                </div>
+                    <ChatContainerScrollAnchor />
+                  </ChatContainerContent>
+                </ChatContainerRoot>
 
-                {/* Input box */}
-                <footer className="p-4 bg-surface-container-lowest border-t border-outline-variant/60 flex items-center gap-3">
-                  <div className="flex gap-1 shrink-0">
-                    <button
-                      onClick={() => showToast("Attaching photos or files... 📎", "info")}
-                      className="p-2 text-on-surface-variant hover:bg-surface-container rounded-xl cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">attach_file</span>
-                    </button>
-                    <button
-                      onClick={() => showToast("Opening Emoji picker... 😊", "info")}
-                      className="p-2 text-on-surface-variant hover:bg-surface-container rounded-xl cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">mood</span>
-                    </button>
+                {/* Input box — same ChatPromptInput as the AI chat */}
+                <div className="p-4">
+                  <div className="mx-auto max-w-3xl">
+                    <ChatPromptInput
+                      value={inputText}
+                      onChange={setInputText}
+                      onSend={handleSendMessage}
+                      isLoading={sending}
+                      placeholder="Type your message here..."
+                    />
                   </div>
-
-                  <textarea
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type your message here..."
-                    className="flex-1 bg-surface-container border border-outline-variant/50 focus:border-primary focus:ring-0 rounded-xl px-4 py-2.5 text-xs font-semibold placeholder:text-outline-variant resize-none h-11 py-3 focus:outline-none"
-                  />
-
-                  <button
-                    onClick={() => void handleSendMessage()}
-                    disabled={!inputText.trim() || sending}
-                    className="w-11 h-11 shrink-0 bg-primary text-white rounded-xl flex items-center justify-center hover:bg-primary/90 transition-all active:scale-95 shadow-md shadow-primary/15 disabled:opacity-50 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-sm">send</span>
-                  </button>
-                </footer>
+                </div>
               </>
             )}
           </section>

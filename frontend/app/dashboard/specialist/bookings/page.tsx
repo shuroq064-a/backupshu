@@ -15,9 +15,19 @@ import { STATUS_META as SM } from "@/types";
 
 const SPECIALIST_ACTIONS: Record<string, { label: string; icon: string; next: string; color: string }> = {
    accepted: { label: "Start Journey",       icon: "directions_car", next: "started",   color: "bg-primary hover:bg-primary-container text-white" },
-   started:  { label: "Arrived at Location", icon: "location_on", next: "reached",   color: "bg-primary hover:bg-primary-container text-white" },
-   reached:  { label: "Start Work",          icon: "build", next: "ongoing",   color: "bg-primary hover:bg-primary-container text-white" },
-   ongoing:  { label: "Mark Complete",       icon: "check_circle", next: "completed", color: "bg-primary hover:bg-primary-container text-white" },
+   started:  { label: "Arrived at Location", icon: "location_on",    next: "reached",   color: "bg-primary hover:bg-primary-container text-white" },
+   reached:  { label: "Start Work",          icon: "build",          next: "ongoing",   color: "bg-primary hover:bg-primary-container text-white" },
+   ongoing:  { label: "Mark Complete",       icon: "check_circle",   next: "completed", color: "bg-primary hover:bg-primary-container text-white" },
+};
+
+// Mirrors backend TRANSITIONS; used to silence already-terminal bookings so we
+// never fire an unsupported status update that 422s.
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+   upcoming:  ["accepted", "rejected", "cancelled"],
+   accepted:  ["started", "cancelled"],
+   started:   ["reached", "cancelled"],
+   reached:   ["ongoing", "cancelled"],
+   ongoing:   ["completed", "cancelled"],
 };
 
 const REQUESTS_PER_PAGE = 5;
@@ -200,6 +210,14 @@ export default function BookingsManagerPage() {
   // ── Status Updates ──
   async function handleStatusUpdate(bookingId: string, nextStatus: string) {
     setStatusUpdating(bookingId);
+    // Guard: never fire an unsupported transition (e.g. on an already-completed
+    // or cancelled booking). This prevents spurious 422s from the backend.
+    const current = activeJobs.find((b) => b.id === bookingId)?.status
+      ?? appointments.find((b) => b.id === bookingId)?.status;
+    if (current && !ALLOWED_TRANSITIONS[current]?.includes(nextStatus)) {
+      setStatusUpdating(null);
+      return;
+    }
     try {
       await bookingApi.updateStatus(bookingId, nextStatus);
       showToast(

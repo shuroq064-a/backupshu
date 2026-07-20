@@ -42,10 +42,10 @@ from .tools import (
 
 # Import the LLM client + catalog helpers defensively (router may run as package or script).
 try:
-    from ..services.llm.frenix_client import stream_chat, chat, LLMUnavailable
+    from ..services.llm.model_client import stream_chat, chat, LLMUnavailable
     from ..services.llm.catalog import build_booking_context
 except ImportError:  # running as a script / flat layout
-    from services.llm.frenix_client import stream_chat, chat, LLMUnavailable
+    from services.llm.model_client import stream_chat, chat, LLMUnavailable
     from services.llm.catalog import build_booking_context
 
 

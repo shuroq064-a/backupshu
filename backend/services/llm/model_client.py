@@ -1,5 +1,5 @@
 """
-services/llm/frenix_client.py
+services/llm/model_client.py
 ──────────────────────────────
 Async client for Google Gemini (Generative Language API).
 
@@ -116,13 +116,29 @@ def _url(method: str, *, stream: bool) -> str:
     return f"{base}?key={key}"
 
 
+# Gemini safety settings: keep the assistant safe and on-platform. BLOCK_MEDIUM_AND_ABOVE
+# blocks harmful content while allowing normal conversation.
+_SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+]
+
+# Generous ceiling so the conversational agent can give full, natural replies
+# (e.g. step-by-step guidance) without being cut off mid-sentence.
+MAX_OUTPUT_TOKENS = 20000
+
+
 def _payload(messages: Iterable[dict], *, stream: bool, temperature: float) -> dict:
     contents = _to_gemini_contents(messages)
     payload: dict = {
         "contents": contents,
         "generationConfig": {
             "temperature": temperature,
+            "maxOutputTokens": MAX_OUTPUT_TOKENS,
         },
+        "safetySettings": _SAFETY_SETTINGS,
     }
     # Streaming is controlled by the `alt=sse` query param on the
     # streamGenerateContent endpoint, not by a generationConfig field. Some
@@ -176,6 +192,7 @@ async def stream_chat(
     last_err: Optional[Exception] = None
     for attempt in range(MAX_RETRIES + 1):
         opened = False
+        yielded = False
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
@@ -202,9 +219,21 @@ async def stream_chat(
                             chunk = json.loads(data_str)
                         except json.JSONDecodeError:
                             continue
+                        # Stream the real (non-thought) answer chunk. gemma reasoning
+                        # models put their internal reasoning in `thought` parts; we
+                        # deliberately ignore those so the user only sees the final reply
+                        # (never the model's prompt/instructions or reasoning trace).
                         text = _extract_text(chunk, allow_thought=False)
                         if text:
+                            yielded = True
                             yield text
+            # Stream closed cleanly. If it opened but produced no text at all
+            # (e.g. dropped mid reasoning-trace), retry so the user gets a real
+            # answer instead of a blank "Thinking…" bubble.
+            if opened and not yielded and attempt < MAX_RETRIES:
+                last_err = RuntimeError("Gemini stream closed with no tokens")
+                await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
+                continue
             return
         except LLMUnavailable:
             raise
@@ -215,5 +244,10 @@ async def stream_chat(
                     await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                     continue
                 raise LLMUnavailable(f"Gemini stream failed: {exc}")
-            # Stream already opened; surface whatever we got and stop gracefully.
+            # Stream opened but broke mid-flight with zero tokens — retry so we
+            # don't surface a permanently empty/blank answer to the client.
+            if not yielded and attempt < MAX_RETRIES:
+                last_err = exc
+                await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
+                continue
             return
