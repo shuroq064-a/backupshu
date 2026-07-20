@@ -45,6 +45,7 @@ export default function SpecialistCommunicationHub() {
 
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageDTO[]>([]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [inputText, setInputText] = useState("");
@@ -235,9 +236,18 @@ export default function SpecialistCommunicationHub() {
                         isSelected ? "bg-primary/5 border-l-4 border-primary" : "hover:bg-gray-50"
                       }`}
                     >
-                      <div className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedBookingId(c.bookingId);
+                          setPanelOpen(true);
+                        }}
+                        className="w-10 h-10 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
+                        aria-label={`View ${c.otherName} profile`}
+                      >
                         {initials(c.otherName)}
-                      </div>
+                      </button>
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between items-baseline">
                           <h4 className="font-bold text-sm text-on-surface truncate">{c.otherName}</h4>
@@ -265,6 +275,34 @@ export default function SpecialistCommunicationHub() {
               </div>
             ) : (
               <>
+                {/* Sticky conversation header */}
+                <header className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 border-b border-outline-variant/60 bg-surface-bright/80 backdrop-blur sticky top-0 z-10">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0">
+                      {initials(activeClient.otherName)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-sm text-on-surface truncate">{activeClient.otherName}</h3>
+                      <p className="text-[11px] text-on-surface-variant truncate">
+                        {activeClient.serviceType || "Client"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPanelOpen((v) => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      panelOpen
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "bg-surface-container-lowest border-outline-variant text-on-surface hover:border-primary hover:text-primary"
+                    }`}
+                    aria-label="Toggle client details"
+                  >
+                    <span className="material-symbols-outlined text-base">person</span>
+                    <span className="hidden sm:inline">Profile</span>
+                  </button>
+                </header>
+
                 {/* Message Feed — same bubbles as the AI chat */}
                 <ChatContainerRoot className="chat-scrollbar">
                   <ChatContainerContent className="p-4 md:p-6 space-y-4">
@@ -286,8 +324,8 @@ export default function SpecialistCommunicationHub() {
                         if (isMe) {
                           return (
                             <Message key={`${msg.id}-${idx}`} className="justify-end">
-                              <div className="max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4.5 py-3 text-on-primary shadow-md shadow-primary/5">
-                                <p className="text-sm leading-relaxed">{msg.text}</p>
+                              <div className="max-w-[85%] sm:max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-on-primary shadow-md shadow-primary/10">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                                 <span className="mt-1 block text-right text-[10px] text-white/70">
                                   {formatTime(msg.createdAt)}
                                 </span>
@@ -304,8 +342,8 @@ export default function SpecialistCommunicationHub() {
                             <MessageAvatar
                               fallback={activeClient?.otherName?.[0] || "C"}
                             />
-                            <MessageContent className="max-w-xl space-y-2">
-                              <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
+                            <MessageContent className="max-w-[85%] sm:max-w-xl space-y-2">
+                              <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4 py-2.5 shadow-sm border border-outline-variant">
                                 <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{msg.text}</p>
                                 <span className="mt-1 block text-right text-[10px] text-on-surface-variant">
                                   {formatTime(msg.createdAt)}
@@ -348,17 +386,29 @@ export default function SpecialistCommunicationHub() {
             )}
           </section>
 
-          {/* Column 3: Client / Job Description Right Side-Panel */}
-          <aside className="hidden xl:flex w-72 border-l border-outline-variant/60 bg-surface-container-lowest flex-col p-6 space-y-6 overflow-y-auto">
-            {activeClient ? (
-              <>
-                <div className="text-center space-y-3">
-                  <div className="w-16 h-16 rounded-full bg-primary/15 text-primary font-bold text-2xl flex items-center justify-center mx-auto shadow-sm">
+          {/* Column 3: Client / Job Description Right Side-Panel (toggleable) */}
+          {panelOpen && activeClient && (
+            <aside className="hidden xl:flex w-80 shrink-0 border-l border-outline-variant/60 bg-surface-container-lowest flex-col overflow-y-auto animate-in slide-in-from-right-4 duration-200">
+              <div className="flex items-center justify-between p-5 border-b border-outline-variant/50">
+                <h4 className="text-sm font-bold text-on-surface uppercase tracking-wider">Client Details</h4>
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(false)}
+                  className="p-1.5 rounded-lg text-on-surface-variant hover:bg-primary/5 hover:text-primary transition-colors cursor-pointer"
+                  aria-label="Close panel"
+                >
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-3">
+                  <div className="w-20 h-20 rounded-full bg-primary/15 text-primary font-bold text-3xl flex items-center justify-center shadow-sm">
                     {initials(activeClient.otherName)}
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg text-on-surface">{activeClient.otherName}</h4>
-                    <p className="text-xs text-on-surface-variant flex items-center justify-center gap-0.5">
+                    <h4 className="font-bold text-xl text-on-surface">{activeClient.otherName}</h4>
+                    <p className="text-xs text-on-surface-variant flex items-center justify-center gap-1 mt-1">
                       <span className="material-symbols-outlined text-sm text-outline">location_on</span>
                       Client
                     </p>
@@ -369,21 +419,21 @@ export default function SpecialistCommunicationHub() {
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Job Details</h4>
-                  <div className="space-y-3 bg-surface-container/50 border border-outline-variant/30 p-4 rounded-2xl text-xs space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 font-semibold">Service Type</span>
-                      <span className="font-bold text-on-surface">{activeClient.serviceType || "Service"}</span>
+                  <div className="space-y-3 bg-surface-container/50 border border-outline-variant/30 p-4 rounded-2xl text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-on-surface-variant font-semibold">Service Type</span>
+                      <span className="font-bold text-on-surface text-right">{activeClient.serviceType || "Service"}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 font-semibold">Booking</span>
-                      <span className="font-bold text-on-surface">{activeClient.bookingNumber || "—"}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-on-surface-variant font-semibold">Booking</span>
+                      <span className="font-bold text-on-surface text-right">{activeClient.bookingNumber || "—"}</span>
                     </div>
                   </div>
                 </div>
 
                 <hr className="border-outline-variant/50" />
 
-                <div className="space-y-3 pt-1">
+                <div className="space-y-3">
                   <button
                     onClick={() => showToast("Initiating secure video call session...", "success")}
                     className="w-full py-3 px-4 bg-surface-container-lowest border border-outline-variant hover:border-primary hover:bg-primary/5 rounded-xl text-xs font-bold text-on-surface transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
@@ -399,11 +449,77 @@ export default function SpecialistCommunicationHub() {
                     Reschedule Job
                   </button>
                 </div>
-              </>
-            ) : (
-              <p className="text-sm text-on-surface-variant">Select a conversation to view details.</p>
-            )}
-          </aside>
+              </div>
+            </aside>
+          )}
+
+          {/* Mobile bottom-sheet variant of the panel (shown below xl) */}
+          {panelOpen && activeClient && (
+            <div className="xl:hidden fixed inset-0 z-40 flex items-end">
+              <div
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in"
+                onClick={() => setPanelOpen(false)}
+              />
+              <aside className="relative w-full bg-surface-container-lowest rounded-t-3xl border-t border-outline-variant/60 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-200">
+                <div className="flex items-center justify-between p-5 border-b border-outline-variant/50 sticky top-0 bg-surface-container-lowest rounded-t-3xl">
+                  <h4 className="text-sm font-bold text-on-surface uppercase tracking-wider">Client Details</h4>
+                  <button
+                    type="button"
+                    onClick={() => setPanelOpen(false)}
+                    className="p-1.5 rounded-lg text-on-surface-variant hover:bg-primary/5 hover:text-primary transition-colors cursor-pointer"
+                    aria-label="Close panel"
+                  >
+                    <span className="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="w-20 h-20 rounded-full bg-primary/15 text-primary font-bold text-3xl flex items-center justify-center shadow-sm">
+                      {initials(activeClient.otherName)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xl text-on-surface">{activeClient.otherName}</h4>
+                      <p className="text-xs text-on-surface-variant flex items-center justify-center gap-1 mt-1">
+                        <span className="material-symbols-outlined text-sm text-outline">location_on</span>
+                        Client
+                      </p>
+                    </div>
+                  </div>
+                  <hr className="border-outline-variant/50" />
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Job Details</h4>
+                    <div className="space-y-3 bg-surface-container/50 border border-outline-variant/30 p-4 rounded-2xl text-sm">
+                      <div className="flex justify-between gap-3">
+                        <span className="text-on-surface-variant font-semibold">Service Type</span>
+                        <span className="font-bold text-on-surface text-right">{activeClient.serviceType || "Service"}</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-on-surface-variant font-semibold">Booking</span>
+                        <span className="font-bold text-on-surface text-right">{activeClient.bookingNumber || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="border-outline-variant/50" />
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => showToast("Initiating secure video call session...", "success")}
+                      className="w-full py-3 px-4 bg-surface-container-lowest border border-outline-variant hover:border-primary hover:bg-primary/5 rounded-xl text-xs font-bold text-on-surface transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-base">video_call</span>
+                      Start Video Call
+                    </button>
+                    <button
+                      onClick={() => showToast("Requesting job reschedule details...", "info")}
+                      className="w-full py-3 px-4 bg-surface-container-lowest border border-outline-variant hover:border-primary hover:bg-primary/5 rounded-xl text-xs font-bold text-on-surface transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      <span className="material-symbols-outlined text-base">schedule</span>
+                      Reschedule Job
+                    </button>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          )}
         </div>
       )}
     </>
