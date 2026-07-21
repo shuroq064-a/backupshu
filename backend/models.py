@@ -59,6 +59,7 @@ class AuthResponse(BaseModel):
     name: Optional[str] = None
     role: str
     access_token: str
+    phone: Optional[str] = None
 
 
 class SwitchToSpecialistResponse(BaseModel):
@@ -758,4 +759,49 @@ class BookingLocationUpdate(BaseModel):
     def longitude_must_be_valid(cls, value: float) -> float:
         if value < -180 or value > 180:
             raise ValueError("longitude must be between -180 and 180")
-        return value  
+        return value
+
+
+# ── AI Chat Schemas ──────────────────────────────────────────────────────────
+
+class AiChatSessionCreate(BaseModel):
+    """POST /ai-chat/sessions"""
+    title: Optional[str] = None
+
+
+class AiChatSessionOut(BaseModel):
+    id: str
+    title: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AiChatMessageCreate(BaseModel):
+    """POST /ai-chat/sessions/{session_id}/messages"""
+    role: str  # "user" | "assistant"
+    content: str
+
+
+class AiChatMessageOut(BaseModel):
+    id: str
+    sessionId: str
+    role: str
+    content: str
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AiChatSessionWithMessagesOut(BaseModel):
+    id: str
+    title: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+    messages: list[AiChatMessageOut] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True  

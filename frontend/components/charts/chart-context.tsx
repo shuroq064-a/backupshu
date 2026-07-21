@@ -2,10 +2,10 @@
 
 import type { scaleBand, scaleLinear, scaleTime } from "@visx/scale";
 
-type ScaleLinear<Output, _Input = number> = ReturnType<
+type ScaleLinear<Output> = ReturnType<
   typeof scaleLinear<Output>
 >;
-type ScaleTime<Output, _Input = Date | number> = ReturnType<
+type ScaleTime<Output> = ReturnType<
   typeof scaleTime<Output>
 >;
 type ScaleBand<Domain extends { toString(): string }> = ReturnType<

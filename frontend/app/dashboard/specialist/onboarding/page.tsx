@@ -47,7 +47,7 @@ export default function SpecialistOnboarding() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { user, activeMode, specialistProfile, isLoading, error } = useAppSelector((s) => s.auth);
-  const { toast, showToast, dismiss } = useToast();
+  const { showToast } = useToast();
 
   const currentProfile = specialistProfile?.userId === user?.id ? specialistProfile : null;
 

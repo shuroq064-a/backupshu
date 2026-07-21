@@ -1,7 +1,7 @@
 """add customer location updated timestamp
 
 Revision ID: 7d2f0a9c3b
-Revises: 5c1b8f0a2d
+Revises: task04_05_11
 Create Date: 2026-06-17
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "7d2f0a9c3b"
-down_revision = "5c1b8f0a2d"
+down_revision = "task04_05_11"
 branch_labels = None
 depends_on = None
 

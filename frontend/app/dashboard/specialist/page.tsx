@@ -9,6 +9,7 @@ import { getToken } from "@/lib/auth";
 import { WS_BASE_URL as WS_BASE } from "@/lib/config";
 import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
+import { CountUp } from "@/components/ui/CountUp";
 import { AreaChart } from "@/components/charts/area-chart";
 import { Area } from "@/components/charts/area";
 import { XAxis } from "@/components/charts/x-axis";
@@ -26,7 +27,7 @@ export default function SpecialistDashboard() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { user, specialistProfile } = useAppSelector((s) => s.auth);
-  const { toast, showToast, dismiss } = useToast();
+  const { showToast } = useToast();
 
   const [profileChecked, setProfileChecked] = useState(false);
   const [isAvailabilitySaving, setIsAvailabilitySaving] = useState(false);
@@ -43,6 +44,8 @@ export default function SpecialistDashboard() {
     totalCount: 0,
   });
   const [reviews, setReviews] = useState<BookingReview[]>([]);
+  const [countUpReady, setCountUpReady] = useState(false);
+  const [allBookings, setAllBookings] = useState<BookingDetail[]>([]);
 
   // Pagination for the Active Requests list
   const REQUESTS_PER_PAGE = 5;
@@ -88,12 +91,14 @@ export default function SpecialistDashboard() {
   const fetchEarningsAndCompleted = useCallback(async () => {
     if (!workerId) return;
     try {
-      const [summary, history] = await Promise.all([
+      const [summary, history, all] = await Promise.all([
         workerExtApi.getEarnings(workerId),
         workerExtApi.getBookings(workerId, "completed"),
+        workerExtApi.getBookings(workerId),
       ]);
       setEarnings(summary);
       setCompletedBookings(history);
+      setAllBookings(all);
     } catch {}
   }, [workerId]);
 
@@ -111,6 +116,12 @@ export default function SpecialistDashboard() {
     fetchEarningsAndCompleted();
     fetchReviews();
   }, [workerId, fetchRequests, fetchEarningsAndCompleted, fetchReviews]);
+
+  useEffect(() => {
+    if (!workerId) return;
+    const t = setTimeout(() => setCountUpReady(true), 350);
+    return () => clearTimeout(t);
+  }, [workerId]);
 
   // ── Live updates via a single WebSocket (no polling).
   // The backend pushes NEW_REQUEST / BOOKING_UPDATED events to /ws/specialist/{id}
@@ -216,44 +227,23 @@ export default function SpecialistDashboard() {
 
   // ── Calculations ──
   const avgRating = useMemo(() => {
-    if (reviews.length === 0) return "4.95"; // Premium default if no reviews yet
+    if (reviews.length === 0) return "0";
     return (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(2);
   }, [reviews]);
 
-  const weeklyData = useMemo(() => {
-    // Generate weekly hours (each job counts as ~2.5 hrs by default)
-    const buckets = WEEK_DAYS.map((day) => ({ day, hours: 0 }));
-    const now = new Date();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 1));
-    startOfWeek.setHours(0, 0, 0, 0);
+  const completionRate = useMemo(() => {
+    if (allBookings.length === 0) return 0;
+    const finished = allBookings.filter(
+      (b) => b.status === "completed" || b.status === "cancelled"
+    ).length;
+    return Math.round((finished / allBookings.length) * 100);
+  }, [allBookings]);
 
-    completedBookings.forEach((b) => {
-      const date = b.updatedAt ? new Date(b.updatedAt) : new Date();
-      if (date.getTime() >= startOfWeek.getTime()) {
-        const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
-        buckets[dayIndex].hours += 2.5; // Estimated duration
-      }
-    });
-
-    // Provide premium layout placeholders if sum is zero
-    const sum = buckets.reduce((acc, curr) => acc + curr.hours, 0);
-    if (sum === 0) {
-      buckets[0].hours = 6;  // Mon
-      buckets[1].hours = 8;  // Tue
-      buckets[2].hours = 4.5;// Wed
-      buckets[3].hours = 9.5;// Thu
-      buckets[4].hours = 7;  // Fri
-      buckets[5].hours = 2;  // Sat
-      buckets[6].hours = 1;  // Sun
-    }
-    return buckets;
-  }, [completedBookings]);
-
-  const totalHoursSum = useMemo(() => {
-    return weeklyData.reduce((acc, curr) => acc + curr.hours, 0).toFixed(1);
-  }, [weeklyData]);
-
-  const maxHours = Math.max(1, ...weeklyData.map((d) => d.hours));
+  const activeNowCount = useMemo(() => {
+    return allBookings.filter(
+      (b) => b.status === "accepted" || b.status === "started" || b.status === "reached" || b.status === "ongoing"
+    ).length;
+  }, [allBookings]);
 
   // Monthly profit from completed bookings (last 6 months) — uses real
   // Daily profit from completed bookings (last 7 LOCAL days → today).
@@ -425,11 +415,7 @@ export default function SpecialistDashboard() {
           <h3 className="text-on-surface-variant font-bold text-xs uppercase tracking-wider mb-2">Total Earnings</h3>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-green-600">
-              ₹{Math.round(earnings.total).toLocaleString("en-IN")}
-            </span>
-            <span className="flex items-center text-tertiary text-xs font-bold gap-0.5">
-              <span className="material-symbols-outlined text-sm font-fill">trending_up</span>
-              +12.5%
+              <CountUp to={Math.round(earnings.total)} prefix="₹" ready={countUpReady} />
             </span>
           </div>
           <div className="absolute right-4 bottom-4 opacity-5 text-primary">
@@ -441,34 +427,52 @@ export default function SpecialistDashboard() {
         <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-sm relative overflow-hidden">
           <h3 className="text-on-surface-variant font-bold text-xs uppercase tracking-wider mb-2">Rating</h3>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-extrabold text-on-surface">{avgRating}</span>
+            <span className="text-3xl font-extrabold text-on-surface">
+              {reviews.length > 0 ? (
+                <CountUp to={parseFloat(avgRating)} decimals={1} ready={countUpReady} />
+              ) : (
+                "—"
+              )}
+            </span>
             <span className="text-xs text-on-surface-variant font-semibold">/ 5.0</span>
             <div className="flex items-center text-primary ml-2">
               <span className="material-symbols-outlined text-lg font-fill" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
             </div>
           </div>
-          <p className="text-[10px] text-gray-400 mt-1 uppercase font-semibold">Based on active feedback</p>
+          <p className="text-[10px] text-gray-400 mt-1 uppercase font-semibold">
+            {reviews.length > 0 ? "Based on active feedback" : "No ratings yet"}
+          </p>
         </div>
 
         {/* Completion Rate Card */}
         <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-sm relative overflow-hidden">
           <h3 className="text-on-surface-variant font-bold text-xs uppercase tracking-wider mb-2">Completion Rate</h3>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-extrabold text-on-surface">98.2%</span>
+            <span className="text-3xl font-extrabold text-on-surface">
+              <CountUp to={completionRate} decimals={0} suffix="%" ready={countUpReady} />
+            </span>
             <span className="material-symbols-outlined text-tertiary ml-2 font-fill">check_circle</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-1 uppercase font-semibold">Excellent reliability rating</p>
+          <p className="text-[10px] text-gray-400 mt-1 uppercase font-semibold">
+            {allBookings.length > 0
+              ? `${allBookings.filter((b) => b.status === "completed" || b.status === "cancelled").length} of ${allBookings.length} jobs`
+              : "No bookings yet"}
+          </p>
         </div>
 
-        {/* Response Time Card */}
+        {/* Active Jobs Card */}
         <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-sm relative overflow-hidden">
-          <h3 className="text-on-surface-variant font-bold text-xs uppercase tracking-wider mb-2">Response Time</h3>
+          <h3 className="text-on-surface-variant font-bold text-xs uppercase tracking-wider mb-2">Active Now</h3>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-extrabold text-on-surface">12</span>
-            <span className="text-xs text-on-surface-variant font-semibold">mins</span>
+            <span className="text-3xl font-extrabold text-on-surface">
+              <CountUp to={activeNowCount} ready={countUpReady} />
+            </span>
+            <span className="text-xs text-on-surface-variant font-semibold">in progress</span>
             <span className="material-symbols-outlined text-primary ml-2 font-fill">bolt</span>
           </div>
-          <p className="text-[10px] text-gray-400 mt-1 uppercase font-semibold">Instant dispatcher priority</p>
+          <p className="text-[10px] text-gray-400 mt-1 uppercase font-semibold">
+            {activeNowCount > 0 ? "Currently on the job" : "All clear"}
+          </p>
         </div>
       </div>
 

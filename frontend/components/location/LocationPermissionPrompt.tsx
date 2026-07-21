@@ -376,7 +376,7 @@ export function LegacyLocationPermissionPrompt() {
   if (!isClientDashboard || !open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-on-surface/40 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-on-surface/40 px-4">
       <div className="w-full max-w-2xl rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant overflow-hidden">
         <div className="px-5 py-4 border-b border-outline-variant flex items-start justify-between gap-3">
           <div>

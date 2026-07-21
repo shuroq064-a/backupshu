@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { bookingApi, streamAssistantChat, messageApi, type ChatMessageDTO, type ConversationDTO } from "@/lib/api";
 import { getToken } from "@/lib/auth";
@@ -83,6 +83,10 @@ import type {
 
 const WS_BASE = WS_BASE_URL;
 const CHAT_STORAGE_KEY = "shuroqx_chat_messages";
+
+function getChatStorageKey(userId?: string | null): string {
+  return userId ? `${CHAT_STORAGE_KEY}:${userId}` : CHAT_STORAGE_KEY;
+}
 const BOOKING_VISIBLE_STATUSES = new Set(["accepted", "started", "reached", "ongoing", "completed"]);
 const BOOKING_CLOSED_STATUSES = new Set(["rejected", "completed", "cancelled"]);
 
@@ -91,7 +95,7 @@ export default function RedesignedClientChat() {
   const searchParams = useSearchParams();
   const { user } = useAppSelector((s) => s.auth);
   const { isComplete, missingFields } = useProfileGuard();
-  const { toast, showToast, dismiss } = useToast();
+  const { showToast } = useToast();
 
   // Selected chat target: "ai" or the specialist workerId
   const [activeChatTarget, setActiveChatTarget] = useState<"ai" | string>("ai");
@@ -99,13 +103,21 @@ export default function RedesignedClientChat() {
   const sidebarResizeCleanupRef = useRef<(() => void) | null>(null);
 
   // ── Real specialist conversations (backend-backed direct messaging) ──
-  const [conversations, setConversations] = useState<ConversationDTO[]>([]);
+  const [rawConversations, setRawConversations] = useState<ConversationDTO[]>([]);
+
+  // Show ALL conversations for this user, regardless of whether they're the
+  // client or specialist on each booking. This lets users see chats from both
+  // perspectives in one place.
+  const conversations = useMemo(
+    () => rawConversations,
+    [rawConversations],
+  );
 
   const loadConversations = useCallback(async () => {
     if (!user?.id) return;
     try {
       const data = await messageApi.conversations();
-      setConversations(data);
+      setRawConversations(data);
     } catch (err) {
       console.error("Failed to load conversations:", err);
     }
@@ -155,18 +167,40 @@ export default function RedesignedClientChat() {
   const [serviceLocation, setServiceLocation] = useState<ServiceLocation | null>(null);
   const [serviceAddressDetails, setServiceAddressDetails] = useState<ServiceAddressDetails | null>(null);
 
-  // Load persisted chat on mount
+  // Load persisted chat on mount / user change
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-      if (raw) setMessages(JSON.parse(raw));
+      const newKey = getChatStorageKey(user?.id);
+      const oldKey = CHAT_STORAGE_KEY;
+      
+      // Migrate from old global key to user-specific key if needed
+      if (user?.id) {
+        const newRaw = localStorage.getItem(newKey);
+        const oldRaw = localStorage.getItem(oldKey);
+        
+        if (!newRaw && oldRaw) {
+          // First login for this user: migrate old global chat history
+          localStorage.setItem(newKey, oldRaw);
+          setMessages(JSON.parse(oldRaw));
+        } else if (newRaw) {
+          setMessages(JSON.parse(newRaw));
+        } else {
+          setMessages([]);
+        }
+      } else {
+        // No user logged in - use global key for anonymous
+        const raw = localStorage.getItem(oldKey);
+        if (raw) setMessages(JSON.parse(raw));
+        else setMessages([]);
+      }
+      
       const rawLocation = localStorage.getItem(SERVICE_LOCATION_KEY);
       if (rawLocation) setServiceLocation(JSON.parse(rawLocation));
       const rawAddressDetails = localStorage.getItem(SERVICE_ADDRESS_DETAILS_KEY);
       if (rawAddressDetails) setServiceAddressDetails(JSON.parse(rawAddressDetails));
     } catch {}
     setHydrated(true);
-  }, []);
+  }, [user?.id]);
 
   // Pre-fill prompt from URL if any (e.g. from Discover page category click)
   useEffect(() => {
@@ -198,16 +232,16 @@ export default function RedesignedClientChat() {
 
   const saveMessages = useCallback((msgs: ChatMessage[]) => {
     setMessages(msgs);
-    try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(msgs)); } catch {}
-  }, []);
+    try { localStorage.setItem(getChatStorageKey(user?.id), JSON.stringify(msgs)); } catch {}
+  }, [user?.id]);
 
   const addMessage = useCallback((msg: ChatMessage) => {
     setMessages(prev => {
       const next = [...prev, msg];
-      try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      try { localStorage.setItem(getChatStorageKey(user?.id), JSON.stringify(next)); } catch {}
       return next;
     });
-  }, []);
+  }, [user?.id]);
 
   const updateMessage = useCallback(
     (
@@ -220,11 +254,11 @@ export default function RedesignedClientChat() {
           const delta = typeof patch === "function" ? patch(m) : patch;
           return { ...m, ...delta };
         });
-        try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(next)); } catch {}
+        try { localStorage.setItem(getChatStorageKey(user?.id), JSON.stringify(next)); } catch {}
         return next;
       });
     },
-    [],
+    [user?.id],
   );
 
   // ── Input + search ────────────────────────────────────────────────────────
@@ -389,10 +423,10 @@ export default function RedesignedClientChat() {
       const booking = await bookingApi.create({
         service_type: intent || "General Service",
         address: resolvedLocation.address,
-        receiver_name: details?.receiverName || user?.name || bookingLocation,
-        contact_number: details?.contactNumber || user?.phone || "Not provided",
-        house_flat: details?.houseFlat || "",
-        block_area: details?.blockArea || "",
+        receiver_name: details?.receiverName || user?.name || bookingLocation || "Customer",
+        contact_number: details?.contactNumber || user?.phone || "9889898989",
+        house_flat: details?.houseFlat || "N/A",
+        block_area: details?.blockArea || "N/A",
         landmark: details?.landmark,
         address_label: details?.addressLabel || "Home",
         custom_address_label: details?.customAddressLabel,

@@ -66,7 +66,7 @@ function locationFromSavedAddress(address: SavedAddress): ServiceLocation {
 export function ServiceLocationFlow() {
   const dispatch = useAppDispatch();
   const { user, activeMode, isHydrated, location } = useAppSelector((state) => state.auth);
-  const isClientDashboard = isHydrated && Boolean(user) && activeMode === "client";
+  const isLocationAvailable = isHydrated && Boolean(user);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("permission");
   const [selectedLocation, setSelectedLocation] = useState<ServiceLocation | null>(null);
@@ -96,7 +96,7 @@ export function ServiceLocationFlow() {
   }, []);
 
   useEffect(() => {
-    if (!isClientDashboard) return;
+    if (!isLocationAvailable) return;
     const storedLocation = readStored<ServiceLocation>(SERVICE_LOCATION_KEY);
     const details = readStored<ServiceAddressDetails>(SERVICE_ADDRESS_DETAILS_KEY);
     const storedAddressId = localStorage.getItem(SERVICE_ADDRESS_ID_KEY);
@@ -123,7 +123,7 @@ export function ServiceLocationFlow() {
     });
 
     if (!storedLocation && !details) { setOpen(true); setStep("permission"); }
-  }, [dispatch, isClientDashboard, loadAddressBook, persistLocal]);
+  }, [dispatch, isLocationAvailable, loadAddressBook, persistLocal]);
 
   useEffect(() => {
     const openPicker = () => {
@@ -183,7 +183,7 @@ export function ServiceLocationFlow() {
     setStep("map");
   }
 
-  if (!isClientDashboard || !open) return null;
+  if (!isLocationAvailable || !open) return null;
   const heading = step === "address" ? "Address details" : step === "map" ? "Choose service location" : step === "detecting" ? "Detecting your location" : "Allow location access?";
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">

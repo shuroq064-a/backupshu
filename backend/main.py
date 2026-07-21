@@ -1,6 +1,9 @@
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
+
+load_dotenv()
 
 import dbmodels
 from database import engine
@@ -9,11 +12,10 @@ from database import engine
 dbmodels.Base.metadata.create_all(bind=engine)
 
 
-
 if __package__:
-    from .routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages
+    from .routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat
 else:
-    from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages
+    from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat
 
 app = FastAPI(title="ShuroqX API", version="1.0.0")
 
@@ -24,11 +26,13 @@ def get_cors_origins() -> list[str]:
 
 
 def resolve_cors_origin(origin: str | None) -> str:
-    """Reflect an allowed requesting Origin, or "*" when unrestricted."""
+    """Return the appropriate CORS origin header value."""
     if not origin:
         return "*"
     allowed = get_cors_origins()
-    if "*" in allowed or origin in allowed:
+    if "*" in allowed:
+        return origin
+    if origin in allowed:
         return origin
     return allowed[0] if allowed else "*"
 
@@ -77,3 +81,4 @@ app.include_router(services.router)
 app.include_router(location_permission.router)  # /location-permission/*
 app.include_router(assistant.router)            # /assistant/chat (LLM chat brain)
 app.include_router(messages.router)             # /messages (specialist <-> client chat)
+app.include_router(ai_chat.router)              # /ai-chat (AI chat session history)

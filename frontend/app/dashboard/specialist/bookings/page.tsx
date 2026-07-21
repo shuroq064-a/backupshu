@@ -38,7 +38,7 @@ export default function BookingsManagerPage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { user, specialistProfile } = useAppSelector((s) => s.auth);
-  const { toast, showToast, dismiss } = useToast();
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -445,7 +445,7 @@ export default function BookingsManagerPage() {
                 )}
               </div>
             ) : (
-               <div className="space-y-4">
+               <div className="mt-4 space-y-4">
                 {pagedRequests.map((req) => (
                   <div
                     key={req.id}

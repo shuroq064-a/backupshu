@@ -53,7 +53,7 @@ const STATUS_PROGRESS: Record<string, number> = {
 export default function ClientBookingsPage() {
   const router = useRouter();
   const { user } = useAppSelector(s => s.auth);
-  const { toast, showToast, dismiss } = useToast();
+  const { showToast } = useToast();
 
   const [bookings, setBookings] = useState<BookingDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);

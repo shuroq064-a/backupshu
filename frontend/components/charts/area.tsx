@@ -5,6 +5,7 @@ import { AreaClosed, LinePath } from "@visx/shape";
 
 // CurveFactory type - simplified version compatible with visx
 // biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CurveFactory = any;
 
 import { useCallback, useId, useMemo, useRef, useState } from "react";

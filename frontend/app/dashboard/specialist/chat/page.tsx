@@ -41,7 +41,7 @@ export default function SpecialistCommunicationHub() {
   const { user, activeMode, specialistProfile } = useAppSelector((s) => s.auth);
   const currentProfile = specialistProfile?.userId === user?.id ? specialistProfile : null;
   const [profileChecked, setProfileChecked] = useState(false);
-  const { toast, showToast, dismiss } = useToast();
+  const { showToast } = useToast();
 
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function SpecialistCommunicationHub() {
   const [messages, setMessages] = useState<ChatMessageDTO[]>([]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [inputText, setInputText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [isTyping] = useState(false);
   const [sending, setSending] = useState(false);
 
   // A specialist must finish onboarding before accessing messages.
@@ -71,8 +71,11 @@ export default function SpecialistCommunicationHub() {
     if (!workerId) return;
     try {
       const data = await messageApi.conversations();
-      setConversations(data);
-      setSelectedBookingId((prev) => prev ?? data[0]?.bookingId ?? null);
+      // Only show bookings where this user is the SPECIALIST (the other party
+      // is the client). Client-side bookings belong to the client hub.
+      const workerConversations = data.filter((c) => c.callerRole === "worker");
+      setConversations(workerConversations);
+      setSelectedBookingId((prev) => prev ?? workerConversations[0]?.bookingId ?? null);
     } catch (err) {
       console.error("Failed to load conversations:", err);
     }

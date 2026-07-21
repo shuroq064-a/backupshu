@@ -267,8 +267,20 @@ def _ws_authenticate_room(booking_id: str, websocket: WebSocket, token: Optional
     db = SessionLocal()
     try:
         booking = db.query(Booking).filter(Booking.id == booking_id).first()
-        if not booking or booking.client_id != user_id:
-            return None, "Not allowed to join this booking room"
+        if not booking:
+            return None, "Booking not found"
+
+        if booking.client_id == user_id:
+            return user_id, None
+
+        worker = db.query(Worker).filter(
+            Worker.id == booking.worker_id,
+            Worker.user_id == user_id,
+        ).first()
+        if worker:
+            return user_id, None
+
+        return None, "Not allowed to join this booking room"
     finally:
         db.close()
 

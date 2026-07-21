@@ -32,6 +32,7 @@ class User(Base):
     user_queries = relationship("UserQuery", back_populates="user", cascade="all, delete-orphan")
     location_permissions = relationship("LocationPermission", back_populates="user", cascade="all, delete-orphan")
     addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")
+    ai_chat_sessions = relationship("AiChatSession", back_populates="user", cascade="all, delete-orphan")
 
 
 class Worker(Base):
@@ -224,3 +225,40 @@ class Message(Base):
     text = Column(Text, nullable=False)
     read = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AiChatSession(Base):
+    """AI Assistant chat sessions for a user."""
+
+    __tablename__ = "ai_chat_sessions"
+    __table_args__ = (
+        Index("ix_ai_chat_sessions_user_id", "user_id"),
+        Index("ix_ai_chat_sessions_updated_at", "updated_at"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=True)  # Optional: first user message as title
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="ai_chat_sessions")
+    messages = relationship("AiChatMessage", back_populates="session", cascade="all, delete-orphan", order_by="AiChatMessage.created_at")
+
+
+class AiChatMessage(Base):
+    """Individual messages within an AI chat session."""
+
+    __tablename__ = "ai_chat_messages"
+    __table_args__ = (
+        Index("ix_ai_chat_messages_session_id", "session_id"),
+        Index("ix_ai_chat_messages_created_at", "created_at"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    session_id = Column(String, ForeignKey("ai_chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String, nullable=False)  # "user" | "assistant"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("AiChatSession", back_populates="messages")

@@ -105,6 +105,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
         name=user.name,
         role=user.role,
         access_token=token,
+        phone=user.phone,
     )
 
 
@@ -155,6 +156,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
         name=user.name,
         role=user.role,
         access_token=token,
+        phone=user.phone,
     )
 
 
@@ -210,6 +212,7 @@ def oauth_login(payload: OAuthLoginRequest, db: Session = Depends(get_db)):
         name=user.name,
         role=user.role,
         access_token=token,
+        phone=user.phone,
     )
 
 

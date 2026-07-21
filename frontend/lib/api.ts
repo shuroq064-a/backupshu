@@ -497,6 +497,7 @@ export interface ConversationDTO {
   otherName: string;
   otherId: string;
   otherType: "worker" | "client";
+  callerRole: "worker" | "client";
   lastMessage: string;
   lastMessageAt: string;
   unread: number;

@@ -90,6 +90,7 @@ export interface AuthResponse {
   role: string;
   token?: string;
   access_token?: string;
+  phone?: string;
 }
 
 export interface SwitchToSpecialistRequest {

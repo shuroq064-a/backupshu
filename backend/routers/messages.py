@@ -160,6 +160,7 @@ class ConversationOut(BaseModel):
     otherName: str
     otherId: str
     otherType: str
+    callerRole: str
     lastMessage: str
     lastMessageAt: str
     unread: int
@@ -179,12 +180,27 @@ def _to_out(m: Message) -> MessageOut:
     )
 
 
-def _resolve_participant(current_user: User, db: Session):
-    """Return (role, id) for the caller. Workers are identified via their worker row."""
+def _user_worker_id(current_user: User, db: Session) -> Optional[str]:
+    """Return the caller's worker id (if they have a specialist profile)."""
     worker = db.query(Worker).filter(Worker.user_id == current_user.id).first()
-    if worker:
-        return ("worker", worker.id)
-    return ("client", current_user.id)
+    return worker.id if worker else None
+
+
+def _caller_role_for_booking(
+    current_user: User, booking: "Booking", worker_id: Optional[str]
+) -> tuple:
+    """Resolve the caller's role for a SPECIFIC booking.
+
+    A single account may be a client on some bookings and a specialist on
+    others, so the role is derived per-booking rather than globally from the
+    Worker table. Returns (role, id) where role is 'client' or 'worker', or
+    (None, None) if the caller is not a participant of the booking.
+    """
+    if booking.client_id == current_user.id:
+        return ("client", current_user.id)
+    if worker_id and booking.worker_id == worker_id:
+        return ("worker", worker_id)
+    return (None, None)
 
 
 @router.post("", response_model=MessageOut, status_code=201)
@@ -197,12 +213,9 @@ async def send_message(
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
-    sender_type, sender_id = _resolve_participant(current_user, db)
-
-    # The caller must be a participant of this booking.
-    is_client = booking.client_id == current_user.id
-    is_worker = booking.worker_id == sender_id and sender_type == "worker"
-    if not (is_client or is_worker):
+    worker_id = _user_worker_id(current_user, db)
+    sender_type, sender_id = _caller_role_for_booking(current_user, booking, worker_id)
+    if sender_type is None:
         raise HTTPException(status_code=403, detail="Not a participant of this booking")
 
     if not payload.text or not payload.text.strip():
@@ -255,10 +268,9 @@ def list_booking_messages(
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
-    sender_type, sender_id = _resolve_participant(current_user, db)
-    is_client = booking.client_id == current_user.id
-    is_worker = booking.worker_id == sender_id and sender_type == "worker"
-    if not (is_client or is_worker):
+    worker_id = _user_worker_id(current_user, db)
+    sender_type, sender_id = _caller_role_for_booking(current_user, booking, worker_id)
+    if sender_type is None:
         raise HTTPException(status_code=403, detail="Not a participant of this booking")
 
     # Mark messages sent TO the caller as read.
@@ -291,12 +303,17 @@ def list_conversations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sender_type, sender_id = _resolve_participant(current_user, db)
+    worker_id = _user_worker_id(current_user, db)
 
-    if sender_type == "worker":
+    # A dual-role account (both a client and a specialist) participates in
+    # bookings on either side, so fetch both and label each per-booking.
+    if worker_id:
         bookings = (
             db.query(Booking)
-            .filter(Booking.worker_id == sender_id)
+            .filter(
+                (Booking.client_id == current_user.id)
+                | (Booking.worker_id == worker_id)
+            )
             .order_by(desc(Booking.updated_at))
             .all()
         )
@@ -313,6 +330,12 @@ def list_conversations(
         return conversations
 
     booking_ids = [b.id for b in bookings]
+
+    # ── Resolve the caller's role for each booking (client vs specialist) ──
+    caller_info: dict = {}
+    for b in bookings:
+        role, cid = _caller_role_for_booking(current_user, b, worker_id)
+        caller_info[b.id] = (role or "client", cid or current_user.id)
 
     # ── Bulk-load the latest message per booking (avoids N+1) ──
     latest_at_rows = (
@@ -333,53 +356,69 @@ def list_conversations(
             if m.created_at == latest_at.get(m.booking_id):
                 last_by_booking[m.booking_id] = m
 
-    # ── Bulk-load unread counts per booking for the caller ──
-    unread_rows = (
-        db.query(Message.booking_id, func.count(Message.id).label("cnt"))
-        .filter(
-            Message.booking_id.in_(booking_ids),
-            Message.recipient_type == sender_type,
-            Message.recipient_id == sender_id,
-            Message.read.is_(False),
-        )
-        .group_by(Message.booking_id)
+    # ── Per-booking unread counts for the caller (role is per-booking) ──
+    unread_msgs = (
+        db.query(Message)
+        .filter(Message.booking_id.in_(booking_ids), Message.read.is_(False))
         .all()
     )
-    unread_by_booking = {row.booking_id: int(row.cnt) for row in unread_rows}
+    unread_by_booking: dict = {}
+    for m in unread_msgs:
+        info = caller_info.get(m.booking_id)
+        if not info:
+            continue
+        role, cid = info
+        if m.recipient_type == role and m.recipient_id == cid:
+            unread_by_booking[m.booking_id] = unread_by_booking.get(m.booking_id, 0) + 1
 
-    # ── Bulk-resolve the "other" participant name ──
+    # ── Resolve the counterpart ("other") name per booking ──
+    # Caller-as-client bookings → counterpart is the worker (specialist).
+    # Caller-as-worker bookings → counterpart is the client (user).
+    worker_ids_needed = [
+        b.worker_id for b in bookings
+        if caller_info[b.id][0] == "client" and b.worker_id
+    ]
+    workers = (
+        db.query(Worker).filter(Worker.id.in_(worker_ids_needed)).all()
+        if worker_ids_needed else []
+    )
+    worker_by_id = {w.id: w for w in workers}
+    user_ids_needed = [w.user_id for w in workers if w.user_id]
+    users_for_workers = (
+        db.query(User).filter(User.id.in_(user_ids_needed)).all()
+        if user_ids_needed else []
+    )
+    user_by_id = {u.id: u for u in users_for_workers}
+
+    client_ids_needed = [
+        b.client_id for b in bookings
+        if caller_info[b.id][0] == "worker" and b.client_id
+    ]
+    clients = (
+        db.query(User).filter(User.id.in_(client_ids_needed)).all()
+        if client_ids_needed else []
+    )
+    client_by_id = {u.id: u for u in clients}
+
     other_name_by_booking: dict = {}
     other_id_by_booking: dict = {}
-    if sender_type == "worker":
-        client_ids = [b.client_id for b in bookings if b.client_id]
-        users = (
-            db.query(User).filter(User.id.in_(client_ids)).all() if client_ids else []
-        )
-        user_by_id = {u.id: u for u in users}
-        for b in bookings:
-            other_id_by_booking[b.id] = b.client_id
-            u = user_by_id.get(b.client_id)
+    other_type_by_booking: dict = {}
+    for b in bookings:
+        role, _ = caller_info[b.id]
+        if role == "worker":
+            other_id_by_booking[b.id] = b.client_id or ""
+            u = client_by_id.get(b.client_id)
             other_name_by_booking[b.id] = u.name if u and u.name else "Client"
-    else:
-        worker_ids = [b.worker_id for b in bookings if b.worker_id]
-        workers = (
-            db.query(Worker).filter(Worker.id.in_(worker_ids)).all()
-            if worker_ids
-            else []
-        )
-        worker_by_id = {w.id: w for w in workers}
-        user_ids = [w.user_id for w in workers if w.user_id]
-        users = db.query(User).filter(User.id.in_(user_ids)).all() if user_ids else []
-        user_by_id = {u.id: u for u in users}
-        for b in bookings:
+            other_type_by_booking[b.id] = "client"
+        else:
             other_id_by_booking[b.id] = b.worker_id or ""
             w = worker_by_id.get(b.worker_id) if b.worker_id else None
             u = user_by_id.get(w.user_id) if w else None
             other_name_by_booking[b.id] = u.name if u and u.name else "Specialist"
-
-    other_type = "client" if sender_type == "worker" else "worker"
+            other_type_by_booking[b.id] = "worker"
 
     for b in bookings:
+        role, _ = caller_info[b.id]
         last = last_by_booking.get(b.id)
         conversations.append(
             ConversationOut(
@@ -388,7 +427,8 @@ def list_conversations(
                 serviceType=b.service_type,
                 otherName=other_name_by_booking.get(b.id, ""),
                 otherId=other_id_by_booking.get(b.id, ""),
-                otherType=other_type,
+                otherType=other_type_by_booking.get(b.id, "worker"),
+                callerRole=role,
                 lastMessage=last.text if last else "No messages yet",
                 lastMessageAt=last.created_at.isoformat() if last and last.created_at else "",
                 unread=unread_by_booking.get(b.id, 0),

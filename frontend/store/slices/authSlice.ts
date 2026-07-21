@@ -121,6 +121,7 @@ function buildUserFromResponse(data: AuthResponse): User {
     email: data.email,
     name: data.name,
     role: (data.role as "user" | "admin") || "user",
+    phone: data.phone,
   };
 }
 
