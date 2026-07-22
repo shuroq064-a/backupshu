@@ -223,8 +223,8 @@ async def _clarify_agent(message: str, history: list[dict], tool_data: str = "")
     parts = []
     async for delta in stream_chat(msgs):
         parts.append(delta)
+        yield ev_token(delta)
     reply = "".join(parts).strip()
-    # Offer concrete options so the customer can tap to continue.
     options = ["Plumbing", "Electrical", "AC repair", "Cleaning"]
     yield ev_clarify(reply, options)
 
@@ -265,6 +265,7 @@ async def _booking_agent(db, user, message: str, history: list[dict], tool_resul
     ack_parts = []
     async for delta in stream_chat(ack_msgs):
         ack_parts.append(delta)
+        yield ev_token(delta)
     ack = "".join(ack_parts).strip()
 
     if workers:

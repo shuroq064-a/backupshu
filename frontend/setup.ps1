@@ -56,7 +56,7 @@ npm install @reduxjs/toolkit react-redux next-auth
 
 # ── 7. Dev Dependencies ────────────────────────────────
 Write-Host "`n[+] Installing dev dependencies..." -ForegroundColor Yellow
-npm install -D typescript @types/node @types/react @types/react-dom @types/jsonwebtoken tailwindcss @tailwindcss/postcss postcss autoprefixer eslint eslint-config-next agentation
+npm install -D typescript @types/node @types/react @types/react-dom @types/jsonwebtoken tailwindcss @tailwindcss/postcss postcss autoprefixer eslint eslint-config-next
 
 # ── Done ────────────────────────────────────────────────
 Write-Host ""

@@ -8,6 +8,7 @@ import { WS_BASE_URL } from "@/lib/config";
 import { useAppSelector } from "@/store";
 import { SkillBadges } from "@/components/ui/SkillBadges";
 import { useToast } from "@/components/ui/Toast";
+import BlurText from "@/components/ui/BlurText";
 import { useProfileGuard } from "@/hooks/UseProfileguard";
 import { Loader } from "@/components/prompt-kit/loader";
 import { SpecialistDetailsModal } from "@/components/dashboard/client/SpecialistDetailsModal";
@@ -955,8 +956,16 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
           <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
             {message.streaming && !message.content ? (
               <Loader variant="text-shimmer" text="Thinking" size="sm" />
-            ) : (
+            ) : message.streaming ? (
               <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{message.content}</p>
+            ) : (
+              <BlurText
+                text={message.content || ""}
+                delay={30}
+                animateBy="words"
+                direction="top"
+                className="text-sm leading-relaxed text-on-surface"
+              />
             )}
           </div>
         )}
@@ -1186,10 +1195,18 @@ function SpecialistDirectChat({
   // send is never clobbered by a poll landing mid-send (avoids duplicate/flicker).
   const mergeServer = useCallback((server: ChatMessageDTO[]) => {
     setMsgs((prev) => {
+      const seen = new Set<string>();
+      const deduped: ChatMessageDTO[] = [];
+      for (const m of server) {
+        if (!seen.has(m.id)) {
+          seen.add(m.id);
+          deduped.push(m);
+        }
+      }
       const pendingTemp = prev.filter(
         (m) => m.id.startsWith("temp-") && !server.some((s) => s.id === m.id),
       );
-      return [...server, ...pendingTemp];
+      return [...deduped, ...pendingTemp];
     });
   }, []);
 
@@ -1238,17 +1255,23 @@ function SpecialistDirectChat({
   // for the 8s poll. Opening the thread also marks messages as read server-side.
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token || !bookingId) return;
     const params = new URLSearchParams({ token });
     const ws = new WebSocket(`${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}?${params.toString()}`);
+    let alive = true;
+    ws.onopen = () => {};
     ws.onmessage = (e) => {
+      if (!alive) return;
       try {
         const data = JSON.parse(e.data) as ChatMessageDTO;
         appendPush(data);
-        void load(false); // refresh unread counts / conversation list
+        void load(false);
       } catch {}
     };
-    return () => ws.close();
+    return () => {
+      alive = false;
+      ws.close();
+    };
   }, [bookingId, appendPush, load]);
 
   async function send() {
@@ -1301,9 +1324,7 @@ function SpecialistDirectChat({
             </div>
           ) : (
             msgs.map((m) => {
-              // In the client hub, "mine" means the message was sent by the client.
-              const isMe = m.senderType === "client";
-              const initial = currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase() || "U";
+              const isMe = m.senderType === conversation.callerRole;
               if (isMe) {
                 return (
                   <Message key={m.id} className="justify-end">
@@ -1315,7 +1336,7 @@ function SpecialistDirectChat({
                     </div>
                     <MessageAvatar
                       src={clientAvatar}
-                      fallback={initial}
+                      fallback={currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase() || "U"}
                       className="border border-primary/20 bg-primary/15 text-primary"
                     />
                   </Message>
