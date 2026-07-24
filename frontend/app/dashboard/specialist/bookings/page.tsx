@@ -98,6 +98,10 @@ export default function BookingsManagerPage() {
   const workerIdRef = useRef<string | null>(workerId);
   workerIdRef.current = workerId;
 
+  // Track in-flight optimistic status updates so WebSocket refreshes never
+  // revert a status the user already advanced.  Map<bookingId, nextStatus>.
+  const pendingUpdatesRef = useRef<Map<string, string>>(new Map());
+
   // ── Fetch Bookings Data ──
   // `showLoading` is false for background/WebSocket refreshes so the UI
   // (incl. optimistic status updates) never flickers a full reload.
@@ -127,13 +131,29 @@ export default function BookingsManagerPage() {
         setLoadError("Could not load incoming requests. Tap refresh to retry.");
       }
 
+      // Merge in any pending optimistic updates: if a booking has an in-flight
+      // status update that the server hasn't committed yet, override the server
+      // value with the optimistic one so the UI never reverts.
+      const pending = pendingUpdatesRef.current;
+      const merged = bookings.map((b) => {
+        const optimistic = pending.get(b.id);
+        return optimistic ? { ...b, status: optimistic as BookingStatus } : b;
+      });
+
       // Categorize active, completed, upcoming appointments
-      const active = bookings.filter(
+      const active = merged.filter(
         (b) => b.status === "accepted" || b.status === "started" || b.status === "reached" || b.status === "ongoing"
       );
-      const completed = bookings.filter((b) => b.status === "completed" || b.status === "cancelled");
+      const completed = merged.filter((b) => b.status === "completed" || b.status === "cancelled");
       const upcoming = reqs.filter((b) => b.status === "accepted" || b.status === "upcoming");
       const incomingRequests = reqs.filter((b) => b.status === "upcoming");
+
+      // Clear any pending update whose server data now matches (i.e. the
+      // backend has committed the change).
+      pending.forEach((optimistic, id) => {
+        const server = bookings.find((b) => b.id === id);
+        if (!server || server.status === optimistic) pending.delete(id);
+      });
 
       setActiveJobs(active);
       setCompletedJobs(completed);
@@ -218,6 +238,9 @@ export default function BookingsManagerPage() {
       setStatusUpdating(null);
       return;
     }
+    // Register the optimistic status so WebSocket-triggered loadData merges it
+    // back instead of reverting to the old server value.
+    pendingUpdatesRef.current.set(bookingId, nextStatus);
     try {
       await bookingApi.updateStatus(bookingId, nextStatus);
       showToast(
@@ -230,6 +253,9 @@ export default function BookingsManagerPage() {
         prev.map((b) => (b.id === bookingId ? { ...b, status: nextStatus as BookingStatus } : b))
       );
     } catch (err) {
+      // On failure, remove the optimistic entry so loadData can restore the
+      // real server status on the next refresh.
+      pendingUpdatesRef.current.delete(bookingId);
       showToast(err instanceof Error ? err.message : "Failed to update status", "error");
     } finally {
       setStatusUpdating(null);
@@ -386,11 +412,17 @@ export default function BookingsManagerPage() {
                           {action && (
                             <button
                               onClick={() => handleStatusUpdate(job.id, action.next)}
-                              disabled={statusUpdating === job.id}
-                              className={`px-6 py-3 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition-all flex items-center gap-2 cursor-pointer ${action.color}`}
+                              disabled={!!statusUpdating}
+                              className={`px-6 py-3 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 ${
+                                statusUpdating
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "active:scale-95 cursor-pointer"
+                              } ${action.color}`}
                             >
-                              <span className="material-symbols-outlined text-[16px]">{action.icon}</span>
-                              {statusUpdating === job.id ? "Progressing..." : action.label}
+                              <span className={`material-symbols-outlined text-[16px] ${statusUpdating ? "animate-spin" : ""}`}>
+                                {statusUpdating ? "progress_activity" : action.icon}
+                              </span>
+                              {statusUpdating ? "Updating..." : action.label}
                             </button>
                           )}
                         </div>
@@ -479,17 +511,21 @@ export default function BookingsManagerPage() {
                     <div className="flex gap-2.5 shrink-0 md:ml-auto">
                       <button
                         onClick={() => handleDecline(req.id)}
-                        disabled={statusUpdating === req.id}
-                        className="px-6 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl text-xs font-bold hover:bg-surface-container-low transition-colors cursor-pointer disabled:opacity-50"
+                        disabled={!!statusUpdating}
+                        className={`px-6 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl text-xs font-bold transition-colors ${
+                          statusUpdating ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-container-low cursor-pointer"
+                        }`}
                       >
                         Decline
                       </button>
                       <button
                         onClick={() => handleAccept(req.id)}
-                        disabled={statusUpdating === req.id}
-                        className="px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                        disabled={!!statusUpdating}
+                        className={`px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold transition-all shadow-md ${
+                          statusUpdating ? "opacity-50 cursor-not-allowed" : "hover:bg-primary/90 cursor-pointer"
+                        }`}
                       >
-                        {statusUpdating === req.id ? "Accepting..." : "Accept"}
+                        {statusUpdating ? "Working..." : "Accept"}
                       </button>
                     </div>
                   </div>
@@ -519,7 +555,26 @@ export default function BookingsManagerPage() {
             ) : (
               <>
               <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                {/* Mobile: card layout */}
+                <div className="sm:hidden divide-y divide-outline-variant/40">
+                  {pagedHistory.map((job) => (
+                    <div key={job.id} className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-on-surface text-sm">{job.clientName}</span>
+                        <span className="px-2.5 py-1 bg-green-600/15 text-green-600 text-[10px] font-extrabold rounded-full uppercase">
+                          {job.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-on-surface-variant">
+                        <span>{job.serviceType}</span>
+                        <span className="text-gray-500">{job.scheduledDate}</span>
+                      </div>
+                      <p className="text-sm font-bold text-primary">₹{job.costBreakdown?.total || job.amount || 100}</p>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop: table layout */}
+                <div className="hidden sm:block overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-surface-container/50 border-b border-outline-variant text-on-surface-variant font-bold uppercase tracking-wider">
@@ -805,7 +860,7 @@ function AddSkillModal({
         
         {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
 
-        <div className="grid grid-cols-3 gap-3 mb-5 max-h-60 overflow-y-auto p-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5 max-h-60 overflow-y-auto p-1">
           {available.map((s) => (
             <button
               key={s.id}

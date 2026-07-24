@@ -194,10 +194,9 @@ async def run_agents(db, user, message: str, history: list[dict]):
     elif agent_name == "booking":
         async for chunk in _booking_agent(db, user, message, history, tool_results, tool_data):
             yield chunk
-    elif agent_name == "clarify":
-        async for chunk in _clarify_agent(message, history, tool_data):
-            yield chunk
     else:
+        # "clarify" and "chat" both handled by chat agent — it naturally asks
+        # clarifying questions when the request is vague.
         async for chunk in _chat_agent(message, history, booking_ctx, tool_data):
             yield chunk
 

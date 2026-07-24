@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import type { BookingDetail } from "@/types";
 import { SkillBadges } from "@/components/ui/SkillBadges";
 import { STATUS_META } from "@/types";
+import { PaymentModal } from "./PaymentModal";
+import { ReviewForm } from "./ReviewForm";
 
 interface BookingDetailModalProps {
   booking: BookingDetail;
@@ -19,27 +21,34 @@ const SERVICE_ICONS: Record<string, string> = {
   painting: "brush", Design: "brush",
 };
 
-// ─────────────────────────────────────────────
-//  Booking Detail Modal
-// ─────────────────────────────────────────────
-
 export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"details" | "updates">("details");
   const [isMouseDownOnOverlay, setIsMouseDownOnOverlay] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // ── Rating state ────────────────────────────────────────
+  const [isRated, setIsRated] = useState(!!booking.customerRating);
+
+  // ── Payment state ───────────────────────────────────────
+  const [showPayment, setShowPayment] = useState(false);
+  const [isPaid, setIsPaid] = useState(!!booking.isPaid);
+
+  // ── Lock state ──────────────────────────────────────────
+  const needsLock = booking.status === "completed" && !isPaid;
+  const isLocked = needsLock;
+
   // ── Mount portal on client only ─────────
   useEffect(() => setMounted(true), []);
 
-  // ── Close on Escape key ──────────────────
+  // ── Close on Escape key (blocked when locked) ───────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !isLocked) onClose();
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, [onClose, isLocked]);
 
   // ── Kill ALL background scroll while modal is open ──
   useEffect(() => {
@@ -62,8 +71,9 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
     };
   }, []);
 
-  // ── Click outside to close (with drag-select prevention & scrollbar check) ──
+  // ── Click outside to close (blocked when locked) ────────
   function handleMouseDown(e: React.MouseEvent) {
+    if (isLocked) return;
     if (e.target === overlayRef.current) {
       const rect = overlayRef.current.getBoundingClientRect();
       const isScrollbar = e.clientX > rect.left + overlayRef.current.clientWidth;
@@ -76,6 +86,7 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
   }
 
   function handleMouseUp(e: React.MouseEvent) {
+    if (isLocked) return;
     if (isMouseDownOnOverlay && e.target === overlayRef.current) {
       onClose();
     }
@@ -99,7 +110,7 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
 
   if (!mounted) return null;
 
-  return createPortal(
+  const modal = createPortal(
     <div
       ref={overlayRef}
       onMouseDown={handleMouseDown}
@@ -116,54 +127,143 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
         onClick={(e) => e.stopPropagation()}
       >
 
-          {/* ── Header band ────────────────────── */}
-          <div
-            className="relative px-5 pt-4 pb-4 rounded-t-3xl flex-shrink-0"
-            style={{
-              background:
-                "linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #00535b) 92%, #000 8%), color-mix(in srgb, var(--color-primary-container, #006d77) 100%, #000 0%))",
-            }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white border border-white/20 shrink-0">
-                  <span className="material-symbols-outlined text-xl">{serviceIcon}</span>
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base font-bold text-white leading-tight truncate capitalize">
-                    {booking.serviceType} Booking
-                  </h2>
-                  <p className="text-[10px] text-teal-50/80 font-mono mt-0.5 uppercase">
-                    #{booking.bookingNumber}
-                  </p>
+          {/* ── Header ────────────────────── */}
+          {isLocked ? (
+            /* Locked header — clean, minimal */
+            <div className="px-5 pt-5 pb-4 flex-shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-900">
+                  {!isRated ? "Rate Your Experience" : "Complete Payment"}
+                </h2>
+                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[14px] text-gray-400">lock</span>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/30 flex items-center justify-center text-white transition-colors shrink-0"
-                aria-label="Close"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
+              {/* Simple step indicator */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    isRated ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                  }`}>
+                    {isRated ? <span className="material-symbols-outlined text-[12px]">check</span> : "1"}
+                  </span>
+                  <span className={`text-xs font-semibold ${isRated ? "text-primary" : "text-gray-500"}`}>Rate</span>
+                </div>
+                <div className={`h-px flex-1 max-w-8 ${isRated ? "bg-primary" : "bg-gray-200"}`} />
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    isPaid ? "bg-primary text-white" : isRated ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
+                  }`}>
+                    {isPaid ? <span className="material-symbols-outlined text-[12px]">check</span> : "2"}
+                  </span>
+                  <span className={`text-xs font-semibold ${isPaid ? "text-primary" : isRated ? "text-primary" : "text-gray-400"}`}>Pay</span>
+                </div>
+              </div>
             </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1 mt-3">
-              <button 
-                onClick={() => setActiveTab("details")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${activeTab === "details" ? "bg-surface-container-lowest text-primary shadow-sm" : "text-teal-50/80 hover:bg-white/10"}`}>
-                Details
-              </button>
-              <button 
-                onClick={() => setActiveTab("updates")}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${activeTab === "updates" ? "bg-surface-container-lowest text-primary shadow-sm" : "text-teal-50/80 hover:bg-white/10"}`}>
-                Updates
-              </button>
+          ) : (
+            /* Normal header — teal gradient with tabs */
+            <div
+              className="relative px-5 pt-4 pb-4 rounded-t-3xl flex-shrink-0"
+              style={{
+                background:
+                  "linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #00535b) 92%, #000 8%), color-mix(in srgb, var(--color-primary-container, #006d77) 100%, #000 0%))",
+              }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white border border-white/20 shrink-0">
+                    <span className="material-symbols-outlined text-xl">{serviceIcon}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-bold text-white leading-tight truncate capitalize">
+                      {booking.serviceType} Booking
+                    </h2>
+                    <p className="text-[10px] text-teal-50/80 font-mono mt-0.5 uppercase">
+                      #{booking.bookingNumber}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/30 flex items-center justify-center text-white transition-colors shrink-0"
+                  aria-label="Close"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+              <div className="flex gap-1 mt-3">
+                <button
+                  onClick={() => setActiveTab("details")}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${activeTab === "details" ? "bg-surface-container-lowest text-primary shadow-sm" : "text-teal-50/80 hover:bg-white/10"}`}>
+                  Details
+                </button>
+                <button
+                  onClick={() => setActiveTab("updates")}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${activeTab === "updates" ? "bg-surface-container-lowest text-primary shadow-sm" : "text-teal-50/80 hover:bg-white/10"}`}>
+                  Updates
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="px-5 py-4 space-y-4 overflow-y-auto min-h-0">
-            {activeTab === "details" ? (
+            {/* ═══ LOCKED: Rating → Payment flow ═══════════════════════════ */}
+            {isLocked && (
+              <div className="space-y-4">
+                {/* ── Step 1: Rating prompt ──────────── */}
+                {!isRated && (
+                  <div className="text-center py-1">
+                    <p className="text-sm text-gray-400">Tell us how {booking.specialist?.name || "the specialist"} did.</p>
+                  </div>
+                )}
+
+                {/* ── Step 2: Payment Card ─────────────── */}
+                {isRated && !isPaid && (
+                  <div className="space-y-3">
+                    <div className="bg-surface-container-low rounded-xl p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Service</span>
+                        <span className="font-medium text-gray-900">{booking.serviceType}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Visit Charge</span>
+                        <span className="font-medium text-gray-900">₹{booking.costBreakdown?.visitCharge ?? booking.amount}</span>
+                      </div>
+                      {booking.costBreakdown?.repairWork ? (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Repair Work</span>
+                          <span className="font-medium text-gray-900">₹{booking.costBreakdown.repairWork}</span>
+                        </div>
+                      ) : null}
+                      <div className="h-px bg-outline-variant/60" />
+                      <div className="flex justify-between text-sm font-bold">
+                        <span className="text-gray-900">Total</span>
+                        <span className="text-primary">₹{booking.costBreakdown?.total ?? booking.amount}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowPayment(true)}
+                      className="w-full py-3 bg-primary hover:bg-primary-container text-white rounded-xl text-sm font-semibold transition-colors"
+                    >
+                      Pay ₹{booking.costBreakdown?.total ?? booking.amount}
+                    </button>
+                    <p className="text-[11px] text-gray-400 text-center">Secure payment · Confirmation sent instantly</p>
+                  </div>
+                )}
+
+                {/* ── Already paid ── */}
+                {isPaid && (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                    <span className="material-symbols-outlined text-green-500 text-[18px]">check_circle</span>
+                    <p className="text-sm text-green-700 font-medium">Payment completed</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ═══ UNLOCKED: Normal booking detail ═══════════════════════ */}
+            {!isLocked && activeTab === "details" && (
               <>
                 {/* ── Specialist card ───────────────── */}
                 <div className="flex items-center justify-between gap-3">
@@ -231,18 +331,26 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
                 </div>
               )}
 
-              {/* ── Completed: Call only ─────────── */}
+              {/* ── Completed (unlocked = already paid): show call + amount + paid badge ── */}
               {booking.status === "completed" && (
-                <div className="flex items-center justify-between">
-                  <a
-                    href={`tel:${tmpSpec.phone || ""}`}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-container transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">call</span> Call
-                  </a>
-                  <p className="text-2xl font-bold text-gray-900">
-                    ₹{booking.costBreakdown?.total ?? booking.amount}
-                  </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <a
+                      href={`tel:${tmpSpec.phone || ""}`}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-container transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">call</span> Call
+                    </a>
+                    <p className="text-2xl font-bold text-gray-900">
+                      ₹{booking.costBreakdown?.total ?? booking.amount}
+                    </p>
+                  </div>
+                  {isPaid && (
+                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                      <span className="material-symbols-outlined text-green-500 text-[18px]">check_circle</span>
+                      <p className="text-sm text-green-700 font-medium">Payment completed</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -310,7 +418,7 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
 
               {/* ── Ongoing: Action buttons ───────── */}
               {booking.status === "ongoing" && (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button className="py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5">
                     <span className="material-symbols-outlined text-[18px]">navigation</span> Track
                   </button>
@@ -350,7 +458,7 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
 
               {/* ── Completed: Cost breakdown + feedback ── */}
               {booking.status === "completed" && booking.costBreakdown && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Customer feedback */}
                   <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/40">
                     <p className="text-sm font-semibold text-gray-800 mb-2">
@@ -436,7 +544,9 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
                 </p>
               )}
             </>
-          ) : (
+          )}
+
+            {!isLocked && activeTab === "updates" && (
             <div className="text-center py-12 text-gray-500 flex flex-col items-center justify-center">
               <span className="material-symbols-outlined text-5xl mb-3 opacity-40">update</span>
               <p className="text-base font-medium text-gray-700">No recent updates</p>
@@ -447,6 +557,43 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
     </motion.div>
   </div>,
     document.body
+  );
+
+  return (
+    <>
+      {modal}
+      {/* Rating modal — shown when locked and not yet rated */}
+      {isLocked && !isRated && (
+        <ReviewForm
+          bookingId={booking.id}
+          bookingNumber={booking.bookingNumber}
+          serviceType={booking.serviceType}
+          specialistName={tmpSpec.name}
+          onSuccess={() => {
+            setIsRated(true);
+            window.dispatchEvent(new CustomEvent("shuroqx-payment-success", { detail: { bookingId: booking.id } }));
+          }}
+          onSkip={() => {
+            setIsRated(true);
+            window.dispatchEvent(new CustomEvent("shuroqx-payment-success", { detail: { bookingId: booking.id } }));
+          }}
+        />
+      )}
+      {showPayment && (
+        <PaymentModal
+          bookingId={booking.id}
+          bookingNumber={booking.bookingNumber}
+          serviceType={booking.serviceType}
+          amount={booking.costBreakdown?.total ?? 0}
+          onSuccess={() => {
+            setShowPayment(false);
+            setIsPaid(true);
+            window.dispatchEvent(new CustomEvent("shuroqx-payment-success", { detail: { bookingId: booking.id } }));
+          }}
+          onCancel={() => setShowPayment(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -507,4 +654,3 @@ function InfoRow({
     </div>
   );
 }
-

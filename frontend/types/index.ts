@@ -162,6 +162,29 @@ export interface BookingDetail extends Booking {
   customerRating?: number;       // 1-5 stars
   cancellationReason?: string;   // if cancelled
   cancelledBy?: "client" | "specialist" | "system";
+  isPaid?: boolean;
+  paymentStatus?: "created" | "attempted" | "captured" | "failed" | "none";
+}
+
+// ── Payment ────────────────────────────────────
+
+export interface PaymentOrder {
+  orderId: string;
+  amount: number;       // in paise
+  currency: string;
+  keyId: string;
+  bookingId: string;
+}
+
+export interface PaymentResult {
+  id: string;
+  bookingId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId?: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
 }
 
 // ── Services ──────────────────────────────────

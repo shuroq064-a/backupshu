@@ -218,7 +218,7 @@ export default function SpecialistOnboarding() {
       {/* ── Main Content (sidebar is provided by the dashboard layout) ── */}
       <main className="flex-1 min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 border-b border-outline-variant bg-surface/80 backdrop-blur-md shadow-sm flex items-center justify-between px-6 lg:px-10 ml-2 lg:ml-3">
+        <header className="sticky top-0 z-30 h-16 border-b border-outline-variant bg-surface/80 backdrop-blur-md shadow-sm flex items-center justify-between px-4 sm:px-6 lg:px-10 lg:ml-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -247,7 +247,7 @@ export default function SpecialistOnboarding() {
           </div>
         </header>
 
-        <div className="px-6 lg:px-10 py-10 max-w-screen-2xl mx-auto space-y-10">
+        <div className="px-4 sm:px-6 lg:px-10 py-6 sm:py-10 max-w-screen-2xl mx-auto space-y-8 sm:space-y-10">
           {/* Hero */}
           <section className="text-center mx-auto max-w-2xl">
             <h2 className="text-2xl font-extrabold text-on-surface">

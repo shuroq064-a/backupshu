@@ -446,6 +446,21 @@ export const bookingApi = {
     apiClient.post(`/bookings/${bookingId}/review`, { rating, feedback }),
 };
 
+// ── Payment API (Razorpay) ──────────────────────────────────────────────────
+
+export const paymentApi = {
+  createOrder: (bookingId: string) =>
+    apiClient.post<import("@/types").PaymentOrder>("/payments/create-order", { booking_id: bookingId }),
+
+  verify: (bookingId: string, orderId: string, paymentId: string, razorpaySignature: string) =>
+    apiClient.post<import("@/types").PaymentResult>("/payments/verify", {
+      bookingId,
+      orderId,
+      paymentId,
+      razorpaySignature,
+    }),
+};
+
 // ── Worker API additions ───────────────────────────────────────────────────────
 
 export const workerExtApi = {

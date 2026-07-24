@@ -8,7 +8,7 @@ import { WS_BASE_URL } from "@/lib/config";
 import { useAppSelector } from "@/store";
 import { SkillBadges } from "@/components/ui/SkillBadges";
 import { useToast } from "@/components/ui/Toast";
-import BlurText from "@/components/ui/BlurText";
+// import BlurText from "@/components/ui/BlurText";
 import { useProfileGuard } from "@/hooks/UseProfileguard";
 import { Loader } from "@/components/prompt-kit/loader";
 import { SpecialistDetailsModal } from "@/components/dashboard/client/SpecialistDetailsModal";
@@ -768,7 +768,7 @@ export default function RedesignedClientChat() {
       {/* Main Chat Interface */}
       <section className="flex-1 min-h-0 flex flex-col h-full bg-background relative">
         {/* Top AppBar */}
-        <header className="h-16 border-b border-outline-variant flex items-center justify-between px-6 bg-surface-container-low backdrop-blur-md z-10">
+        <header className="h-16 border-b border-outline-variant flex items-center justify-between px-4 sm:px-6 bg-surface-container-low backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-primary">chat</span>
             <div>
@@ -823,13 +823,12 @@ export default function RedesignedClientChat() {
                   <div key={msg.id}>
                     {msg.role === "user"
                       ? <UserBubble message={msg} user={user} />
-                      : <BotBubble
+                      :                       <BotBubble
                           message={msg}
                           isAccepted={acceptedMsgIds.has(msg.id)}
                           liveStatus={msg.bookingId ? statusByBooking.get(msg.bookingId) : undefined}
                           onSpecialistClick={sp => setDetailSpecialist(sp)}
                           onViewJob={handleViewJob}
-                          onChooseOption={(opt) => handleSend(opt)}
                           onChooseSpecialist={(workerId) => handleChooseSpecialist(workerId, msg.id)}
                         />
                     }
@@ -926,13 +925,12 @@ function UserBubble({ message, user }: { message: ChatMessage; user: User | null
   );
 }
 
-function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJob, onChooseOption, onChooseSpecialist }: {
+function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJob, onChooseSpecialist }: {
   message: ChatMessage;
   isAccepted?: boolean;
   liveStatus?: string;
   onSpecialistClick: (sp: SpecialistResult) => void;
   onViewJob: (bookingId: string) => void;
-  onChooseOption: (option: string) => void;
   onChooseSpecialist: (workerId: string) => void;
 }) {
   const showText = Boolean(message.content) || message.streaming;
@@ -940,7 +938,7 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
   return (
     <Message>
       <MessageAvatar fallback="SX" />
-      <MessageContent className="max-w-xl space-y-2">
+      <MessageContent className="max-w-xl space-y-3">
 
         {message.specialist && isAccepted && (
           <SpecialistCard
@@ -953,33 +951,12 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
         )}
         {message.specialist && !isAccepted && <WaitingCard />}
         {showText && (
-          <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
+          <div className="py-1">
             {message.streaming && !message.content ? (
               <Loader variant="text-shimmer" text="Thinking" size="sm" />
-            ) : message.streaming ? (
-              <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{message.content}</p>
             ) : (
-              <BlurText
-                text={message.content || ""}
-                delay={30}
-                animateBy="words"
-                direction="top"
-                className="text-sm leading-relaxed text-on-surface"
-              />
+              <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{message.content}</p>
             )}
-          </div>
-        )}
-        {message.awaitingChoice && message.clarifyOptions && message.clarifyOptions.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {message.clarifyOptions.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => onChooseOption(opt)}
-                className="rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary hover:text-on-primary active:scale-95"
-              >
-                {opt}
-              </button>
-            ))}
           </div>
         )}
         {candidates.length > 0 && (
@@ -1328,7 +1305,7 @@ function SpecialistDirectChat({
               if (isMe) {
                 return (
                   <Message key={m.id} className="justify-end">
-                    <div className="max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4.5 py-3 text-on-primary shadow-md shadow-primary/5">
+      <div className="max-w-[85%] sm:max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-on-primary shadow-md shadow-primary/5">
                       <p className="text-sm leading-relaxed">{m.text}</p>
                       <span className="mt-1 block text-right text-[10px] text-white/70">
                         {fmtTime(m.createdAt)}

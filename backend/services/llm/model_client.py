@@ -1,7 +1,7 @@
 """
 services/llm/model_client.py
 ──────────────────────────────
-Multi-provider async LLM client: Mistral (primary) + Gemini (fallback).
+Multi-provider async LLM client: Primary (OpenAI-compatible) + Fallback (Gemini).
 
 Public interface:
   * chat(...)          -> single non-streaming completion.
@@ -18,17 +18,17 @@ from typing import AsyncIterator, Iterable, Optional
 
 import httpx
 
-# ── Mistral (primary) ────────────────────────────────────────────────────────
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
-MISTRAL_BASE_URL = os.getenv("MISTRAL_BASE_URL", "https://api.mistral.ai/v1").rstrip("/")
-MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-medium-3-5")
+# ── Primary LLM (OpenAI-compatible) ──────────────────────────────────────────
+PRIMARY_API_KEY = os.getenv("PRIMARY_API_KEY", "")
+PRIMARY_BASE_URL = os.getenv("PRIMARY_BASE_URL", "").rstrip("/")
+PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "")
 
-# ── Gemini (fallback) ────────────────────────────────────────────────────────
-GEMINI_BASE_URL = os.getenv(
-    "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"
+# ── Fallback LLM (Gemini) ────────────────────────────────────────────────────
+FALLBACK_BASE_URL = os.getenv(
+    "FALLBACK_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"
 ).rstrip("/")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-4-31b-it")
+FALLBACK_API_KEY = os.getenv("FALLBACK_API_KEY", "")
+FALLBACK_MODEL = os.getenv("FALLBACK_MODEL", "")
 
 DEFAULT_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "15"))
 DEFAULT_TEMPERATURE = 0.2
@@ -97,24 +97,22 @@ def _gemini_payload(messages: Iterable[dict], *, stream: bool, temperature: floa
     }
 
 
-def _gemini_url(method: str, *, stream: bool) -> str:
-    base = f"{GEMINI_BASE_URL}/models/{GEMINI_MODEL}:{method}"
-    if stream:
-        return f"{base}?alt=sse&key={GEMINI_API_KEY}"
-    return f"{base}?key={GEMINI_API_KEY}"
+def _gemini_url(method: str) -> str:
+    base = f"{FALLBACK_BASE_URL}/models/{FALLBACK_MODEL}:{method}"
+    return f"{base}?key={FALLBACK_API_KEY}"
 
 
-# ── Mistral (OpenAI-compatible) helpers ───────────────────────────────────────
-def _mistral_headers() -> dict:
+# ── Primary (OpenAI-compatible) helpers ───────────────────────────────────────
+def _primary_headers() -> dict:
     return {
-        "Authorization": f"Bearer {MISTRAL_API_KEY}",
+        "Authorization": f"Bearer {PRIMARY_API_KEY}",
         "Content-Type": "application/json",
     }
 
 
-def _mistral_payload(messages: Iterable[dict], *, stream: bool, temperature: float) -> dict:
+def _primary_payload(messages: Iterable[dict], *, stream: bool, temperature: float) -> dict:
     return {
-        "model": MISTRAL_MODEL,
+        "model": PRIMARY_MODEL,
         "messages": list(messages),
         "temperature": temperature,
         "max_tokens": MAX_OUTPUT_TOKENS,
@@ -122,11 +120,11 @@ def _mistral_payload(messages: Iterable[dict], *, stream: bool, temperature: flo
     }
 
 
-def _mistral_url(*, stream: bool) -> str:
-    return f"{MISTRAL_BASE_URL}/chat/completions"
+def _primary_url() -> str:
+    return f"{PRIMARY_BASE_URL}/chat/completions"
 
 
-def _extract_mistral_text(payload: dict) -> str:
+def _extract_primary_text(payload: dict) -> str:
     try:
         return payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError):
@@ -134,34 +132,33 @@ def _extract_mistral_text(payload: dict) -> str:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# PUBLIC API
+# PRIMARY PROVIDER
 # ═════════════════════════════════════════════════════════════════════════════
 
-async def _mistral_chat(
+async def _primary_chat(
     messages: Iterable[dict],
     *,
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> str:
-    """Mistral non-streaming completion."""
     last_err: Optional[Exception] = None
     for attempt in range(MAX_RETRIES + 1):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(
-                    _mistral_url(stream=False),
-                    headers=_mistral_headers(),
-                    json=_mistral_payload(messages, stream=False, temperature=temperature),
+                    _primary_url(),
+                    headers=_primary_headers(),
+                    json=_primary_payload(messages, stream=False, temperature=temperature),
                 )
                 if resp.status_code >= 500:
-                    last_err = RuntimeError(f"Mistral {resp.status_code}")
+                    last_err = RuntimeError(f"Primary LLM {resp.status_code}")
                     if attempt < MAX_RETRIES:
                         await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                         continue
-                    raise LLMUnavailable(f"Mistral {resp.status_code}")
+                    raise LLMUnavailable(f"Primary LLM {resp.status_code}")
                 if resp.status_code >= 400:
-                    raise LLMUnavailable(f"Mistral {resp.status_code}: {resp.text[:200]}")
-                return _extract_mistral_text(resp.json())
+                    raise LLMUnavailable(f"Primary LLM {resp.status_code}: {resp.text[:200]}")
+                return _extract_primary_text(resp.json())
         except LLMUnavailable:
             raise
         except Exception as exc:
@@ -169,17 +166,16 @@ async def _mistral_chat(
             if attempt < MAX_RETRIES:
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                 continue
-            raise LLMUnavailable(f"Mistral unavailable: {last_err}")
-    raise LLMUnavailable(f"Mistral unavailable: {last_err}")
+            raise LLMUnavailable(f"Primary LLM unavailable: {last_err}")
+    raise LLMUnavailable(f"Primary LLM unavailable: {last_err}")
 
 
-async def _mistral_stream(
+async def _primary_stream(
     messages: Iterable[dict],
     *,
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> AsyncIterator[str]:
-    """Mistral streaming completion (OpenAI SSE format)."""
     last_err: Optional[Exception] = None
     for attempt in range(MAX_RETRIES + 1):
         opened = False
@@ -188,16 +184,16 @@ async def _mistral_stream(
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
                     "POST",
-                    _mistral_url(stream=True),
-                    headers=_mistral_headers(),
-                    json=_mistral_payload(messages, stream=True, temperature=temperature),
+                    _primary_url(),
+                    headers=_primary_headers(),
+                    json=_primary_payload(messages, stream=True, temperature=temperature),
                 ) as resp:
                     if resp.status_code >= 400:
                         if resp.status_code >= 500 and attempt < MAX_RETRIES:
-                            last_err = RuntimeError(f"Mistral {resp.status_code}")
+                            last_err = RuntimeError(f"Primary LLM {resp.status_code}")
                             await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                             continue
-                        raise LLMUnavailable(f"Mistral {resp.status_code}: {await resp.aread()}")
+                        raise LLMUnavailable(f"Primary LLM {resp.status_code}: {await resp.aread()}")
                     opened = True
                     async for line in resp.aiter_lines():
                         line = (line or "").strip()
@@ -216,7 +212,7 @@ async def _mistral_stream(
                             yielded = True
                             yield text
             if opened and not yielded and attempt < MAX_RETRIES:
-                last_err = RuntimeError("Mistral stream closed with no tokens")
+                last_err = RuntimeError("Primary LLM stream closed with no tokens")
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                 continue
             return
@@ -228,7 +224,7 @@ async def _mistral_stream(
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                     continue
-                raise LLMUnavailable(f"Mistral stream failed: {exc}")
+                raise LLMUnavailable(f"Primary LLM stream failed: {exc}")
             if not yielded and attempt < MAX_RETRIES:
                 last_err = exc
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
@@ -236,30 +232,33 @@ async def _mistral_stream(
             return
 
 
-async def _gemini_chat(
+# ═════════════════════════════════════════════════════════════════════════════
+# FALLBACK PROVIDER (Gemini)
+# ═════════════════════════════════════════════════════════════════════════════
+
+async def _fallback_chat(
     messages: Iterable[dict],
     *,
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> str:
-    """Gemini non-streaming completion (fallback)."""
     last_err: Optional[Exception] = None
     for attempt in range(MAX_RETRIES + 1):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(
-                    _gemini_url("generateContent", stream=False),
+                    _gemini_url("generateContent"),
                     headers={"Content-Type": "application/json"},
                     json=_gemini_payload(messages, stream=False, temperature=temperature),
                 )
                 if resp.status_code >= 500:
-                    last_err = RuntimeError(f"Gemini {resp.status_code}")
+                    last_err = RuntimeError(f"Fallback LLM {resp.status_code}")
                     if attempt < MAX_RETRIES:
                         await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                         continue
-                    raise LLMUnavailable(f"Gemini {resp.status_code}")
+                    raise LLMUnavailable(f"Fallback LLM {resp.status_code}")
                 if resp.status_code >= 400:
-                    raise LLMUnavailable(f"Gemini {resp.status_code}: {resp.text[:200]}")
+                    raise LLMUnavailable(f"Fallback LLM {resp.status_code}: {resp.text[:200]}")
                 return _extract_gemini_text(resp.json(), allow_thought=True)
         except LLMUnavailable:
             raise
@@ -268,17 +267,16 @@ async def _gemini_chat(
             if attempt < MAX_RETRIES:
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                 continue
-            raise LLMUnavailable(f"Gemini unavailable: {last_err}")
-    raise LLMUnavailable(f"Gemini unavailable: {last_err}")
+            raise LLMUnavailable(f"Fallback LLM unavailable: {last_err}")
+    raise LLMUnavailable(f"Fallback LLM unavailable: {last_err}")
 
 
-async def _gemini_stream(
+async def _fallback_stream(
     messages: Iterable[dict],
     *,
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> AsyncIterator[str]:
-    """Gemini streaming completion (fallback)."""
     last_err: Optional[Exception] = None
     for attempt in range(MAX_RETRIES + 1):
         opened = False
@@ -287,16 +285,16 @@ async def _gemini_stream(
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
                     "POST",
-                    _gemini_url("streamGenerateContent", stream=True),
+                    _gemini_url("streamGenerateContent"),
                     headers={"Content-Type": "application/json"},
                     json=_gemini_payload(messages, stream=True, temperature=temperature),
                 ) as resp:
                     if resp.status_code >= 400:
                         if resp.status_code >= 500 and attempt < MAX_RETRIES:
-                            last_err = RuntimeError(f"Gemini {resp.status_code}")
+                            last_err = RuntimeError(f"Fallback LLM {resp.status_code}")
                             await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                             continue
-                        raise LLMUnavailable(f"Gemini {resp.status_code}: {await resp.aread()}")
+                        raise LLMUnavailable(f"Fallback LLM {resp.status_code}: {await resp.aread()}")
                     opened = True
                     async for line in resp.aiter_lines():
                         line = (line or "").strip()
@@ -314,7 +312,7 @@ async def _gemini_stream(
                             yielded = True
                             yield text
             if opened and not yielded and attempt < MAX_RETRIES:
-                last_err = RuntimeError("Gemini stream closed with no tokens")
+                last_err = RuntimeError("Fallback LLM stream closed with no tokens")
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                 continue
             return
@@ -326,7 +324,7 @@ async def _gemini_stream(
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
                     continue
-                raise LLMUnavailable(f"Gemini stream failed: {exc}")
+                raise LLMUnavailable(f"Fallback LLM stream failed: {exc}")
             if not yielded and attempt < MAX_RETRIES:
                 last_err = exc
                 await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
@@ -335,7 +333,7 @@ async def _gemini_stream(
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# PUBLIC INTERFACE — Mistral primary, Gemini fallback
+# PUBLIC INTERFACE — Primary first, Fallback second
 # ═════════════════════════════════════════════════════════════════════════════
 
 async def chat(
@@ -344,12 +342,12 @@ async def chat(
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> str:
-    """Non-streaming completion. Tries Mistral first, falls back to Gemini."""
+    """Non-streaming completion. Tries primary first, falls back."""
     try:
-        return await _mistral_chat(messages, temperature=temperature, timeout=timeout)
+        return await _primary_chat(messages, temperature=temperature, timeout=timeout)
     except LLMUnavailable:
         pass
-    return await _gemini_chat(messages, temperature=temperature, timeout=timeout)
+    return await _fallback_chat(messages, temperature=temperature, timeout=timeout)
 
 
 async def stream_chat(
@@ -358,12 +356,12 @@ async def stream_chat(
     temperature: float = DEFAULT_TEMPERATURE,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> AsyncIterator[str]:
-    """Streaming completion. Tries Mistral first, falls back to Gemini."""
+    """Streaming completion. Tries primary first, falls back."""
     try:
-        async for chunk in _mistral_stream(messages, temperature=temperature, timeout=timeout):
+        async for chunk in _primary_stream(messages, temperature=temperature, timeout=timeout):
             yield chunk
         return
     except LLMUnavailable:
         pass
-    async for chunk in _gemini_stream(messages, temperature=temperature, timeout=timeout):
+    async for chunk in _fallback_stream(messages, temperature=temperature, timeout=timeout):
         yield chunk

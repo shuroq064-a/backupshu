@@ -49,8 +49,8 @@ def ev_no_workers(reply: str, intent: str) -> str:
     return sse("no_workers", {"reply": reply, "intent": intent})
 
 
-def ev_clarify(text: str, options: list) -> str:
-    return sse("clarify", {"text": text, "options": options})
+def ev_clarify(reply: str, options: list) -> str:
+    return sse("clarify", {"reply": reply, "options": options})
 
 
 def ev_error(reply: str) -> str:

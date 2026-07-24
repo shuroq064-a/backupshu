@@ -224,12 +224,12 @@ export default function SpecialistEarningsPage() {
         </button>
       </div>
 
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
         {(["week", "month", "total"] as Period[]).map(p => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
+            className={`px-4 sm:px-5 py-2 rounded-lg text-sm font-medium capitalize transition-all whitespace-nowrap flex-1 sm:flex-none ${
               period === p ? "bg-surface-container-lowest text-primary-container shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -246,21 +246,21 @@ export default function SpecialistEarningsPage() {
 
       <div className="bg-gradient-to-br from-primary to-primary-container rounded-3xl p-6 text-white shadow-xl shadow-primary/20">
         <p className="text-sm text-primary-fixed-dim mb-1">{current.label}</p>
-        <p className="text-5xl font-bold mb-1">{loading ? "..." : formatCurrency(current.value)}</p>
+        <p className="text-3xl sm:text-5xl font-bold mb-1">{loading ? "..." : formatCurrency(current.value)}</p>
         <p className="text-primary-fixed-dim text-sm">
           {loading ? "Loading earnings" : `${current.count} job${current.count === 1 ? "" : "s"} completed`}
         </p>
 
-        <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-white/20">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 pt-5 border-t border-white/20">
           {[
             { label: "Today", value: earnings.today, count: earnings.todayCount },
             { label: "This Week", value: earnings.week, count: earnings.weekCount },
             { label: "All Time", value: earnings.total, count: earnings.totalCount },
           ].map(item => (
             <div key={item.label}>
-              <p className="text-xs text-primary-fixed-dim">{item.label}</p>
-              <p className="text-lg font-bold">{loading ? "..." : formatCurrency(item.value)}</p>
-              <p className="text-[11px] text-primary-fixed-dim">{item.count} job{item.count === 1 ? "" : "s"}</p>
+              <p className="text-[10px] sm:text-xs text-primary-fixed-dim">{item.label}</p>
+              <p className="text-sm sm:text-lg font-bold">{loading ? "..." : formatCurrency(item.value)}</p>
+              <p className="text-[10px] sm:text-[11px] text-primary-fixed-dim">{item.count} job{item.count === 1 ? "" : "s"}</p>
             </div>
           ))}
         </div>

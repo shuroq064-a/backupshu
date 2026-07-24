@@ -487,6 +487,8 @@ class BookingDetailOut(BookingListOut):
     clientPhone: Optional[str] = None
     clientAddress: Optional[str] = None
     visitCharge: Optional[float] = 100.0
+    isPaid: bool = False
+    paymentStatus: Optional[str] = None  # "created"|"attempted"|"captured"|"failed"|"none"
     workerId: Optional[str] = None
 
 
@@ -805,3 +807,44 @@ class AiChatSessionWithMessagesOut(BaseModel):
 
     class Config:
         from_attributes = True  
+
+
+# ── Payment schemas ─────────────────────────────────────────────────────────
+
+class PaymentOrderIn(BaseModel):
+    """Sent by frontend to create a Razorpay order."""
+
+    booking_id: str
+
+
+class PaymentOrderOut(BaseModel):
+    """Returned to frontend after creating a Razorpay order."""
+
+    orderId: str
+    amount: int          # in paise
+    currency: str
+    keyId: str           # frontend needs the public key
+    bookingId: str
+
+
+class PaymentVerifyIn(BaseModel):
+    """Sent by frontend after Razorpay checkout completes."""
+
+    bookingId: str
+    orderId: str
+    paymentId: str
+    razorpaySignature: str
+
+
+class PaymentOut(BaseModel):
+    id: str
+    bookingId: str
+    razorpayOrderId: str
+    razorpayPaymentId: Optional[str] = None
+    amount: float
+    currency: str
+    status: str
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True

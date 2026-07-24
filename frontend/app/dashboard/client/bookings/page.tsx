@@ -8,7 +8,6 @@ import { getToken } from "@/lib/auth";
 import type { BookingDetail } from "@/types";
 import { STATUS_META } from "@/types";
 import { BookingDetailModal } from "@/components/dashboard/client/BookingDetailModal";
-import { ReviewForm } from "@/components/dashboard/client/ReviewForm";
 import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -67,9 +66,6 @@ export default function ClientBookingsPage() {
 
   const PAGE_SIZE = 5;
 
-  // Review modal
-  const [reviewBooking, setReviewBooking] = useState<BookingDetail | null>(null);
-
   // WebSocket refs for live status per booking
   const wsRefs = useRef<Map<string, WebSocket>>(new Map());
 
@@ -90,6 +86,13 @@ export default function ClientBookingsPage() {
   }
 
   useEffect(() => { loadBookings(); }, [user?.id]);
+
+  // Refetch bookings after a successful payment
+  useEffect(() => {
+    function onPaymentSuccess() { loadBookings(); }
+    window.addEventListener("shuroqx-payment-success", onPaymentSuccess);
+    return () => window.removeEventListener("shuroqx-payment-success", onPaymentSuccess);
+  }, [user?.id]);
 
   // Open/close WebSockets based on the current bookings list. Sockets are only
   // opened for active bookings and only closed when the booking is no longer
@@ -160,17 +163,26 @@ export default function ClientBookingsPage() {
 
         if (msg) showToast(msg, data.status === "completed" ? "success" : "info");
 
-        // On complete/cancel — close WS and prompt review
-        if (data.status === "completed" || data.status === "cancelled") {
+        // On complete — close WS and auto-open the locked rating → payment modal
+        if (data.status === "completed") {
           safeClose();
           wsRefs.current.delete(bookingId);
-          if (data.status === "completed") {
+          // Fetch fresh booking detail (with isPaid, costBreakdown etc.) and
+          // open the modal so the client immediately sees the rating flow.
+          bookingApi.getById(data.bookingId).then((detail) => {
+            setSelectedBooking(detail);
+          }).catch(() => {
+            // Fallback: update the in-state booking and open with stale data
             setBookings(prev => {
-              const b = prev.find(x => x.id === bookingId);
-              if (b && !b.customerRating) setReviewBooking({ ...b, status: "completed" });
+              const found = prev.find(b => b.id === data.bookingId);
+              if (found) setSelectedBooking({ ...found, status: data.status });
               return prev;
             });
-          }
+          });
+        }
+        if (data.status === "cancelled") {
+          safeClose();
+          wsRefs.current.delete(bookingId);
         }
       } catch {}
     };
@@ -212,15 +224,6 @@ export default function ClientBookingsPage() {
     } catch {
       setSelectedBooking(booking);
     }
-  }
-
-  function handleReviewSuccess(bookingId: string) {
-    setBookings(prev => prev.map(b =>
-      b.id === bookingId ? { ...b, customerRating: reviewBooking?.customerRating || 5 } : b
-    ));
-    setReviewBooking(null);
-    showToast("Thank you for your review! 🌟", "success");
-    loadBookings();
   }
 
   function handleRebook(booking: BookingDetail) {
@@ -367,7 +370,6 @@ export default function ClientBookingsPage() {
                         key={b.id}
                         booking={b}
                         onRebook={() => handleRebook(b)}
-                        onReview={() => setReviewBooking(b)}
                         onClick={() => handleOpenBooking(b)}
                       />
                     ))}
@@ -417,7 +419,6 @@ export default function ClientBookingsPage() {
                       key={b.id}
                       booking={b}
                       onRebook={() => handleRebook(b)}
-                      onReview={() => setReviewBooking(b)}
                     />
                   ))}
                   {completedBookings.length === 0 && (
@@ -435,17 +436,6 @@ export default function ClientBookingsPage() {
 
       {selectedBooking && (
         <BookingDetailModal booking={selectedBooking} onClose={() => setSelectedBooking(null)} />
-      )}
-
-      {reviewBooking && !reviewBooking.customerRating && (
-        <ReviewForm
-          bookingId={reviewBooking.id}
-          bookingNumber={reviewBooking.bookingNumber}
-          serviceType={reviewBooking.serviceType}
-          specialistName={reviewBooking.specialist?.name || "Specialist"}
-          onSuccess={() => handleReviewSuccess(reviewBooking.id)}
-          onSkip={() => setReviewBooking(null)}
-        />
       )}
     </div>
   );
@@ -597,10 +587,9 @@ function UpcomingBookingRow({ booking, onClick }: { booking: BookingDetail; onCl
   );
 }
 
-function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
+function HistoryBookingItem({ booking, onRebook, onClick }: {
   booking: BookingDetail;
   onRebook: () => void;
-  onReview: () => void;
   onClick: () => void;
 }) {
   const icon = SERVICE_ICONS_OUTLINED[booking.serviceType] || "build";
@@ -653,10 +642,10 @@ function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
         </button>
         {booking.status === "completed" && !booking.customerRating && (
           <button
-            onClick={onReview}
-            className="px-4 py-2 bg-secondary text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+            onClick={onClick}
+            className="px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
           >
-            ⭐ Rate Job
+            ⭐ Rate & Pay
           </button>
         )}
       </div>
@@ -664,10 +653,9 @@ function HistoryBookingItem({ booking, onRebook, onReview, onClick }: {
   );
 }
 
-function HistoryRowItem({ booking, onRebook, onReview }: {
+function HistoryRowItem({ booking, onRebook }: {
   booking: BookingDetail;
   onRebook: () => void;
-  onReview: () => void;
 }) {
   const icon = SERVICE_ICONS_OUTLINED[booking.serviceType] || "build";
   const dateStr = booking.scheduledDate
@@ -689,9 +677,6 @@ function HistoryRowItem({ booking, onRebook, onReview }: {
         </div>
         <div className="flex gap-1.5 mt-2">
           <button onClick={onRebook} className="px-2.5 py-1 bg-primary text-white text-[9px] font-bold rounded-lg uppercase tracking-wider cursor-pointer">Rebook</button>
-          {booking.status === "completed" && !booking.customerRating && (
-            <button onClick={onReview} className="px-2.5 py-1 border border-outline-variant text-on-surface-variant text-[9px] font-bold rounded-lg uppercase tracking-wider cursor-pointer">Review</button>
-          )}
         </div>
       </div>
     </div>

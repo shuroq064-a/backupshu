@@ -117,6 +117,7 @@ class Booking(Base):
     tip = Column(Float, nullable=True)
     total_amount = Column(Float, default=100)
     payment_method = Column(String, nullable=True)
+    is_paid = Column(Boolean, default=False, nullable=False)
 
     eta_minutes = Column(Integer, nullable=True)
     customer_latitude = Column(Float, nullable=True)
@@ -262,3 +263,26 @@ class AiChatMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("AiChatSession", back_populates="messages")
+
+
+class Payment(Base):
+    """Tracks Razorpay payment for a booking."""
+
+    __tablename__ = "payments"
+    __table_args__ = (
+        Index("ix_payments_booking_id", "booking_id"),
+        Index("ix_payments_razorpay_order_id", "razorpay_order_id"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    booking_id = Column(String, ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False)
+    razorpay_order_id = Column(String, nullable=False, unique=True)
+    razorpay_payment_id = Column(String, nullable=True, unique=True)
+    razorpay_signature = Column(String, nullable=True)
+    amount = Column(Integer, nullable=False)          # in paise (Razorpay requires integer)
+    currency = Column(String, default="INR", nullable=False)
+    status = Column(String, default="created", nullable=False)  # created|attempted|captured|failed
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    booking = relationship("Booking", backref="payments")

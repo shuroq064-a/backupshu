@@ -26,7 +26,7 @@ import uuid, json, os, sys
 
 if __package__ and "." in __package__:
     from ..database import get_db, SessionLocal
-    from ..dbmodels import User, Worker, Booking, WorkerService
+    from ..dbmodels import User, Worker, Booking, WorkerService, Payment
     from ..models import (
         BookingListOut, BookingDetailOut, SpecialistInfoOut,
         CostBreakdownOut, BookingCreate, BookingStatusUpdate,
@@ -43,7 +43,7 @@ else:
     if BACKEND_DIR not in sys.path:
         sys.path.insert(0, BACKEND_DIR)
     from database import get_db, SessionLocal
-    from dbmodels import User, Worker, Booking, WorkerService
+    from dbmodels import User, Worker, Booking, WorkerService, Payment
     from models import (
         BookingListOut, BookingDetailOut, SpecialistInfoOut,
         CostBreakdownOut, BookingCreate, BookingStatusUpdate,
@@ -380,6 +380,21 @@ def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
             paymentMethod=booking.payment_method,
         )
 
+    # Payment status
+    is_paid = booking.is_paid if hasattr(booking, "is_paid") else False
+    payment_status = "none"
+    if is_paid:
+        payment_status = "captured"
+    else:
+        latest_payment = (
+            db.query(Payment)
+            .filter(Payment.booking_id == booking.id)
+            .order_by(Payment.created_at.desc())
+            .first()
+        )
+        if latest_payment:
+            payment_status = latest_payment.status
+
     return BookingDetailOut(
         id=booking.id,
         bookingNumber=booking.booking_number or f"#{booking.id[:6].upper()}",
@@ -416,6 +431,8 @@ def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
         cancellationReason=booking.cancellation_reason,
         cancelledBy=booking.cancelled_by,
         workerId=booking.worker_id,
+        isPaid=is_paid,
+        paymentStatus=payment_status,
     )
 
 
@@ -736,7 +753,7 @@ async def update_booking_status(
             booking.cancelled_by = "specialist"
 
         if payload.status == "completed":
-            booking.total_amount = booking.visit_charge or 100.0
+            booking.total_amount = (booking.visit_charge or 0) + (booking.repair_amount or 0)
 
         db.commit()
         db.refresh(booking)

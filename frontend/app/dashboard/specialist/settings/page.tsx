@@ -84,8 +84,8 @@ export default function SpecialistSettingsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary-container to-primary text-xl font-extrabold text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary-container to-primary text-xl font-extrabold text-white shrink-0">
               {initials}
             </div>
             <div>

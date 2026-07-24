@@ -352,7 +352,7 @@ export default function SpecialistDashboard() {
   const isPending = currentProfile.verificationStatus === "pending";
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-6 py-8 space-y-8 font-sans text-on-surface">
+    <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 font-sans text-on-surface">
 
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -516,7 +516,7 @@ export default function SpecialistDashboard() {
               {paginatedRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group flex flex-col md:flex-row md:items-center justify-between gap-4"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -601,12 +601,12 @@ export default function SpecialistDashboard() {
         <div className="space-y-10">
           {/* Earnings chart (switchable via dropdown) */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-2 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2 sm:gap-3">
               <h3 className="text-on-surface font-bold text-base">
                 {chartType === "profit" ? "Profit" : "Completed Jobs"}
               </h3>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-on-surface-variant font-semibold">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <span className="hidden sm:inline text-xs text-on-surface-variant font-semibold">
                   Last 7 days
                 </span>
                 <BasicDropdown
@@ -647,10 +647,10 @@ export default function SpecialistDashboard() {
           {/* Quick Actions buttons */}
           <div className="relative z-10 space-y-4">
             <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Quick Actions</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <button
                 onClick={() => router.push("/dashboard/specialist/bookings")}
-                className="bg-primary-container text-on-primary-container p-4 rounded-2xl flex flex-col items-center text-center gap-2.5 hover:opacity-95 transition-all shadow-sm cursor-pointer"
+                className="bg-primary-container text-on-primary-container p-3 sm:p-4 rounded-2xl flex flex-col items-center text-center gap-2 sm:gap-2.5 hover:opacity-95 transition-all shadow-sm cursor-pointer"
               >
                 <span className="material-symbols-outlined text-3xl font-fill">add_task</span>
                 <span className="text-xs font-bold">New Task</span>
@@ -658,7 +658,7 @@ export default function SpecialistDashboard() {
 
               <button
                 onClick={() => router.push("/dashboard/specialist/bookings")}
-                className="bg-surface-container-low border border-outline-variant text-on-surface-variant p-4 rounded-2xl flex flex-col items-center text-center gap-2.5 hover:bg-surface-container-high transition-all cursor-pointer"
+                className="bg-surface-container-low border border-outline-variant text-on-surface-variant p-3 sm:p-4 rounded-2xl flex flex-col items-center text-center gap-2 sm:gap-2.5 hover:bg-surface-container-high transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined text-3xl font-fill">calendar_month</span>
                 <span className="text-xs font-bold">Schedule</span>

@@ -33,9 +33,9 @@ export function Toast({ toast, onDismiss }: ToastProps) {
   if (!toast) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[100] animate-fade-in-up">
+    <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 z-[100] animate-fade-in-up">
       <div
-        className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg max-w-sm ${STYLES[toast.type]}`}
+        className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg max-w-sm ml-auto ${STYLES[toast.type]}`}
       >
         <p className="text-sm font-medium flex-1">{toast.message}</p>
         <button
