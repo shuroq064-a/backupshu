@@ -7,6 +7,11 @@
 # Project context file (kept locally, not in repo)
 PROJECT CONTEXT FILE.md
 
+# Local tooling / agent files
+.commandcode/
+.zcode/
+plans/
+
 
 # Virtual environment
 venv/
