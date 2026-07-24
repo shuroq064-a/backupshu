@@ -2,6 +2,10 @@
 
 > An end-to-end marketplace platform that uses natural-language intent to match customers with verified home-service specialists, predicts job duration, tracks live worker location, and handles the full booking lifecycle — powered by Google Gemini.
 
+![System Architecture](docs/architecture.png)
+
+> Editable source: [`docs/architecture.excalidraw`](docs/architecture.excalidraw)
+
 ---
 
 ## What is ShuroqX?
