@@ -1,6 +1,6 @@
 # ShuroqX — AI-Powered Service Marketplace
 
-> An end-to-end marketplace platform that uses natural-language intent to match customers with verified home-service specialists, predicts job duration, tracks live worker location, and handles the full booking lifecycle.
+> An end-to-end marketplace platform that uses natural-language intent to match customers with verified home-service specialists, predicts job duration, tracks live worker location, and handles the full booking lifecycle — powered by Google Gemini.
 
 ---
 
@@ -12,65 +12,66 @@ Workers (called *Specialists*) register, list their skills/services, get admin-a
 
 ### Key features
 
-- **Natural-language query processing** — POST `/user-query` accepts free text, classifies the service intent using a trained classifier (TF-IDF + scikit-learn), and returns matched specialists.
-- **Marketplace search** — POST `/search` returns ranked specialists based on query intent + worker services + reviews.
-- **ETA prediction** — trained regression model (`backend/models/eta_model.pkl`) estimates job duration based on service type and context features.
-- **Booking lifecycle** — create → status updates (pending / accepted / in_progress / completed / cancelled) → review. Full WebSocket channel for live updates (`/ws/bookings/{id}`).
-- **Real-time tracking** — workers share location during active bookings; route monitor service tracks them on a map.
-- **Dual-role accounts** — any user can switch between *customer* and *specialist* via `/switch-to-specialist` without re-registering.
-- **Admin dashboard** — specialist approval queue, skill submission approvals, platform stats, user list.
-- **JWT auth** — register/login returns access tokens; `/users/me` for profile, password change, account deletion.
+- **Natural-language query processing** — free text is classified into service intent using a trained ML classifier (TF-IDF + scikit-learn), and matched specialists are returned.
+- **AI Conversational Assistant** — a multi-agent LLM powered by **Google Gemini** that can search specialists, check bookings, estimate costs, and even cancel appointments through natural conversation.
+- **Marketplace search** — ranked specialists based on query intent, worker services, and reviews.
+- **ETA prediction** — trained regression model estimates job duration based on service type and context features.
+- **Booking lifecycle** — create → status updates (pending / accepted / in_progress / completed / cancelled) → review. Full WebSocket channel for live updates.
+- **Real-time tracking** — workers share location during active bookings; live ETA recomputed via Ola Maps.
+- **Dual-role accounts** — any user can switch between *customer* and *specialist* without re-registering.
+- **Razorpay payments** — secure order creation, HMAC signature verification, and webhook handling.
+- **Admin dashboard** — specialist approval queue, skill submission approvals, platform stats, user management.
+- **JWT auth** — register/login returns access tokens; profile management, password change, account deletion.
+- **Person-to-person messaging** — real-time chat between specialist and client, scoped to a booking.
+- **Address book** — saved addresses with a default; reuse across bookings.
 
 ---
 
 ## Tech stack
 
-**Backend** — Python 3.13, FastAPI, SQLAlchemy, PostgreSQL, Alembic, Celery + Redis, scikit-learn, PyJWT, bcrypt.
-
-**Frontend** — Next.js 15.3.8 (App Router), React 19, TypeScript, Redux Toolkit, NextAuth, Tailwind CSS 4.
-
-**ML** — Service intent classifier + ETA regressor (joblib pickles in `backend/models/`). Training data and scripts in `backend/datasets/` and `backend/train_*.py`.
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3.13, FastAPI, SQLAlchemy, PostgreSQL (Neon), Alembic, Celery + Redis |
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Redux Toolkit, Tailwind CSS 4 |
+| **AI/LLM** | Google Gemini (via Google Generative Language API), scikit-learn (TF-IDF classifier + ETA regressor) |
+| **Auth** | JWT (PyJWT + bcrypt), NextAuth v4 (Google, Facebook, Apple OAuth) |
+| **Payments** | Razorpay (order creation, HMAC verification, webhooks) |
+| **Maps/Geo** | Ola Maps API (geocoding, reverse-geocoding, ETA, distance matrix) |
+| **Real-time** | WebSockets (FastAPI native), Server-Sent Events (SSE) for AI streaming |
+| **UI** | Radix UI, Framer Motion, GSAP, visx (charts), Lucide icons |
 
 ---
 
 ## Project layout
 
 ```
-AI-Powered-Service-Marketplace/
+shuroqx-Redesign/
 ├── backend/
 │   ├── main.py                  # FastAPI entry point, mounts all routers
 │   ├── dbmodels.py              # SQLAlchemy models (User, Worker, Booking, ...)
 │   ├── auth_utils.py            # JWT + bcrypt helpers
-│   ├── routers/
-│   │   ├── unified_auth.py      # /users/register, /login, /oauth-login, /switch-to-specialist
-│   │   ├── users.py             # /users/me, change-password, delete
-│   │   ├── workers.py           # /workers/*  (CRUD, services, availability, bookings, earnings)
-│   │   ├── bookings.py          # /bookings/* + WebSocket live channel
-│   │   ├── marketplace.py       # /search  (NL → ranked specialists)
-│   │   ├── userinput.py         # /user-query  (NL → intent classification)
-│   │   ├── intent.py            # /intent (intent-based specialist lookup)
-│   │   ├── services.py          # /services  (service catalog)
-│   │   └── admin.py             # /admin/* (approvals, stats, users)
-│   ├── services/                # Domain logic — NLP, worker matching, ETA, route monitor
+│   ├── database.py              # Engine + session factory
+│   ├── routers/                 # 14 route modules (see API surface below)
+│   ├── services/                # Domain logic — NLP, worker matching, ETA, LLM client
+│   ├── agents/                  # Multi-agent AI system (supervisor + tools)
 │   ├── tasks/                   # Celery background tasks
 │   ├── models/                  # Trained .pkl artifacts + metadata
 │   ├── datasets/                # Training data (per-service .txt + eta_training_data.csv)
 │   ├── alembic/                 # DB migrations
-│   ├── testing/                 # Endpoint smoke tests
 │   └── requirements.txt
 │
 ├── frontend/
 │   ├── app/                     # Next.js App Router pages
-│   ├── components/              # UI components
+│   ├── components/              # UI components (auth, admin, dashboard, maps, etc.)
 │   ├── hooks/                   # useAuth, useMode, useAdmin, useProfileGuard
-│   ├── store/                   # Redux store
-│   ├── lib/                     # api client, auth helpers
-│   ├── types/                   # Shared TS types
+│   ├── store/                   # Redux store (authSlice, adminSlice)
+│   ├── lib/                     # API client, auth helpers
+│   ├── types/                   # Shared TypeScript types
 │   ├── public/                  # Static assets
 │   ├── next.config.ts           # /api/backend rewrite → localhost:8001
 │   └── package.json
 │
-└── README.md                    # ← you are here
+└── README.md
 ```
 
 ---
@@ -88,12 +89,12 @@ AI-Powered-Service-Marketplace/
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # configure environment
-cp .env.example .env   # then edit DB/Redis URLs, JWT secret
+cp .env.example .env   # then edit DB/Redis URLs, JWT secret, API keys
 
 # run migrations
 alembic upgrade head
@@ -121,14 +122,40 @@ The Next.js rewrite in `frontend/next.config.ts` proxies `/api/backend/*` → `h
 
 ---
 
-## Important ports
+## Environment variables
 
-| Service  | Port | Notes |
-|----------|------|-------|
-| Frontend | 3000 | Next.js dev server |
-| Backend  | 8001 | FastAPI / uvicorn |
+### Backend (`backend/.env`)
 
-> **Note:** Port 8000 on the dev VM is occupied by a separate, unrelated `AIReadySchool` uvicorn. Do **not** kill it. If you change the backend port, update both `frontend/next.config.ts` (rewrite destination) and any absolute URLs in your code.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `JWT_SECRET` | Yes | Secret key for JWT signing |
+| `OLA_MAPS_API_KEY` | Yes | Ola Maps API key for geo/ETA |
+| `REDIS_URL` | Yes | Redis URL for Celery |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins (default: `*`) |
+| `RAZORPAY_KEY_ID` | For payments | Razorpay key |
+| `RAZORPAY_KEY_SECRET` | For payments | Razorpay secret |
+| `RAZORPAY_WEBHOOK_SECRET` | For payments | Webhook verification secret |
+| `PRIMARY_API_KEY` | For AI | OpenAI-compatible API key |
+| `PRIMARY_BASE_URL` | For AI | OpenAI-compatible base URL |
+| `PRIMARY_MODEL` | For AI | OpenAI-compatible model name |
+| `FALLBACK_API_KEY` | For AI | Google Gemini API key |
+| `FALLBACK_MODEL` | For AI | Gemini model name |
+
+### Frontend (`frontend/.env.local`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | Yes | Backend URL (default: `http://localhost:8001`) |
+| `NEXT_PUBLIC_WS_URL` | Yes | WebSocket URL |
+| `NEXTAUTH_URL` | Yes | NextAuth callback URL |
+| `NEXTAUTH_SECRET` | Yes | NextAuth encryption secret |
+| `GOOGLE_CLIENT_ID` | For OAuth | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | For OAuth | Google OAuth client secret |
+| `FACEBOOK_CLIENT_ID` | For OAuth | Facebook OAuth client ID |
+| `FACEBOOK_CLIENT_SECRET` | For OAuth | Facebook OAuth client secret |
+| `APPLE_CLIENT_ID` | For OAuth | Apple OAuth client ID |
+| `APPLE_CLIENT_SECRET` | For OAuth | Apple OAuth client secret |
 
 ---
 
@@ -136,40 +163,54 @@ The Next.js rewrite in `frontend/next.config.ts` proxies `/api/backend/*` → `h
 
 | Endpoint | Auth required |
 |----------|--------------|
-| `POST /users/register` | no |
-| `POST /users/login` | no |
-| `POST /users/oauth-login` | no |
-| `GET  /users/me` | yes (Bearer) |
-| `POST /bookings` | yes (Bearer) |
-| `/admin/*` | yes (Bearer, admin role) |
+| `POST /users/register` | No |
+| `POST /users/login` | No |
+| `POST /users/oauth-login` | No |
+| `GET  /users/me` | Yes (Bearer) |
+| `POST /bookings` | Yes (Bearer) |
+| `/admin/*` | Yes (Bearer, admin role) |
 
 Both `/users/register` and `/users/login` return `{ access_token, token_type: "bearer", user }`. Send the token as `Authorization: Bearer <token>` on subsequent requests.
 
 ---
 
-## ML pipeline
+## AI / ML pipeline
 
-Two trained artifacts in `backend/models/`:
+### NLP Intent Classification
 
-1. **Service intent classifier** — TF-IDF vectorizer + classifier. Trained on per-service `.txt` corpora in `backend/datasets/`. Used by `/user-query` and `/search` to figure out *what* the customer wants.
-2. **ETA regressor** — predicts job duration. Features engineered by `backend/services/feature_engineering.py`. Used during booking flow.
+Text normalization → entity extraction → keyword/synonym matching (fast, deterministic) → ML model fallback (TF-IDF + scikit-learn). Confidence thresholding ensures ambiguous queries get clarified.
 
-To retrain:
+### ETA Prediction
+
+Trained regression model (`backend/models/eta_model.pkl`) predicts job duration from service type and context features.
+
+### Conversational AI Assistant (Google Gemini)
+
+A multi-agent system where a **Supervisor** routes each user message to one of three agents:
+
+| Agent | Responsibility |
+|-------|---------------|
+| **Chat Agent** | General conversation about the platform |
+| **Booking Agent** | Search specialists, show matches, facilitate booking |
+| **Tracking Agent** | Answer questions about existing booking status |
+
+The assistant has real tool powers:
+- `search_specialists` — find verified, available specialists for a service
+- `my_bookings` — return the customer's active/upcoming bookings
+- `booking_status` — return live status of a specific booking
+- `service_catalog` — list all service categories
+- `estimate_cost` — provide price + ETA estimates
+- `cancel_booking` — cancel an upcoming booking
+
+Output is streamed via Server-Sent Events (SSE).
+
+### Retrain models
 
 ```bash
 cd backend
 python train_model.py        # intent classifier
 python train_eta_model.py    # ETA regressor
 ```
-
----
-
-## Development tips
-
-- **Hot reload** — both servers support it. uvicorn watches the backend tree, Next.js watches `frontend/`.
-- **Logs** — start the backend with `uvicorn main:app --port 8001 2>&1 | tee /tmp/shuroqx-backend.log` and the frontend with `npm run dev 2>&1 | tee /tmp/shuroqx-frontend.log` so logs survive process disconnects.
-- **Next.js dev hangs** — after long uptime Next dev can balloon to ~1.3 GB RSS and stall. SIGKILL all `next-server` / `next dev` / `npm exec next` and restart with `tee /tmp/log`. This is a known Next.js 15 dev-server issue, not a ShuroqX bug.
-- **Hydration warnings on `bis_skin_checked`** — these come from the browser extension on the user's machine mutating the DOM before React hydrates. Test in an incognito window to confirm it's not an app issue.
 
 ---
 
@@ -202,12 +243,13 @@ POST   /bookings/{id}/review
 WS     /ws/bookings/{id}
 GET    /bookings/{id}
 GET    /users/{user_id}/bookings
-GET    /workers/{worker_id}/requests
 
-POST   /user-query                    # NL → intent + matched workers
-POST   /search                        # NL → ranked marketplace specialists
-GET    /intent                        # intent-based lookup
-GET    /services                      # service catalog
+POST   /marketplace/search
+POST   /userinput/user-query
+GET    /intent/user-intent/{query_id}
+GET    /services
+
+POST   /assistant/chat
 
 GET    /admin/specialists
 GET    /admin/specialists/{id}
@@ -221,6 +263,17 @@ GET    /admin/users
 ```
 
 Full OpenAPI schema at `http://localhost:8001/docs` when the backend is running.
+
+---
+
+## Important ports
+
+| Service | Port | Notes |
+|---------|------|-------|
+| Frontend | 3000 | Next.js dev server |
+| Backend | 8001 | FastAPI / uvicorn |
+| PostgreSQL | 5432 | Database |
+| Redis | 6379 | Celery broker |
 
 ---
 
