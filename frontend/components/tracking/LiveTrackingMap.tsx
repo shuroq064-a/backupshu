@@ -224,6 +224,10 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
       leafletMap.current = map;
       setIsMapLoaded(true);
+
+      // Fix tiles after animation settles
+      setTimeout(() => { map.invalidateSize(); }, 600);
+      setTimeout(() => { map.invalidateSize(); }, 1200);
     }, 400);
 
     return () => {
@@ -236,9 +240,21 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       setIsMapLoaded(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, booking.customerLatitude, booking.customerLongitude, booking.currentLatitude, booking.currentLongitude]);
+  }, [isOpen]);
 
-  // ── WebSocket: live location updates ──
+  // Keep WS handler stable via refs to prevent reconnects
+  const fetchRouteRef = useRef(fetchRoute);
+  fetchRouteRef.current = fetchRoute;
+  const followNavRef = useRef(followNavigation);
+  followNavRef.current = followNavigation;
+  const makeSpecIconRef = useRef(makeSpecIcon);
+  makeSpecIconRef.current = makeSpecIcon;
+  const bookingRef = useRef(booking);
+  bookingRef.current = booking;
+  const roleRef = useRef(role);
+  roleRef.current = role;
+
+  // ── WebSocket: live location updates (stable, reconnects only on isOpen/booking.id) ──
   useEffect(() => {
     if (!isOpen) return;
     const token = getToken();
@@ -261,26 +277,29 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
         import("leaflet").then((leaflet) => {
           const L = leaflet.default;
           const map = leafletMap.current as L.Map;
+          if (!map) return;
+          const b = bookingRef.current;
+          const r = roleRef.current;
 
           if (!specialistMarkerRef.current) {
-            specialistMarkerRef.current = L.marker([data.latitude, data.longitude], { icon: makeSpecIcon(L) })
+            specialistMarkerRef.current = L.marker([data.latitude, data.longitude], { icon: makeSpecIconRef.current(L) })
               .addTo(map)
-              .bindPopup(role === "client" ? "Specialist is on the way" : "Your location");
+              .bindPopup(r === "client" ? "Specialist is on the way" : "Your location");
             setWaitingForGps(false);
-            const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
-            if (cLat && cLng) fetchRoute(L, map, data.latitude, data.longitude, cLat, cLng);
+            const cLat = b.customerLatitude, cLng = b.customerLongitude;
+            if (cLat && cLng) fetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
           } else {
             (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([data.latitude, data.longitude]);
-            if (followModeRef.current) followNavigation(map, data.latitude, data.longitude);
-            const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
-            if (cLat && cLng) fetchRoute(L, map, data.latitude, data.longitude, cLat, cLng);
+            if (followModeRef.current) followNavRef.current(map, data.latitude, data.longitude);
+            const cLat = b.customerLatitude, cLng = b.customerLongitude;
+            if (cLat && cLng) fetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
           }
         });
       } catch {}
     };
     ws.onerror = () => ws.close();
     return () => { if (opened) ws.close(); else ws.onopen = () => ws.close(); };
-  }, [isOpen, booking.id, booking.customerLatitude, booking.customerLongitude, role, fetchRoute, makeSpecIcon, followNavigation]);
+  }, [isOpen, booking.id]);
 
   // ── GPS: Specialist sends location directly when map is open ──
   useEffect(() => {
@@ -415,8 +434,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
           {/* Map card */}
           <motion.div
-            className="relative w-[calc(100vw-32px)] overflow-hidden bg-[#DEDEDE] shadow-2xl transition-colors duration-300 sm:w-[720px] dark:bg-[#141414]"
-            style={{ borderRadius: 32, aspectRatio: "1 / 0.6", touchAction: "none" }}
+            className="relative w-[calc(100vw-32px)] bg-[#DEDEDE] shadow-2xl transition-colors duration-300 sm:w-[720px] dark:bg-[#141414]"
+            style={{ borderRadius: 32, aspectRatio: "1 / 0.6", touchAction: "none", overflow: "hidden" }}
             initial={{ opacity: 0, scale: 0.8, y: 40 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.85, y: 30 }}
