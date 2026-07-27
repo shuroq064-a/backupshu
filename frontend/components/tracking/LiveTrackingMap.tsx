@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Loader2 } from "lucide-react";
+import { X } from "lucide-react";
 import { FaMapLocationDot } from "react-icons/fa6";
 import type { BookingDetail, LocationUpdateEvent } from "@/types";
 import { WS_BASE_URL } from "@/lib/config";
@@ -52,6 +52,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   const toggleOpen = () => {
     if (isOpen) {
       setIsMapLoaded(false);
+      setIsOpen(false);
       onClose();
     } else {
       setIsOpen(true);
@@ -226,9 +227,9 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       setIsMapLoaded(true);
 
       // Fix tiles after animation settles
-      setTimeout(() => { map.invalidateSize(); }, 600);
-      setTimeout(() => { map.invalidateSize(); }, 1200);
-    }, 400);
+      setTimeout(() => { map.invalidateSize(); }, 300);
+      setTimeout(() => { map.invalidateSize(); }, 800);
+    }, 200);
 
     return () => {
       cancelled = true;
@@ -434,30 +435,16 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
           {/* Map card */}
           <motion.div
-            className="relative w-[calc(100vw-32px)] bg-[#DEDEDE] shadow-2xl transition-colors duration-300 sm:w-[720px] dark:bg-[#141414]"
+            className="relative w-[calc(100vw-32px)] bg-[#DEDEDE] shadow-2xl sm:w-[720px] dark:bg-[#141414]"
             style={{ borderRadius: 32, aspectRatio: "1 / 0.6", touchAction: "none", overflow: "hidden" }}
-            initial={{ opacity: 0, scale: 0.8, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.85, y: 30 }}
+            initial={{ scale: 0.85, y: 30 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
             transition={springConfig}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Leaflet map */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15 }}
-              className="absolute inset-0 h-full w-full z-0"
-            >
-              <div ref={mapRef} className="absolute inset-0 w-full h-full" style={{ touchAction: "none" }} />
-            </motion.div>
-
-            {/* Loading spinner */}
-            {!isMapLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#E5E5E7] transition-colors dark:bg-[#1C1C1E] z-[800]">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            )}
+            {/* Leaflet map — NO opacity animation, Leaflet needs visible container to calc tiles */}
+            <div ref={mapRef} className="absolute inset-0 w-full h-full" style={{ touchAction: "none" }} />
 
             {/* GPS waiting */}
             <AnimatePresence>
