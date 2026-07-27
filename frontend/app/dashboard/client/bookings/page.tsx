@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useAppSelector } from "@/store";
 import { bookingApi } from "@/lib/api";
 import { WS_BASE_URL } from "@/lib/config";
@@ -9,7 +10,6 @@ import type { BookingDetail } from "@/types";
 import { STATUS_META } from "@/types";
 import { BookingDetailModal } from "@/components/dashboard/client/BookingDetailModal";
 import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
-import { LiveTrackingMap } from "@/components/tracking/LiveTrackingMap";
 import { useToast } from "@/components/ui/Toast";
 import {
   Calendar,
@@ -23,6 +23,9 @@ import {
 } from "@/components/ui/calendar";
 import { useRouter } from "next/navigation";
 import { parseDate } from "@internationalized/date";
+
+const LiveTrackingMap = dynamic(() =>
+  import("@/components/tracking/LiveTrackingMap"), { ssr: false });
 
 const WS_BASE = WS_BASE_URL;
 
@@ -64,7 +67,6 @@ export default function ClientBookingsPage() {
     setPage(1);
   }
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
-  const [trackingBooking, setTrackingBooking] = useState<BookingDetail | null>(null);
 
   const PAGE_SIZE = 5;
 
@@ -294,7 +296,6 @@ export default function ClientBookingsPage() {
                         booking={b}
                         onViewDetails={() => handleOpenBooking(b)}
                         onChat={() => router.push(`/dashboard/client/chat`)}
-                        onTrack={() => setTrackingBooking(b)}
                       />
                     ))}
                   </div>
@@ -440,10 +441,6 @@ export default function ClientBookingsPage() {
       {selectedBooking && (
         <BookingDetailModal booking={selectedBooking} onClose={() => setSelectedBooking(null)} />
       )}
-
-      {trackingBooking && (
-        <LiveTrackingMap booking={trackingBooking} onClose={() => setTrackingBooking(null)} role="client" />
-      )}
     </div>
   );
 }
@@ -494,11 +491,10 @@ function Pager({ current, totalPages, onPage }: {
 
 // ── Sub-components for Bookings Page ──────────────────────────────────────────
 
-function ActiveBookingCard({ booking, onViewDetails, onChat, onTrack }: {
+function ActiveBookingCard({ booking, onViewDetails, onChat }: {
   booking: BookingDetail;
   onViewDetails: () => void;
   onChat: () => void;
-  onTrack: () => void;
 }) {
   const icon = SERVICE_ICONS_OUTLINED[booking.serviceType] || "build";
   const progressPercent = STATUS_PROGRESS[booking.status] || 0;
@@ -542,14 +538,19 @@ function ActiveBookingCard({ booking, onViewDetails, onChat, onTrack }: {
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
           Time: {booking.scheduledTime} · Date: {booking.scheduledDate}
         </span>
-        <div className="flex gap-2">
-          <button onClick={onTrack} className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
-            <span className="material-symbols-outlined text-xs">map</span> Track
+        <div className="flex gap-2.5 shrink-0 items-center">
+          {["accepted", "started", "reached", "ongoing"].includes(booking.status) && (
+            <LiveTrackingMap
+              booking={booking}
+              role="client"
+              onClose={() => {}}
+            />
+          )}
+          <button onClick={onChat} className="flex items-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer">
+            <span className="material-symbols-outlined text-[18px]">chat</span>
+            <span className="text-xs font-bold">Chat</span>
           </button>
-          <button onClick={onChat} className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl text-xs font-bold transition-all cursor-pointer">
-            <span className="material-symbols-outlined text-xs">chat</span> Chat
-          </button>
-          <button onClick={onViewDetails} className="px-4 py-2 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
+          <button onClick={onViewDetails} className="px-4 py-3 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
             View Details
           </button>
         </div>
