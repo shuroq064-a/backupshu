@@ -444,6 +444,11 @@ export const bookingApi = {
 
   submitReview: (bookingId: string, rating: number, feedback: string) =>
     apiClient.post(`/bookings/${bookingId}/review`, { rating, feedback }),
+
+  updateLocation: (bookingId: string, latitude: number, longitude: number) =>
+    apiClient.post<import("@/types").BookingDetail>(`/bookings/${bookingId}/location`, {
+      latitude, longitude,
+    }),
 };
 
 // ── Payment API (Razorpay) ──────────────────────────────────────────────────

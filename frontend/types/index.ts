@@ -164,6 +164,12 @@ export interface BookingDetail extends Booking {
   cancelledBy?: "client" | "specialist" | "system";
   isPaid?: boolean;
   paymentStatus?: "created" | "attempted" | "captured" | "failed" | "none";
+  // Location fields for live tracking
+  customerLatitude?: number;
+  customerLongitude?: number;
+  currentLatitude?: number;      // specialist's live GPS
+  currentLongitude?: number;
+  lastLocationUpdatedAt?: string;
 }
 
 // ── Payment ────────────────────────────────────
@@ -449,3 +455,14 @@ export const STATUS_META: Record<string, { label: string; color: string; bg: str
   cancelled: { label: "Cancelled",      color: "#DC2626", bg: "#FEF2F2", className: "bg-red-600/15 text-red-600" },
   rejected:  { label: "Rejected",       color: "#DC2626", bg: "#FEF2F2", className: "bg-red-600/15 text-red-600" },
 };
+
+// ── Live Tracking ──────────────────────────────────
+
+export interface LocationUpdateEvent {
+  type: "LOCATION_UPDATE";
+  bookingId: string;
+  latitude: number;
+  longitude: number;
+  etaMinutes?: number;
+  timestamp: string;
+}

@@ -205,11 +205,11 @@ export default function SpecialistCommunicationHub() {
   return (
     <>
       {currentProfile?.verificationStatus === "pending" ? (
-        <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <VerificationPendingCard centered />
         </div>
       ) : (
-        <div className="flex h-[calc(100vh-4rem)] flex-col md:flex-row border-b border-outline-variant font-sans text-on-surface">
+        <div className="flex h-full flex-col md:flex-row border-b border-outline-variant font-sans text-on-surface">
           {/* Column 1: Active Chats List */}
           <aside className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-outline-variant/60 flex flex-col bg-surface-container-lowest max-md:h-[42vh]">
             <div className="p-4 border-b border-outline-variant/60 flex items-center justify-between">

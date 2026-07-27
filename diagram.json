@@ -1,0 +1,85 @@
+[
+  {"id":"title","type":"text","x":300,"y":-60,"width":500,"height":50,"text":"ShuroqX — System Architecture","fontSize":32,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"users","type":"ellipse","x":680,"y":-10,"width":120,"height":50,"backgroundColor":"#f1f3f5","strokeColor":"#495057","strokeWidth":2},
+  {"id":"users_text","type":"text","x":710,"y":2,"width":60,"height":25,"text":"Users","fontSize":16,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"fe","type":"rectangle","x":550,"y":80,"width":460,"height":280,"backgroundColor":"#dbe4ff","strokeColor":"#4c6ef5","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"fe_title","type":"text","x":680,"y":95,"width":200,"height":30,"text":"Frontend","fontSize":22,"fontFamily":1,"textAlign":"center"},
+  {"id":"fe_sub","type":"text","x":570,"y":130,"width":420,"height":200,"text":"Next.js 15 (App Router) | React 19 | TypeScript\nRedux Toolkit | Tailwind CSS 4 | Radix UI\nNextAuth v4 (Google / Facebook / Apple)\n\nPages: auth, dashboard, admin, client, specialist\nAPI Client: auto-retry, JWT attach, 401 redirect\nWebSocket: live booking status + ETA\nMiddleware: route protection (guest / user / admin)","fontSize":12,"fontFamily":3,"textAlign":"left"},
+
+  {"id":"be","type":"rectangle","x":30,"y":80,"width":460,"height":280,"backgroundColor":"#d3f9d8","strokeColor":"#40c057","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"be_title","type":"text","x":145,"y":95,"width":230,"height":30,"text":"Backend","fontSize":22,"fontFamily":1,"textAlign":"center"},
+  {"id":"be_sub","type":"text","x":50,"y":130,"width":420,"height":200,"text":"FastAPI (Python 3.13) | 14 Routers\nSQLAlchemy ORM | Alembic Migrations\nCelery + Redis | JWT (PyJWT + bcrypt)\n\nRouters: auth, users, workers, bookings, marketplace,\n  userinput, intent, services, admin, assistant,\n  messages, ai_chat, payments, location_permission\n\nWebSocket + SSE streaming | httpx async","fontSize":12,"fontFamily":3,"textAlign":"left"},
+
+  {"id":"arrow_fe_be","type":"arrow","x":550,"y":220,"width":60,"height":0,"strokeColor":"#495057","strokeWidth":2,"startBinding":null,"endBinding":null,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[-60,0]]},
+  {"id":"label_api","type":"text","x":480,"y":195,"width":70,"height":30,"text":"REST\nWS/SSE","fontSize":10,"fontFamily":3,"textAlign":"center","strokeColor":"#868e96"},
+
+  {"id":"db","type":"rectangle","x":30,"y":420,"width":200,"height":110,"backgroundColor":"#fff3bf","strokeColor":"#fab005","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"db_title","type":"text","x":65,"y":435,"width":130,"height":25,"text":"PostgreSQL","fontSize":16,"fontFamily":1,"textAlign":"center"},
+  {"id":"db_sub","type":"text","x":45,"y":465,"width":170,"height":55,"text":"Neon (hosted)\n11 tables | UUID PKs\nCascade deletes","fontSize":11,"fontFamily":3,"textAlign":"center"},
+
+  {"id":"redis","type":"rectangle","x":270,"y":420,"width":170,"height":110,"backgroundColor":"#ffc9c9","strokeColor":"#fa5252","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"redis_title","type":"text","x":315,"y":435,"width":80,"height":25,"text":"Redis","fontSize":16,"fontFamily":1,"textAlign":"center"},
+  {"id":"redis_sub","type":"text","x":285,"y":465,"width":140,"height":55,"text":"Celery broker\nResult backend\nCache layer","fontSize":11,"fontFamily":3,"textAlign":"center"},
+
+  {"id":"ml","type":"rectangle","x":30,"y":570,"width":410,"height":140,"backgroundColor":"#ffd8a8","strokeColor":"#fd7e14","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"ml_title","type":"text","x":145,"y":585,"width":180,"height":25,"text":"ML / NLP Pipeline","fontSize":16,"fontFamily":1,"textAlign":"center"},
+  {"id":"ml_sub","type":"text","x":50,"y":615,"width":370,"height":85,"text":"Intent Classifier: TF-IDF + scikit-learn | per-service corpora\nETA Regressor: feature engineering | job duration prediction\nNLP: text normalization > entity extraction > keyword match > ML fallback\nArtifacts: .pkl files in backend/models/ | Training: train_*.py","fontSize":11,"fontFamily":3,"textAlign":"left"},
+
+  {"id":"ext","type":"rectangle","x":550,"y":420,"width":460,"height":130,"backgroundColor":"#e5dbff","strokeColor":"#7950f2","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"ext_title","type":"text","x":710,"y":435,"width":140,"height":25,"text":"External APIs","fontSize":16,"fontFamily":1,"textAlign":"center"},
+  {"id":"ext_sub","type":"text","x":570,"y":465,"width":420,"height":75,"text":"Google Gemini (LLM) — multi-agent assistant, SSE streaming, tool-powered\nOla Maps — geocoding, reverse-geocoding, ETA, distance matrix\nRazorpay — order creation, HMAC verification, webhook handler\nNextAuth OAuth — Google / Facebook / Apple","fontSize":11,"fontFamily":3,"textAlign":"left"},
+
+  {"id":"agents","type":"rectangle","x":550,"y":590,"width":460,"height":120,"backgroundColor":"#c3fae8","strokeColor":"#20c997","strokeWidth":2,"roundness":{"type":3}},
+  {"id":"agents_title","type":"text","x":680,"y":605,"width":200,"height":25,"text":"AI Agent System","fontSize":16,"fontFamily":1,"textAlign":"center"},
+  {"id":"agents_sub","type":"text","x":570,"y":635,"width":420,"height":65,"text":"Supervisor Router > Chat / Booking / Tracking / Clarify Agents\nTools: search_specialists, my_bookings, booking_status,\n  service_catalog, estimate_cost, cancel_booking","fontSize":11,"fontFamily":3,"textAlign":"left"},
+
+  {"id":"flow_title","type":"text","x":30,"y":770,"width":300,"height":30,"text":"Booking Lifecycle Flow","fontSize":18,"fontFamily":1,"textAlign":"left"},
+
+  {"id":"f1","type":"rectangle","x":30,"y":810,"width":120,"height":45,"backgroundColor":"#dbe4ff","strokeColor":"#4c6ef5","roundness":{"type":3},"strokeWidth":1},
+  {"id":"f1t","type":"text","x":40,"y":820,"width":100,"height":25,"text":"Search","fontSize":12,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"f2","type":"rectangle","x":190,"y":810,"width":120,"height":45,"backgroundColor":"#d3f9d8","strokeColor":"#40c057","roundness":{"type":3},"strokeWidth":1},
+  {"id":"f2t","type":"text","x":200,"y":820,"width":100,"height":25,"text":"Intent Match","fontSize":12,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"f3","type":"rectangle","x":350,"y":810,"width":120,"height":45,"backgroundColor":"#fff3bf","strokeColor":"#fab005","roundness":{"type":3},"strokeWidth":1},
+  {"id":"f3t","type":"text","x":360,"y":820,"width":100,"height":25,"text":"Book","fontSize":12,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"f4","type":"rectangle","x":510,"y":810,"width":120,"height":45,"backgroundColor":"#e5dbff","strokeColor":"#7950f2","roundness":{"type":3},"strokeWidth":1},
+  {"id":"f4t","type":"text","x":520,"y":820,"width":100,"height":25,"text":"Track Live","fontSize":12,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"f5","type":"rectangle","x":670,"y":810,"width":120,"height":45,"backgroundColor":"#ffc9c9","strokeColor":"#fa5252","roundness":{"type":3},"strokeWidth":1},
+  {"id":"f5t","type":"text","x":680,"y":820,"width":100,"height":25,"text":"Pay","fontSize":12,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"f6","type":"rectangle","x":830,"y":810,"width":120,"height":45,"backgroundColor":"#c3fae8","strokeColor":"#20c997","roundness":{"type":3},"strokeWidth":1},
+  {"id":"f6t","type":"text","x":840,"y":820,"width":100,"height":25,"text":"Review","fontSize":12,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"a1","type":"arrow","x":150,"y":832,"width":40,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[40,0]]},
+  {"id":"a2","type":"arrow","x":310,"y":832,"width":40,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[40,0]]},
+  {"id":"a3","type":"arrow","x":470,"y":832,"width":40,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[40,0]]},
+  {"id":"a4","type":"arrow","x":630,"y":832,"width":40,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[40,0]]},
+  {"id":"a5","type":"arrow","x":790,"y":832,"width":40,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[40,0]]},
+
+  {"id":"auth_title","type":"text","x":30,"y":890,"width":250,"height":30,"text":"Authentication Flow","fontSize":18,"fontFamily":1,"textAlign":"left"},
+
+  {"id":"au1","type":"rectangle","x":30,"y":930,"width":130,"height":45,"backgroundColor":"#f3f0ff","strokeColor":"#9775fa","roundness":{"type":3},"strokeWidth":1},
+  {"id":"au1t","type":"text","x":40,"y":940,"width":110,"height":25,"text":"Register/Login","fontSize":11,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"au2","type":"rectangle","x":195,"y":930,"width":130,"height":45,"backgroundColor":"#fff3bf","strokeColor":"#fcc419","roundness":{"type":3},"strokeWidth":1},
+  {"id":"au2t","type":"text","x":205,"y":940,"width":110,"height":25,"text":"JWT Issued","fontSize":11,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"au3","type":"rectangle","x":360,"y":930,"width":130,"height":45,"backgroundColor":"#dbe4ff","strokeColor":"#4c6ef5","roundness":{"type":3},"strokeWidth":1},
+  {"id":"au3t","type":"text","x":370,"y":940,"width":110,"height":25,"text":"Bearer Auth","fontSize":11,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"au4","type":"rectangle","x":525,"y":930,"width":130,"height":45,"backgroundColor":"#d3f9d8","strokeColor":"#40c057","roundness":{"type":3},"strokeWidth":1},
+  {"id":"au4t","type":"text","x":535,"y":940,"width":110,"height":25,"text":"Switch Role","fontSize":11,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"au5","type":"rectangle","x":690,"y":930,"width":130,"height":45,"backgroundColor":"#ffc9c9","strokeColor":"#fa5252","roundness":{"type":3},"strokeWidth":1},
+  {"id":"au5t","type":"text","x":700,"y":940,"width":110,"height":25,"text":"Admin Approve","fontSize":11,"fontFamily":1,"textAlign":"center"},
+
+  {"id":"aa1","type":"arrow","x":160,"y":952,"width":35,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[35,0]]},
+  {"id":"aa2","type":"arrow","x":325,"y":952,"width":35,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[35,0]]},
+  {"id":"aa3","type":"arrow","x":490,"y":952,"width":35,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[35,0]]},
+  {"id":"aa4","type":"arrow","x":655,"y":952,"width":35,"height":0,"strokeColor":"#495057","strokeWidth":1,"startArrowhead":null,"endArrowhead":"arrow","points":[[0,0],[35,0]]}
+]

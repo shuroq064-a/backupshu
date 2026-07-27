@@ -10,8 +10,12 @@ import { WS_BASE_URL as WS_BASE } from "@/lib/config";
 import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
 import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import dynamic from "next/dynamic";
 import type { BookingDetail, BookingStatus, ServiceOption } from "@/types";
 import { STATUS_META as SM } from "@/types";
+
+const LiveTrackingMap = dynamic(() => import("@/components/tracking/LiveTrackingMap"), { ssr: false });
 
 const SPECIALIST_ACTIONS: Record<string, { label: string; icon: string; next: string; color: string }> = {
    accepted: { label: "Start Journey",       icon: "directions_car", next: "started",   color: "bg-primary hover:bg-primary-container text-white" },
@@ -47,6 +51,16 @@ export default function BookingsManagerPage() {
   const [appointments, setAppointments] = useState<BookingDetail[]>([]);
   const [completedJobs, setCompletedJobs] = useState<BookingDetail[]>([]);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+
+  // Auto-send GPS for the first active job in started/reached/ongoing status
+  const activeTrackingJob = activeJobs.find(
+    (j) => ["started", "reached", "ongoing"].includes(j.status)
+  );
+  const { position } = useGeolocation({
+    bookingId: activeTrackingJob?.id ?? "",
+    enabled: !!activeTrackingJob,
+    intervalMs: 8000,
+  });
 
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
 
@@ -409,6 +423,13 @@ export default function BookingsManagerPage() {
                              <span className="material-symbols-outlined text-[18px]">chat</span>
                              <span className="text-xs font-bold">Chat</span>
                            </button>
+                          {["started", "reached", "ongoing"].includes(job.status) && (
+                            <LiveTrackingMap
+                              booking={job}
+                              role="specialist"
+                              onClose={() => {}}
+                            />
+                          )}
                           {action && (
                             <button
                               onClick={() => handleStatusUpdate(job.id, action.next)}

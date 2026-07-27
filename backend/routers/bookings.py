@@ -885,6 +885,16 @@ async def update_booking_location(
     if eta_changed and booking.eta_minutes is not None and eta_last_updated is not None:
         await dispatch_eta_update(booking.id, booking.eta_minutes, eta_last_updated)
 
+    # Broadcast specialist location to the client in real-time
+    await manager.broadcast(booking.id, {
+        "type": "LOCATION_UPDATE",
+        "booking_id": booking.id,
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "eta_minutes": booking.eta_minutes,
+        "timestamp": now.isoformat() + "Z",
+    })
+
     return _build_detail(booking, db)
 
 # ─────────────────────────────────────────────

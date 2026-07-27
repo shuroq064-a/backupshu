@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import type { BookingDetail } from "@/types";
 import { SkillBadges } from "@/components/ui/SkillBadges";
 import { STATUS_META } from "@/types";
 import { PaymentModal } from "./PaymentModal";
 import { ReviewForm } from "./ReviewForm";
+
+const LiveTrackingMap = dynamic(() => import("@/components/tracking/LiveTrackingMap"), { ssr: false });
 
 interface BookingDetailModalProps {
   booking: BookingDetail;
@@ -33,6 +36,7 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
   // ── Payment state ───────────────────────────────────────
   const [showPayment, setShowPayment] = useState(false);
   const [isPaid, setIsPaid] = useState(!!booking.isPaid);
+  const [showTracking, setShowTracking] = useState(false);
 
   // ── Lock state ──────────────────────────────────────────
   const needsLock = booking.status === "completed" && !isPaid;
@@ -416,18 +420,26 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
                 />
               </div>
 
-              {/* ── Ongoing: Action buttons ───────── */}
-              {booking.status === "ongoing" && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button className="py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">navigation</span> Track
+              {/* ── Active: Action buttons (started/reached/ongoing) ───────── */}
+              {["started", "reached", "ongoing"].includes(booking.status) && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <button
+                    onClick={() => setShowTracking(true)}
+                    className="py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">map</span> Track
                   </button>
-                  <button className="py-3 border border-outline-variant text-on-surface-variant rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors flex items-center justify-center gap-1.5">
+                  <a
+                    href={`tel:${tmpSpec.phone || ""}`}
+                    className="py-3 border border-outline-variant text-on-surface-variant rounded-xl text-sm font-semibold hover:bg-surface-container-low transition-colors flex items-center justify-center gap-1.5"
+                  >
                     <span className="material-symbols-outlined text-[18px]">call</span> Call
-                  </button>
-                  <button className="py-3 border border-red-200 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">close</span> Cancel
-                  </button>
+                  </a>
+                  {booking.status === "ongoing" && (
+                    <button className="py-3 border border-red-200 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                      <span className="material-symbols-outlined text-[18px]">close</span> Cancel
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -591,6 +603,13 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
             window.dispatchEvent(new CustomEvent("shuroqx-payment-success", { detail: { bookingId: booking.id } }));
           }}
           onCancel={() => setShowPayment(false)}
+        />
+      )}
+      {showTracking && (
+        <LiveTrackingMap
+          booking={booking}
+          role="client"
+          onClose={() => setShowTracking(false)}
         />
       )}
     </>
