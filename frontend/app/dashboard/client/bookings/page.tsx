@@ -9,6 +9,7 @@ import type { BookingDetail } from "@/types";
 import { STATUS_META } from "@/types";
 import { BookingDetailModal } from "@/components/dashboard/client/BookingDetailModal";
 import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
+import { LiveTrackingMap } from "@/components/tracking/LiveTrackingMap";
 import { useToast } from "@/components/ui/Toast";
 import {
   Calendar,
@@ -63,6 +64,7 @@ export default function ClientBookingsPage() {
     setPage(1);
   }
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
+  const [trackingBooking, setTrackingBooking] = useState<BookingDetail | null>(null);
 
   const PAGE_SIZE = 5;
 
@@ -292,6 +294,7 @@ export default function ClientBookingsPage() {
                         booking={b}
                         onViewDetails={() => handleOpenBooking(b)}
                         onChat={() => router.push(`/dashboard/client/chat`)}
+                        onTrack={() => setTrackingBooking(b)}
                       />
                     ))}
                   </div>
@@ -437,6 +440,10 @@ export default function ClientBookingsPage() {
       {selectedBooking && (
         <BookingDetailModal booking={selectedBooking} onClose={() => setSelectedBooking(null)} />
       )}
+
+      {trackingBooking && (
+        <LiveTrackingMap booking={trackingBooking} onClose={() => setTrackingBooking(null)} role="client" />
+      )}
     </div>
   );
 }
@@ -487,10 +494,11 @@ function Pager({ current, totalPages, onPage }: {
 
 // ── Sub-components for Bookings Page ──────────────────────────────────────────
 
-function ActiveBookingCard({ booking, onViewDetails, onChat }: {
+function ActiveBookingCard({ booking, onViewDetails, onChat, onTrack }: {
   booking: BookingDetail;
   onViewDetails: () => void;
   onChat: () => void;
+  onTrack: () => void;
 }) {
   const icon = SERVICE_ICONS_OUTLINED[booking.serviceType] || "build";
   const progressPercent = STATUS_PROGRESS[booking.status] || 0;
@@ -535,6 +543,9 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
           Time: {booking.scheduledTime} · Date: {booking.scheduledDate}
         </span>
         <div className="flex gap-2">
+          <button onClick={onTrack} className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
+            <span className="material-symbols-outlined text-xs">map</span> Track
+          </button>
           <button onClick={onChat} className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded-xl text-xs font-bold transition-all cursor-pointer">
             <span className="material-symbols-outlined text-xs">chat</span> Chat
           </button>
