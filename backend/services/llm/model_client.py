@@ -99,7 +99,8 @@ def _gemini_payload(messages: Iterable[dict], *, stream: bool, temperature: floa
 
 def _gemini_url(method: str) -> str:
     base = f"{FALLBACK_BASE_URL}/models/{FALLBACK_MODEL}:{method}"
-    return f"{base}?key={FALLBACK_API_KEY}"
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}key={FALLBACK_API_KEY}&alt=sse"
 
 
 # ── Primary (OpenAI-compatible) helpers ───────────────────────────────────────
