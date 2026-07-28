@@ -539,7 +539,7 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
           Time: {booking.scheduledTime} · Date: {booking.scheduledDate}
         </span>
         <div className="flex gap-2.5 shrink-0 items-center">
-          {["accepted", "started", "reached", "ongoing"].includes(booking.status) && (
+          {["started", "reached", "ongoing"].includes(booking.status) && (
             <LiveTrackingMap
               booking={booking}
               role="client"

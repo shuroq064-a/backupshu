@@ -26,6 +26,15 @@ function calcBearing(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function LiveTrackingMap({ booking, onClose, role }: LiveTrackingMapProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -39,15 +48,32 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   const followModeRef = useRef(true);
   const routeCoordsRef = useRef<[number, number][]>([]);
 
+  // Throttle refs for OSRM route re-fetch
+  const lastFetchPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  const FETCH_MIN_DISTANCE_M = 100;
+  const FETCH_MIN_INTERVAL_MS = 30000;
+
   const [eta, setEta] = useState<number | null>(booking.etaMinutes ?? null);
   const [distance, setDistance] = useState<string | null>(null);
-  const [waitingForGps, setWaitingForGps] = useState(
-    !booking.currentLatitude || !booking.currentLongitude
+  const [isWaiting, setIsWaiting] = useState(
+    role === "specialist"
+      ? !booking.currentLatitude || !booking.currentLongitude
+      : false
   );
   const [isFollowing, setIsFollowing] = useState(true);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const geoWatchRef = useRef<number | null>(null);
-  const geoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const specialistName = booking.specialist?.name || "Specialist";
+
+  // Sync waitingForGps when booking prop updates with new location
+  useEffect(() => {
+    if (role === "specialist" && booking.currentLatitude && booking.currentLongitude) {
+      setIsWaiting(false);
+    }
+  }, [booking.currentLatitude, booking.currentLongitude, role]);
+
+  // For client: when specialist sends first location via WS, waiting is cleared in the WS handler
 
   const toggleOpen = () => {
     if (isOpen) {
@@ -82,7 +108,6 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     routeLayerRef.current = L.polyline(coords, { color: "#1a1a2e", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(map);
   }, [clearRoute]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getBearingFromRoute = useCallback((specLat: number, specLng: number): number => {
     const coords = routeCoordsRef.current;
     if (coords.length < 2) {
@@ -119,7 +144,19 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   }, [getBearingFromRoute]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fetchRoute = useCallback(async (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
+  const throttledFetchRoute = useCallback(async (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
+    const now = Date.now();
+    const lastPos = lastFetchPosRef.current;
+    const lastTime = lastFetchTimeRef.current;
+
+    if (lastPos && (now - lastTime) < FETCH_MIN_INTERVAL_MS) {
+      const distMoved = haversineMeters(sLat, sLng, lastPos.lat, lastPos.lng);
+      if (distMoved < FETCH_MIN_DISTANCE_M) return;
+    }
+
+    lastFetchPosRef.current = { lat: sLat, lng: sLng };
+    lastFetchTimeRef.current = now;
+
     try {
       const res = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${cLng},${cLat}?overview=full&geometries=geojson`
@@ -147,11 +184,12 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     import("leaflet").then((leaflet) => {
       const L = leaflet.default;
       const map = leafletMap.current as L.Map;
+      if (!map) return;
       if (specialistMarkerRef.current) {
         const ll = (specialistMarkerRef.current as { getLatLng: () => { lat: number; lng: number } }).getLatLng();
         followNavigation(map, ll.lat, ll.lng);
       }
-    });
+    }).catch(() => {});
   }, [followNavigation]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -201,10 +239,10 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
         dragging: true, scrollWheelZoom: true, doubleClickZoom: true, touchZoom: true,
         bounceAtZoomLimits: false,
         rotate: true, rotateControl: false, pitch: false,
-      }).setView([centerLat, centerLng], 17);
+      }).setView([centerLat, centerLng], 18);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19, attribution: "&copy; OpenStreetMap",
+        maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map);
 
       L.control.zoom({ position: "topright" }).addTo(map);
@@ -214,11 +252,14 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       if (sLat && sLng) {
         specialistMarkerRef.current = L.marker([sLat, sLng], { icon: makeSpecIcon(L) })
           .addTo(map)
-          .bindPopup(role === "client" ? "Specialist is on the way" : "Your location");
-        if (cLat && cLng) await fetchRoute(L, map, sLat, sLng, cLat, cLng);
-        else map.setView([sLat, sLng], 17);
+          .bindPopup(role === "client" ? specialistName : "Your location");
+        if (cLat && cLng) await throttledFetchRoute(L, map, sLat, sLng, cLat, cLng);
+        else map.setView([sLat, sLng], 18);
       } else if (cLat && cLng) {
-        map.setView([cLat, cLng], 15);
+        map.setView([cLat, cLng], 18);
+        if (role === "specialist") {
+          setIsWaiting(true);
+        }
       }
 
       map.on("dragstart", () => { followModeRef.current = false; setIsFollowing(false); });
@@ -226,7 +267,6 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       leafletMap.current = map;
       setIsMapLoaded(true);
 
-      // Fix tiles after animation settles
       setTimeout(() => { map.invalidateSize(); }, 300);
       setTimeout(() => { map.invalidateSize(); }, 800);
     }, 200);
@@ -244,8 +284,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   }, [isOpen]);
 
   // Keep WS handler stable via refs to prevent reconnects
-  const fetchRouteRef = useRef(fetchRoute);
-  fetchRouteRef.current = fetchRoute;
+  const throttledFetchRouteRef = useRef(throttledFetchRoute);
+  throttledFetchRouteRef.current = throttledFetchRoute;
   const followNavRef = useRef(followNavigation);
   followNavRef.current = followNavigation;
   const makeSpecIconRef = useRef(makeSpecIcon);
@@ -254,6 +294,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   bookingRef.current = booking;
   const roleRef = useRef(role);
   roleRef.current = role;
+  const specialistNameRef = useRef(specialistName);
+  specialistNameRef.current = specialistName;
 
   // ── WebSocket: live location updates (stable, reconnects only on isOpen/booking.id) ──
   useEffect(() => {
@@ -281,111 +323,43 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
           if (!map) return;
           const b = bookingRef.current;
           const r = roleRef.current;
+          const sName = specialistNameRef.current;
 
           if (!specialistMarkerRef.current) {
             specialistMarkerRef.current = L.marker([data.latitude, data.longitude], { icon: makeSpecIconRef.current(L) })
               .addTo(map)
-              .bindPopup(r === "client" ? "Specialist is on the way" : "Your location");
-            setWaitingForGps(false);
+              .bindPopup(r === "client" ? sName : "Your location");
+            setIsWaiting(false);
             const cLat = b.customerLatitude, cLng = b.customerLongitude;
-            if (cLat && cLng) fetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
+            if (cLat && cLng) throttledFetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
           } else {
             (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([data.latitude, data.longitude]);
             if (followModeRef.current) followNavRef.current(map, data.latitude, data.longitude);
             const cLat = b.customerLatitude, cLng = b.customerLongitude;
-            if (cLat && cLng) fetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
+            if (cLat && cLng) throttledFetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
           }
-        });
+        }).catch(() => {});
       } catch {}
     };
     ws.onerror = () => ws.close();
     return () => { if (opened) ws.close(); else ws.onopen = () => ws.close(); };
   }, [isOpen, booking.id]);
 
-  // ── GPS: Specialist sends location directly when map is open ──
-  useEffect(() => {
-    if (!isOpen || role !== "specialist") return;
-
-    if (!navigator.geolocation) {
-      setGpsError("Geolocation not supported by your browser");
-      return;
-    }
-
-    const sendLocation = async (lat: number, lng: number) => {
-      try {
-        await bookingApi.updateLocation(booking.id, lat, lng);
-      } catch (err) {
-        console.warn("[LiveTrackingMap] Failed to send location:", err);
-      }
-    };
-
-    const onGeoSuccess = (geo: GeolocationPosition) => {
-      const lat = geo.coords.latitude;
-      const lng = geo.coords.longitude;
-      setWaitingForGps(false);
-      setGpsError(null);
-      sendLocation(lat, lng);
-    };
-
-    const onGeoError = (err: GeolocationPositionError) => {
-      setGpsError(err.message || "Location access denied. Please enable GPS.");
-    };
-
-    // Request permission immediately
-    navigator.geolocation.getCurrentPosition(onGeoSuccess, onGeoError, {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0,
-    });
-
-    // Watch position continuously
-    geoWatchRef.current = navigator.geolocation.watchPosition(
-      onGeoSuccess,
-      onGeoError,
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
-    );
-
-    // Send to backend every 8 seconds
-    geoIntervalRef.current = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        (geo) => sendLocation(geo.coords.latitude, geo.coords.longitude),
-        () => {},
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 3000 }
-      );
-    }, 8000);
-
-    return () => {
-      if (geoWatchRef.current !== null) {
-        navigator.geolocation.clearWatch(geoWatchRef.current);
-        geoWatchRef.current = null;
-      }
-      if (geoIntervalRef.current) {
-        clearInterval(geoIntervalRef.current);
-        geoIntervalRef.current = null;
-      }
-    };
-  }, [isOpen, role, booking.id]);
-
-  // ── Cleanup all on unmount ──
-  useEffect(() => {
-    return () => {
-      if (geoWatchRef.current !== null) navigator.geolocation.clearWatch(geoWatchRef.current);
-      if (geoIntervalRef.current) clearInterval(geoIntervalRef.current);
-    };
-  }, []);
-
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!mounted) return null;
 
+  const waitingLabel = role === "client"
+    ? `Waiting for ${specialistName}...`
+    : "Requesting GPS...";
+
   return createPortal(
-    <AnimatePresence mode="popLayout">
+    <AnimatePresence>
       {!isOpen ? (
         /* --- PILL BUTTON (fixed bottom-center) --- */
         <motion.div
           key="pill"
-          layoutId="tracking-container"
           onClick={toggleOpen}
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] group flex cursor-pointer items-center justify-center overflow-hidden bg-[#E5E4EE] shadow-lg transition-colors duration-300 dark:bg-[#1C1C1E]"
           style={{ width: 200, height: 52, borderRadius: 26 }}
@@ -396,8 +370,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
         >
-          <motion.div
-            layoutId="tracking-bg"
+          <div
             className="absolute inset-0 opacity-20 brightness-110 grayscale transition-opacity dark:opacity-10 dark:brightness-50"
             style={{
               backgroundImage: "url(https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?q=80&w=2000&auto=format&fit=crop)",
@@ -422,7 +395,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
           exit={{ opacity: 0 }}
           onClick={(e) => { if (e.target === e.currentTarget) toggleOpen(); }}
         >
-          {/* CLOSE BUTTON — on outer overlay so it stays static */}
+          {/* CLOSE BUTTON */}
           <motion.button
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -443,12 +416,12 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
             transition={springConfig}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Leaflet map — NO opacity animation, Leaflet needs visible container to calc tiles */}
+            {/* Leaflet map */}
             <div ref={mapRef} className="absolute inset-0 w-full h-full" style={{ touchAction: "none" }} />
 
-            {/* GPS waiting */}
+            {/* GPS waiting / error */}
             <AnimatePresence>
-              {(waitingForGps || gpsError) && (
+              {(isWaiting || gpsError) && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -462,11 +435,11 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                       <button
                         onClick={() => {
                           setGpsError(null);
-                          setWaitingForGps(true);
+                          setIsWaiting(true);
                           navigator.geolocation.getCurrentPosition(
                             (geo) => {
-                              setWaitingForGps(false);
-                              bookingApi.updateLocation(booking.id, geo.coords.latitude, geo.coords.longitude);
+                              setIsWaiting(false);
+                              bookingApi.updateLocation(booking.id, geo.coords.latitude, geo.coords.longitude).catch(() => {});
                             },
                             (err) => setGpsError(err.message),
                             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -480,7 +453,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                   ) : (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[11px] font-semibold text-gray-700">Requesting GPS...</span>
+                      <span className="text-[11px] font-semibold text-gray-700">{waitingLabel}</span>
                     </>
                   )}
                 </motion.div>
@@ -514,14 +487,14 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                   <div className="flex items-center gap-1">
                     <span className="text-sm">🚲</span>
                     <span className="text-[10px] text-gray-600 font-semibold">
-                      {role === "client" ? "Specialist" : "You"}
+                      {role === "client" ? specialistName : "You"}
                     </span>
                   </div>
                   <div className="w-px h-3 bg-gray-200" />
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full bg-red-500" />
                     <span className="text-[10px] text-gray-600 font-semibold">
-                      {role === "client" ? "You" : "Client"}
+                      {role === "client" ? "You" : booking.clientName || "Client"}
                     </span>
                   </div>
                   {distance && (
@@ -541,8 +514,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
             )}
           </motion.div>
         </motion.div>
-          )}
-        </AnimatePresence>,
+      )}
+    </AnimatePresence>,
     document.body
   );
 }

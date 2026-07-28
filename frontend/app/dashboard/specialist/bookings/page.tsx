@@ -423,7 +423,7 @@ export default function BookingsManagerPage() {
                              <span className="material-symbols-outlined text-[18px]">chat</span>
                              <span className="text-xs font-bold">Chat</span>
                            </button>
-                          {["started", "reached", "ongoing"].includes(job.status) && (
+                          {["accepted", "started", "reached", "ongoing"].includes(job.status) && (
                             <LiveTrackingMap
                               booking={job}
                               role="specialist"
