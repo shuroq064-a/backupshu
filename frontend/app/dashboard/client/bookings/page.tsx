@@ -60,9 +60,9 @@ export default function ClientBookingsPage() {
 
   const [bookings, setBookings] = useState<BookingDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "upcoming" | "completed">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "completed">("all");
   const [page, setPage] = useState(1);
-  function handleTabChange(tab: "all" | "active" | "upcoming" | "completed") {
+  function handleTabChange(tab: "all" | "active" | "completed") {
     setActiveTab(tab);
     setPage(1);
   }
@@ -202,7 +202,6 @@ export default function ClientBookingsPage() {
 
   // Filter lists based on tab choice
   const activeBookings = bookings.filter(b => ["accepted", "started", "reached", "ongoing"].includes(b.status));
-  const upcomingBookings = bookings.filter(b => b.status === "upcoming");
   const completedBookings = bookings.filter(b => ["completed", "cancelled", "rejected"].includes(b.status));
 
   // Spend metrics summary (sum of all completed bookings)
@@ -218,7 +217,6 @@ export default function ClientBookingsPage() {
     return { slice, totalPages, current };
   }
   const activePages = paginate(activeBookings);
-  const upcomingPages = paginate(upcomingBookings);
   const completedPages = paginate(completedBookings);
 
   async function handleOpenBooking(booking: BookingDetail) {
@@ -245,7 +243,7 @@ export default function ClientBookingsPage() {
         </div>
         {/* Quick Filter Buttons */}
         <div className="flex bg-surface-container-low p-1 rounded-xl shadow-inner border border-outline-variant/30 shrink-0 overflow-x-auto max-md:w-full">
-          {(["all", "active", "upcoming", "completed"] as const).map((tab) => (
+          {(["all", "active", "completed"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => handleTabChange(tab)}
@@ -305,47 +303,6 @@ export default function ClientBookingsPage() {
                   <Pager
                     current={activePages.current}
                     totalPages={activePages.totalPages}
-                    onPage={(p) => setPage(p)}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Upcoming Appointments (Only show when tab is all or upcoming) */}
-            {(activeTab === "all" || activeTab === "upcoming") && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-secondary-container"></span>
-                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Upcoming Appointments</h2>
-                  </div>
-                  {upcomingBookings.length > 0 && (
-                    <span className="text-xs font-medium text-on-surface-variant">
-                      {upcomingBookings.length} total · Page {upcomingPages.current} of {upcomingPages.totalPages}
-                    </span>
-                  )}
-                </div>
-
-                {upcomingBookings.length === 0 ? (
-                  <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6 text-center text-on-surface-variant text-sm">
-                    No upcoming scheduled bookings.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {upcomingPages.slice.map(b => (
-                      <UpcomingBookingRow
-                        key={b.id}
-                        booking={b}
-                        onClick={() => handleOpenBooking(b)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {upcomingPages.totalPages > 1 && (
-                  <Pager
-                    current={upcomingPages.current}
-                    totalPages={upcomingPages.totalPages}
                     onPage={(p) => setPage(p)}
                   />
                 )}
@@ -559,46 +516,6 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
   );
 }
 
-function UpcomingBookingRow({ booking, onClick }: { booking: BookingDetail; onClick: () => void }) {
-  // Extract day and month from date
-  const dateObj = new Date(booking.scheduledDate || Date.now());
-  const month = dateObj.toLocaleDateString("en-IN", { month: "short" });
-  const day = dateObj.getDate();
-
-  return (
-    <div
-      onClick={onClick}
-      className="flex items-center justify-between gap-4 p-4 bg-surface-container-lowest border border-outline-variant rounded-2xl hover:border-primary transition-all cursor-pointer group shadow-sm hover:shadow-md"
-    >
-      <div className="flex items-center gap-4">
-        {/* Date block */}
-        <div className="flex flex-col items-center justify-center w-14 h-14 bg-surface-container text-on-surface rounded-xl border border-outline-variant/40 group-hover:bg-primary/5 group-hover:border-primary/20 transition-all shrink-0">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{month}</span>
-          <span className="text-lg font-extrabold text-primary -mt-0.5 leading-none">{day}</span>
-        </div>
-        <div>
-          <h4 className="font-semibold text-gray-800 leading-snug">{booking.serviceType}</h4>
-          <p className="text-xs text-on-surface-variant flex items-center gap-1 mt-1">
-            <span className="material-symbols-outlined text-xs">schedule</span> {booking.scheduledTime}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        {booking.specialist?.name && (
-          <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-on-surface-variant">
-            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
-              {booking.specialist.name[0].toUpperCase()}
-            </div>
-            <span>{booking.specialist.name}</span>
-          </div>
-        )}
-        <span className="material-symbols-outlined text-outline group-hover:text-primary transition-colors">chevron_right</span>
-      </div>
-    </div>
-  );
-}
-
 function HistoryBookingItem({ booking, onRebook, onClick }: {
   booking: BookingDetail;
   onRebook: () => void;
@@ -632,14 +549,16 @@ function HistoryBookingItem({ booking, onRebook, onClick }: {
       </div>
 
       {booking.customerRating && (
-        <div className="mt-3 flex items-center gap-1 py-1.5 px-3 bg-amber-50/50 border border-amber-100 rounded-xl max-w-max">
-          <div className="flex">
+        <div className="mt-3 flex items-center gap-2 py-1.5 px-3 bg-amber-50/50 border border-amber-100 rounded-xl max-w-max">
+          <div className="flex gap-0.5">
             {[1, 2, 3, 4, 5].map(s => (
-              <span key={s} className={`text-xs ${s <= (booking.customerRating || 5) ? "text-amber-400 font-fill" : "text-gray-200"} material-symbols-outlined`} style={{ fontVariationSettings: s <= (booking.customerRating || 5) ? "'FILL' 1" : "'FILL' 0" }}>star</span>
+              <span key={s} className={`text-xs ${s <= (booking.customerRating || 5) ? "text-amber-400" : "text-gray-200"}`}>★</span>
             ))}
           </div>
           {booking.customerFeedback && (
-            <span className="text-xs text-amber-900 italic font-medium ml-1.5">{`"${booking.customerFeedback}"`}</span>
+            <span className="text-[11px] text-amber-800/80 font-medium ml-1 truncate max-w-[160px]" title={booking.customerFeedback}>
+              {booking.customerFeedback}
+            </span>
           )}
         </div>
       )}

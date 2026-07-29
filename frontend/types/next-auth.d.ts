@@ -24,6 +24,8 @@ declare module "next-auth" {
 declare module "next-auth/react" {
   export function SessionProvider(props: any): any;
   export function signIn(provider?: string, options?: Record<string, unknown>): Promise<unknown>;
+  export function useSession(): { data: any; status: "loading" | "authenticated" | "unauthenticated" };
+  export function getSession(): Promise<any>;
 }
 
 declare module "next-auth/providers/google" {

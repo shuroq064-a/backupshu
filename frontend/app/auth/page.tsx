@@ -82,8 +82,8 @@ function AuthPageInner() {
   }
 
   async function handleSocialLogin(provider: "google" | "facebook" | "apple") {
-    // NextAuth handles the OAuth flow; our callback handles FastAPI sync
-    await signIn(provider, { callbackUrl: redirect });
+    // NextAuth handles the OAuth flow; callback page bridges the session to shuroqx_session cookie
+    await signIn(provider, { callbackUrl: `/auth/callback?redirect=${encodeURIComponent(redirect)}` });
   }
 
   return (
