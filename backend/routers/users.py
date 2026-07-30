@@ -10,7 +10,7 @@ Routes (must match frontend lib/api.ts userApi exactly):
     POST /users/change-password    → change password
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import os
@@ -29,6 +29,7 @@ if __package__ and "." in __package__:
         ChangePasswordRequest,
     )
     from ..auth_utils import get_current_user
+    from ..services.rate_limiter import rate_limit
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
     if BACKEND_DIR not in sys.path:
@@ -290,6 +291,7 @@ def delete_my_address(
 @router.post("/change-password")
 def change_password(
     payload: ChangePasswordRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -298,6 +300,7 @@ def change_password(
     - Requires current password to verify identity.
     - OAuth-only accounts (no password) cannot use this.
     """
+    rate_limit(request, "change-password", max_requests=10, window_seconds=3600)
     if not current_user.hashed_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -317,6 +320,7 @@ def change_password(
         )
 
     current_user.hashed_password = pwd_context.hash(payload.new_password)
+    current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
 
     return {"message": "Password changed successfully"}
@@ -362,9 +366,9 @@ def delete_account(
         }
     except Exception as e:
         db.rollback()
-        error_msg = str(e)
-        print(f"❌ Error deleting account: {error_msg}")
+        import logging
+        logging.getLogger(__name__).exception("Error deleting account")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete account: {error_msg}",
+            detail="Failed to delete account. Please try again later.",
         )

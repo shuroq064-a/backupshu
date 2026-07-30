@@ -36,7 +36,7 @@
     "leaflet-rotate": "^0.2.8",
     "lucide-react": "^1.24.0",
     "motion": "^12.42.2",
-    "next": "15.3.8",
+    "next": "^15.5.22",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

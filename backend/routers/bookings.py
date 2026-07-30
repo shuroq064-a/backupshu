@@ -12,7 +12,7 @@ Routes:
     WS     /ws/bookings/{id}               → live status push (Task 01)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, BackgroundTasks
 import re
 import asyncio
 from fastapi.concurrency import run_in_threadpool
@@ -34,6 +34,7 @@ if __package__ and "." in __package__:
         BookingLocationUpdate, BookingAddressConfirm,
     )
     from ..auth_utils import ALGORITHM, SECRET_KEY, get_current_user
+    from ..services.rate_limiter import rate_limit
     from ..services.worker_services import build_worker_services
     from ..services.worker_matching import service_matches_intent
     from ..services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes
@@ -51,6 +52,7 @@ else:
         BookingLocationUpdate, BookingAddressConfirm,
     )
     from auth_utils import ALGORITHM, SECRET_KEY, get_current_user
+    from services.rate_limiter import rate_limit
     from services.worker_services import build_worker_services
     from services.worker_matching import service_matches_intent
     from services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes
@@ -221,6 +223,15 @@ def _extract_ws_token(websocket: WebSocket, token: Optional[str]) -> Optional[st
     auth_header = websocket.headers.get("authorization")
     if auth_header and auth_header.lower().startswith("bearer "):
         return auth_header.split(" ", 1)[1].strip()
+
+    protocol = websocket.headers.get("sec-websocket-protocol")
+    if protocol:
+        parts = [p.strip() for p in protocol.split(",")]
+        for p in parts:
+            if p.lower().startswith("bearer "):
+                return p.split(" ", 1)[1].strip()
+            if p.startswith("Bearer "):
+                return p.split(" ", 1)[1].strip()
 
     return None
 
@@ -446,9 +457,11 @@ def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
 def create_booking(
     payload: BookingCreate,
     background_tasks: BackgroundTasks,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limit(request, "create-booking", max_requests=10, window_seconds=3600)
     # Address validation guard: use the same Required-style validation as the schema.
     if not getattr(payload, "contact_number", None) or not str(payload.contact_number).strip():
         raise HTTPException(status_code=422, detail=[{"loc": ["body", "contact_number"], "msg": "Required", "type": "value_error"}])
@@ -559,18 +572,14 @@ def create_booking(
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        detail = "Unable to create booking."
-        message = str(getattr(exc, "orig", exc)).lower()
-        if "worker_id" in message and ("null" in message or "not-null" in message):
-            detail = "Booking schema is not migrated: worker_id must allow unassigned bookings."
-        raise HTTPException(status_code=500, detail=detail)
+        import logging
+        logging.getLogger(__name__).exception("Booking creation IntegrityError")
+        raise HTTPException(status_code=500, detail="Unable to create booking. Please try again.")
     except SQLAlchemyError as exc:
         db.rollback()
-        message = str(getattr(exc, "orig", exc)).lower()
-        detail = "Unable to create booking."
-        if "customer_latitude" in message or "customer_longitude" in message or "customer_location_updated_at" in message:
-            detail = "Booking schema is not migrated: customer location columns are missing."
-        raise HTTPException(status_code=500, detail=detail)
+        import logging
+        logging.getLogger(__name__).exception("Booking creation SQLAlchemyError")
+        raise HTTPException(status_code=500, detail="Unable to create booking. Please try again.")
     db.refresh(booking)
     # Let available, verified specialists with a matching skill know a new request
     # exists (powers the live specialist channel — replaces polling).
@@ -787,9 +796,11 @@ async def update_booking_status(
 def submit_review(
     booking_id: str,
     payload: BookingReviewSubmit,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limit(request, "submit-review", max_requests=10, window_seconds=3600)
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")

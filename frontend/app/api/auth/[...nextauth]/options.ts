@@ -20,6 +20,10 @@ interface AuthCallbackAccount {
 const BASE_URL = API_BASE_URL;
 const nextAuthSecret = process.env.NEXTAUTH_SECRET;
 
+console.log("[NextAuth] BASE_URL:", BASE_URL);
+console.log("[NextAuth] NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
+console.log("[NextAuth] GOOGLE_CLIENT_ID set:", !!process.env.GOOGLE_CLIENT_ID);
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -38,7 +42,10 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ user, account }: { user: AuthCallbackUser; account: AuthCallbackAccount | null }) {
-      if (!account || !user.email) return false;
+      if (!account || !user.email) {
+        console.error("[NextAuth] signIn callback: missing account or email", { hasAccount: !!account, email: user.email });
+        return false;
+      }
       try {
         const res = await fetch(`${BASE_URL}/users/oauth-login`, {
           method: "POST",
@@ -51,13 +58,20 @@ export const authOptions: NextAuthOptions = {
             provider_id: account.providerAccountId,
           }),
         });
-        if (!res.ok) return false;
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          console.error("[NextAuth] Backend oauth-login failed:", res.status, body);
+          throw new Error(`Backend returned ${res.status}: ${body.slice(0, 200)}`);
+        }
         const data = await res.json();
         user.backendId = data.id;
         user.backendToken = data.access_token || data.token || "";
         return true;
-      } catch {
-        return false;
+      } catch (err) {
+        console.error("[NextAuth] Backend oauth-login error:", err);
+        throw new Error(
+          `OAuth callback failed: ${err instanceof Error ? err.message : "Could not reach auth server"}`
+        );
       }
     },
 

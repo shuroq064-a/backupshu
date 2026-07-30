@@ -75,6 +75,17 @@ message_manager = MessageConnectionManager()
 def _ws_token(websocket: WebSocket, token: Optional[str]) -> Optional[str]:
     if token:
         return token
+
+    auth_header = websocket.headers.get("authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        return auth_header.split(" ", 1)[1].strip()
+
+    protocol = websocket.headers.get("sec-websocket-protocol")
+    if protocol:
+        for p in [p.strip() for p in protocol.split(",")]:
+            if p.lower().startswith("bearer "):
+                return p.split(" ", 1)[1].strip()
+
     return websocket.query_params.get("token")
 
 

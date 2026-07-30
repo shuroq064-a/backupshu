@@ -11,6 +11,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_KEY = "shuroqx_session";
 
+const SAFE_REDIRECT_RE = /^\/[a-zA-Z0-9_\-\/]*$/;
+
+function safeRedirect(path: string): string {
+  if (!path.startsWith("/")) return "/dashboard";
+  if (path.startsWith("//")) return "/dashboard";
+  if (/^[a-zA-Z]+:/.test(path)) return "/dashboard";
+  if (!SAFE_REDIRECT_RE.test(path)) return "/dashboard";
+  return path;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -41,7 +51,7 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith("/admin")) {
     if (!isAuthenticated) {
       const url = new URL("/auth", request.url);
-      url.searchParams.set("redirect", pathname);
+      url.searchParams.set("redirect", safeRedirect(pathname));
       return NextResponse.redirect(url);
     }
     if (!isAdmin) {
@@ -55,7 +65,7 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith("/dashboard")) {
     if (!isAuthenticated) {
       const url = new URL("/auth", request.url);
-      url.searchParams.set("redirect", pathname);
+      url.searchParams.set("redirect", safeRedirect(pathname));
       return NextResponse.redirect(url);
     }
     if (isAdmin) {

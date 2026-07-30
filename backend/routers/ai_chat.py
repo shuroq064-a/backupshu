@@ -93,13 +93,9 @@ def add_message(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Validate role
-    if payload.role not in ("user", "assistant"):
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'user' or 'assistant'")
-
     message = AiChatMessage(
         session_id=session_id,
-        role=payload.role,
+        role="user",
         content=payload.content,
     )
     db.add(message)

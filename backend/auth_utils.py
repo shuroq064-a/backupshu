@@ -51,6 +51,7 @@ def create_access_token(data: dict) -> str:
     """
     Issue a signed JWT.
     Payload should include: { "sub": user.id, "email": user.email, "role": user.role }
+    Includes token_version from the user record so old tokens can be invalidated.
     """
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {**data, "exp": expire}
@@ -97,6 +98,14 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+
+    token_version = payload.get("token_version")
+    if token_version is not None and token_version != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been invalidated — please log in again",
+        )
+
     return user
 
 

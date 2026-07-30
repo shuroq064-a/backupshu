@@ -10,7 +10,7 @@ import { WS_BASE_URL as WS_BASE } from "@/lib/config";
 import { useToast } from "@/components/ui/Toast";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
 import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
-import { useGeolocation } from "@/hooks/useGeolocation";
+import { useGpsTracking } from "@/components/tracking/GpsTrackingContext";
 import dynamic from "next/dynamic";
 import type { BookingDetail, BookingStatus, ServiceOption } from "@/types";
 import { STATUS_META as SM } from "@/types";
@@ -56,11 +56,14 @@ export default function BookingsManagerPage() {
   const activeTrackingJob = activeJobs.find(
     (j) => ["started", "reached", "ongoing"].includes(j.status)
   );
-  const { position } = useGeolocation({
-    bookingId: activeTrackingJob?.id ?? "",
-    enabled: !!activeTrackingJob,
-    intervalMs: 8000,
-  });
+  const { startTracking, stopTracking } = useGpsTracking();
+
+  useEffect(() => {
+    if (activeTrackingJob) {
+      startTracking(activeTrackingJob.id);
+    }
+    return () => stopTracking();
+  }, [activeTrackingJob?.id]);
 
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
 
@@ -205,9 +208,9 @@ export default function BookingsManagerPage() {
       if (cancelled) return;
       const token = getToken();
       if (!token) return;
-      const params = new URLSearchParams({ token });
       const socket = new WebSocket(
-        `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}?${params.toString()}`
+        `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}`,
+        [`Bearer ${token}`]
       );
       ws = socket;
       socket.onopen = () => {

@@ -125,8 +125,10 @@ export default function SpecialistCommunicationHub() {
     if (!selectedBookingId) return;
     const token = getToken();
     if (!token) return;
-    const params = new URLSearchParams({ token });
-    const ws = new WebSocket(`${WS_BASE_URL}/messages/ws/${encodeURIComponent(selectedBookingId)}?${params.toString()}`);
+    const ws = new WebSocket(
+      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(selectedBookingId)}`,
+      [`Bearer ${token}`]
+    );
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data) as ChatMessageDTO;

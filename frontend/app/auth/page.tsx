@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import { loginUser, registerUser, clearError } from "@/store/slices/authSlice";
 import { Logo } from "@/components/ui";
+import { sanitizeRedirect } from "@/lib/security";
 
 
 // ─────────────────────────────────────────────
@@ -30,7 +31,8 @@ function AuthPageInner() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
+  const redirect = sanitizeRedirect(searchParams.get("redirect"));
+  const nextAuthError = searchParams.get("error");
 
   const { isLoading, error, user } = useAppSelector((s: RootState) => s.auth);
 
@@ -125,9 +127,19 @@ function AuthPageInner() {
           </div>
 
           {/* Error Banner */}
-          {error && (
+          {(error || nextAuthError) && (
             <div className="mb-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-              {error}
+              {error || (
+                nextAuthError === "OAuthAccountNotLinked"
+                  ? "This email is already linked to another login method. Please use your original sign-in method."
+                  : nextAuthError === "OAuthCreateAccount"
+                    ? "Could not create account. Please try again."
+                    : nextAuthError === "OAuthCallback"
+                      ? "Sign-in failed. Please ensure the backend server is running and try again."
+                      : nextAuthError === "default"
+                        ? "An error occurred during sign-in. Please try again."
+                        : `Sign-in error: ${nextAuthError}`
+              )}
             </div>
           )}
 

@@ -42,10 +42,10 @@ export default function RootLayout({
               "(function(){try{var t=localStorage.getItem('shuroqx-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();",
           }}
         />
-        <script src="https://checkout.razorpay.com/v1/checkout.js" async />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <Providers>{children}</Providers>
         <Toaster />

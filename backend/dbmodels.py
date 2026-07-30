@@ -25,6 +25,7 @@ class User(Base):
     provider_id = Column(String, nullable=True)
     location_permission_granted = Column(String, nullable=True)  # "allow", "deny", "while_using_site", or None
     location_permission_granted_at = Column(DateTime, nullable=True)
+    token_version = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     specialist_profile = relationship("Worker", back_populates="user", cascade="all, delete-orphan")

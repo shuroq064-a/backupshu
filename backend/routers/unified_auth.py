@@ -11,7 +11,7 @@ Routes (must match frontend lib/api.ts exactly):
     POST /users/switch-to-specialist   [JWT protected]
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import os
@@ -31,6 +31,7 @@ if __package__ and "." in __package__:
         WorkerCreate,
     )
     from ..auth_utils import create_access_token, get_current_user
+    from ..services.rate_limiter import rate_limit
     from .workers import create_worker_profile
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -49,6 +50,7 @@ else:
         WorkerCreate,
     )
     from auth_utils import create_access_token, get_current_user
+    from services.rate_limiter import rate_limit
     from routers.workers import create_worker_profile
 
 # ─────────────────────────────────────────────
@@ -68,17 +70,18 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ─────────────────────────────────────────────
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
-def register(payload: UserRegister, db: Session = Depends(get_db)):
+def register(payload: UserRegister, request: Request, db: Session = Depends(get_db)):
     """
     Create a new user account.
     Everyone registers as role='user'.
     Specialist profile is created later via /switch-to-specialist.
     """
+    rate_limit(request, "register", max_requests=5, window_seconds=300)
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="An account with this email already exists",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Unable to complete registration",
         )
 
     user = User(
@@ -97,6 +100,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
         "sub": user.id,
         "email": user.email,
         "role": user.role,
+        "token_version": user.token_version or 0,
     })
 
     return AuthResponse(
@@ -116,7 +120,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: UserLogin, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
     """
     Login with email + password.
     Works for both regular users AND admins.
@@ -124,18 +128,13 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
         role === 'admin' -> /admin/specialists
         role === 'user'  -> /dashboard
     """
+    rate_limit(request, "login", max_requests=5, window_seconds=60)
     user = db.query(User).filter(User.email == payload.email).first()
 
-    if not user:
+    if not user or not user.hashed_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
-        )
-
-    if not user.hashed_password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="This account uses social login. Please sign in with Google, Facebook or Apple",
         )
 
     if not pwd_context.verify(payload.password, user.hashed_password):
@@ -148,6 +147,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
         "sub": user.id,
         "email": user.email,
         "role": user.role,
+        "token_version": user.token_version or 0,
     })
 
     return AuthResponse(
@@ -168,11 +168,12 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 
 @router.post("/oauth-login", response_model=AuthResponse)
-def oauth_login(payload: OAuthLoginRequest, db: Session = Depends(get_db)):
+def oauth_login(payload: OAuthLoginRequest, request: Request, db: Session = Depends(get_db)):
     """
     Upsert user from OAuth provider.
     New users always get role='user'. Admins are seeded manually only.
     """
+    rate_limit(request, "oauth-login", max_requests=10, window_seconds=60)
     user = db.query(User).filter(User.email == payload.email).first()
 
     if not user:
@@ -204,6 +205,7 @@ def oauth_login(payload: OAuthLoginRequest, db: Session = Depends(get_db)):
         "sub": user.id,
         "email": user.email,
         "role": user.role,
+        "token_version": user.token_version or 0,
     })
 
     return AuthResponse(

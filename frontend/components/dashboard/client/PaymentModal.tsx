@@ -9,6 +9,23 @@ declare global {
   }
 }
 
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(!!window.Razorpay));
+      existing.addEventListener("error", () => resolve(false));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(!!window.Razorpay);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 interface PaymentModalProps {
   bookingId: string;
   bookingNumber: string;
@@ -27,13 +44,14 @@ export function PaymentModal({ bookingId, bookingNumber, serviceType, amount, on
     setError("");
 
     try {
-      // Step 1: Create order from backend
-      const order = await paymentApi.createOrder(bookingId);
-
-      // Step 2: Check Razorpay script loaded
-      if (!window.Razorpay) {
+      // Step 0: Ensure Razorpay script is loaded
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !window.Razorpay) {
         throw new Error("Payment system failed to load. Please refresh and try again.");
       }
+
+      // Step 1: Create order from backend
+      const order = await paymentApi.createOrder(bookingId);
 
       // Step 3: Open Razorpay checkout
       const options = {

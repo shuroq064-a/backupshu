@@ -27,6 +27,7 @@ if __package__ and "." in __package__:
     from ..dbmodels import Booking, Payment
     from ..models import PaymentOrderOut, PaymentOrderIn, PaymentVerifyIn, PaymentOut
     from ..auth_utils import get_current_user, User
+    from ..services.rate_limiter import rate_limit
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
     if BACKEND_DIR not in sys.path:
@@ -35,6 +36,7 @@ else:
     from dbmodels import Booking, Payment
     from models import PaymentOrderOut, PaymentOrderIn, PaymentVerifyIn, PaymentOut
     from auth_utils import get_current_user, User
+    from services.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -78,9 +80,11 @@ def _verify_webhook_signature(body: bytes, signature: str) -> bool:
 @router.post("/create-order", response_model=PaymentOrderOut)
 def create_order(
     payload: PaymentOrderIn,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limit(request, "payment-create", max_requests=10, window_seconds=3600)
     booking_id = payload.booking_id
 
     # SELECT FOR UPDATE — prevents race condition on concurrent creates
@@ -126,7 +130,9 @@ def create_order(
             },
         })
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to create payment order: {str(e)}")
+        import logging
+        logging.getLogger(__name__).exception("Failed to create payment order for booking %s", booking_id)
+        raise HTTPException(status_code=502, detail="Failed to create payment order. Please try again.")
 
     payment = Payment(
         id=str(uuid.uuid4()),

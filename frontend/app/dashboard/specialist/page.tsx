@@ -144,9 +144,9 @@ export default function SpecialistDashboard() {
       if (cancelled) return;
       const token = getToken();
       if (!token) return;
-      const params = new URLSearchParams({ token });
       const socket = new WebSocket(
-        `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}?${params.toString()}`
+        `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}`,
+        [`Bearer ${token}`]
       );
       ws = socket;
       socket.onopen = () => {

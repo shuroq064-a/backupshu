@@ -8,7 +8,7 @@ import { FaMapLocationDot } from "react-icons/fa6";
 import type { BookingDetail, LocationUpdateEvent } from "@/types";
 import { WS_BASE_URL } from "@/lib/config";
 import { getToken } from "@/lib/auth";
-import { bookingApi } from "@/lib/api";
+import { useGpsTracking } from "./GpsTrackingContext";
 
 interface LiveTrackingMapProps {
   booking: BookingDetail;
@@ -54,11 +54,13 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   const FETCH_MIN_DISTANCE_M = 100;
   const FETCH_MIN_INTERVAL_MS = 30000;
 
+  const { position: gpsPosition, isTracking } = useGpsTracking();
+
   const [eta, setEta] = useState<number | null>(booking.etaMinutes ?? null);
   const [distance, setDistance] = useState<string | null>(null);
   const [isWaiting, setIsWaiting] = useState(
     role === "specialist"
-      ? !booking.currentLatitude || !booking.currentLongitude
+      ? (!booking.currentLatitude || !booking.currentLongitude) && !isTracking
       : false
   );
   const [isFollowing, setIsFollowing] = useState(true);
@@ -73,7 +75,33 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     }
   }, [booking.currentLatitude, booking.currentLongitude, role]);
 
-  // For client: when specialist sends first location via WS, waiting is cleared in the WS handler
+  // For specialist: update marker from GPS context (no WebSocket roundtrip needed for own position)
+  useEffect(() => {
+    if (role !== "specialist" || !gpsPosition || !isOpen) return;
+    if (!leafletMap.current || !isMapLoaded) return;
+
+    import("leaflet").then((leaflet) => {
+      const L = leaflet.default;
+      const map = leafletMap.current as L.Map;
+      if (!map) return;
+
+      setIsWaiting(false);
+
+      if (!specialistMarkerRef.current) {
+        specialistMarkerRef.current = L.marker([gpsPosition.latitude, gpsPosition.longitude], { icon: makeSpecIconRef.current(L) })
+          .addTo(map)
+          .bindPopup("Your location");
+        if (followModeRef.current) followNavRef.current(map, gpsPosition.latitude, gpsPosition.longitude);
+        const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
+        if (cLat && cLng) throttledFetchRouteRef.current(L, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
+      } else {
+        (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([gpsPosition.latitude, gpsPosition.longitude]);
+        if (followModeRef.current) followNavRef.current(map, gpsPosition.latitude, gpsPosition.longitude);
+        const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
+        if (cLat && cLng) throttledFetchRouteRef.current(L, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
+      }
+    }).catch(() => {});
+  }, [gpsPosition, role, isOpen, isMapLoaded, booking.customerLatitude, booking.customerLongitude]);
 
   const toggleOpen = () => {
     if (isOpen) {
@@ -148,33 +176,35 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     const now = Date.now();
     const lastPos = lastFetchPosRef.current;
     const lastTime = lastFetchTimeRef.current;
-
     if (lastPos && (now - lastTime) < FETCH_MIN_INTERVAL_MS) {
       const distMoved = haversineMeters(sLat, sLng, lastPos.lat, lastPos.lng);
       if (distMoved < FETCH_MIN_DISTANCE_M) return;
     }
-
     lastFetchPosRef.current = { lat: sLat, lng: sLng };
     lastFetchTimeRef.current = now;
 
+    const url = `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${cLng},${cLat}?overview=full&geometries=geojson`;
+    let data: any = null;
     try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${cLng},${cLat}?overview=full&geometries=geojson`
-      );
-      const data = await res.json();
-      if (data.code !== "Ok" || !data.routes?.length) {
-        drawRoute(L, map, [[sLat, sLng], [cLat, cLng]]);
-      } else {
-        const route = data.routes[0];
-        const coords: [number, number][] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
-        setDistance(route.distance >= 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`);
-        if (!booking.etaMinutes && route.duration) setEta(Math.ceil(route.duration / 60));
-        drawRoute(L, map, coords);
-      }
+      const res = await fetch(url);
+      data = await res.json();
     } catch {
-      drawRoute(L, map, [[sLat, sLng], [cLat, cLng]]);
+      // retry once after 1s
+      await new Promise((r) => setTimeout(r, 1000));
+      try {
+        const res2 = await fetch(url);
+        data = await res2.json();
+      } catch {}
     }
-    if (followModeRef.current) followNavigation(map, sLat, sLng);
+
+    if (data?.code === "Ok" && data.routes?.length) {
+      const route = data.routes[0];
+      const coords: [number, number][] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
+      setDistance(route.distance >= 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`);
+      if (!booking.etaMinutes && route.duration) setEta(Math.ceil(route.duration / 60));
+      drawRoute(L, map, coords);
+      if (followModeRef.current) followNavigation(map, sLat, sLng);
+    }
   }, [booking.etaMinutes, drawRoute, followNavigation]);
 
   const recenter = useCallback(() => {
@@ -231,8 +261,9 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
       const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
       const sLat = booking.currentLatitude, sLng = booking.currentLongitude;
-      const centerLat = sLat ?? cLat ?? 17.385;
-      const centerLng = sLng ?? cLng ?? 78.4867;
+      // Client: always center on their own location first; Specialist: center on their position
+      const centerLat = role === "client" ? (cLat ?? sLat ?? 17.385) : (sLat ?? cLat ?? 17.385);
+      const centerLng = role === "client" ? (cLng ?? sLng ?? 78.4867) : (sLng ?? cLng ?? 78.4867);
 
       const map = L.map(mapRef.current, {
         zoomControl: false, attributionControl: false,
@@ -253,7 +284,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
         specialistMarkerRef.current = L.marker([sLat, sLng], { icon: makeSpecIcon(L) })
           .addTo(map)
           .bindPopup(role === "client" ? specialistName : "Your location");
-        if (cLat && cLng) await throttledFetchRoute(L, map, sLat, sLng, cLat, cLng);
+        if (cLat && cLng) throttledFetchRoute(L, map, sLat, sLng, cLat, cLng);
         else map.setView([sLat, sLng], 18);
       } else if (cLat && cLng) {
         map.setView([cLat, cLng], 18);
@@ -303,9 +334,9 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     const token = getToken();
     if (!token) return;
 
-    const params = new URLSearchParams({ token });
     const ws = new WebSocket(
-      `${WS_BASE_URL}/ws/bookings/${encodeURIComponent(booking.id)}?${params.toString()}`
+      `${WS_BASE_URL}/ws/bookings/${encodeURIComponent(booking.id)}`,
+      [`Bearer ${token}`]
     );
 
     let opened = false;
@@ -351,8 +382,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   if (!mounted) return null;
 
   const waitingLabel = role === "client"
-    ? `Waiting for ${specialistName}...`
-    : "Requesting GPS...";
+    ? `Waiting for ${specialistName}'s location...`
+    : "Starting location tracking...";
 
   return createPortal(
     <AnimatePresence>
@@ -436,14 +467,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                         onClick={() => {
                           setGpsError(null);
                           setIsWaiting(true);
-                          navigator.geolocation.getCurrentPosition(
-                            (geo) => {
-                              setIsWaiting(false);
-                              bookingApi.updateLocation(booking.id, geo.coords.latitude, geo.coords.longitude).catch(() => {});
-                            },
-                            (err) => setGpsError(err.message),
-                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                          );
+                          // GPS context will handle position updates automatically
                         }}
                         className="text-[11px] font-bold text-primary hover:underline cursor-pointer ml-1"
                       >

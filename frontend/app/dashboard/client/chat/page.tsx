@@ -1233,8 +1233,10 @@ function SpecialistDirectChat({
   useEffect(() => {
     const token = getToken();
     if (!token || !bookingId) return;
-    const params = new URLSearchParams({ token });
-    const ws = new WebSocket(`${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}?${params.toString()}`);
+    const ws = new WebSocket(
+      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}`,
+      [`Bearer ${token}`]
+    );
     let alive = true;
     ws.onopen = () => {};
     ws.onmessage = (e) => {

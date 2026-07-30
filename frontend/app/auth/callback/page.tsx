@@ -4,6 +4,10 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { persistSession } from "@/lib/auth";
+import { useAppDispatch } from "@/store";
+import { hydrateAuth } from "@/store/slices/authSlice";
+import { sanitizeRedirect } from "@/lib/security";
 
 export default function AuthCallbackPage() {
   return (
@@ -23,7 +27,8 @@ function AuthCallbackInner() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
+  const redirect = sanitizeRedirect(searchParams.get("redirect"));
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     if (status === "loading") return;
@@ -33,7 +38,6 @@ function AuthCallbackInner() {
       return;
     }
 
-    // Extract backend token and user info from NextAuth session
     const backendToken =
       (session as Record<string, unknown>).backendToken as string | undefined;
     const userId = session.user?.id as string | undefined;
@@ -43,15 +47,27 @@ function AuthCallbackInner() {
       return;
     }
 
-    // Set the shuroqx_session cookie so middleware can read it
-    const role = "user";
+    const user = { id: userId || "", email: session.user?.email || "", name: session.user?.name || "", role: "user" as const };
+
+    // Persist to localStorage so Redux hydrateAuth can pick it up
+    persistSession({
+      user,
+      token: backendToken,
+      activeMode: "client",
+      specialistProfile: null,
+    });
+
+    // Also set the cookie for middleware
     const sessionData = JSON.stringify({
       token: backendToken,
-      user: { id: userId, role },
+      user: { id: userId, role: "user" },
     });
     document.cookie = `shuroqx_session=${encodeURIComponent(
       sessionData
     )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+    // Re-hydrate Redux so dashboard sees the user immediately
+    dispatch(hydrateAuth());
 
     router.replace(redirect);
   }, [session, status, router, redirect]);

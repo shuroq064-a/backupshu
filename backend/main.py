@@ -1,4 +1,6 @@
 import os
+import logging
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
@@ -8,6 +10,7 @@ load_dotenv()
 import dbmodels
 from database import engine
 
+logger = logging.getLogger(__name__)
 
 dbmodels.Base.metadata.create_all(bind=engine)
 
@@ -21,32 +24,50 @@ app = FastAPI(title="ShuroqX API", version="1.0.0")
 
 
 def get_cors_origins() -> list[str]:
-    raw_origins = os.getenv("CORS_ORIGINS", "*")
+    raw_origins = os.getenv("CORS_ORIGINS", "")
+    if not raw_origins.strip():
+        logger.warning("CORS_ORIGINS is empty — all cross-origin requests will be rejected")
+        return []
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 
-def resolve_cors_origin(origin: str | None) -> str:
-    """Return the appropriate CORS origin header value."""
-    if not origin:
-        return "*"
-    allowed = get_cors_origins()
-    if "*" in allowed:
-        return origin
-    if origin in allowed:
-        return origin
-    return allowed[0] if allowed else "*"
+def is_origin_allowed(origin: str, allowed: list[str]) -> bool:
+    """Check if origin matches the allowlist. Supports wildcard subdomains like *.example.com."""
+    if not origin or not allowed:
+        return False
+    try:
+        parsed = urlparse(origin)
+        origin_host = parsed.hostname or ""
+    except Exception:
+        return False
+
+    for allowed_origin in allowed:
+        if allowed_origin == "*":
+            return True
+        try:
+            allowed_parsed = urlparse(allowed_origin)
+            allowed_host = allowed_parsed.hostname or ""
+        except Exception:
+            continue
+        # Exact match
+        if origin_host == allowed_host:
+            return True
+        # Wildcard subdomain: *.example.com matches foo.example.com
+        if allowed_host.startswith("*.") and origin_host.endswith(allowed_host[1:]):
+            return True
+    return False
 
 
 @app.middleware("http")
 async def cors_middleware(request: Request, call_next):
-    """CORS for both HTTP and WebSocket.
+    """CORS middleware with explicit origin allowlist.
 
-    Starlette's CORSMiddleware rejects WebSocket upgrade handshakes with a 403,
-    so we handle CORS ourselves: HTTP responses get the standard CORS headers
-    (plus OPTIONS preflight handling), while WebSocket upgrades are passed
-    straight through to the endpoint, which echoes the CORS headers on accept().
+    Never reflects arbitrary origins. Only responds with an origin that
+    is in the configured allowlist. WebSocket upgrades pass through
+    without CORS headers (browsers don't enforce CORS on WS).
     """
     origin = request.headers.get("origin")
+
     if request.scope.get("type") == "websocket":
         return await call_next(request)
 
@@ -55,9 +76,11 @@ async def cors_middleware(request: Request, call_next):
     else:
         response = await call_next(request)
 
-    allowed = resolve_cors_origin(origin)
-    response.headers["Access-Control-Allow-Origin"] = allowed
-    response.headers["Access-Control-Allow-Credentials"] = "true"
+    if origin and is_origin_allowed(origin, get_cors_origins()):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    # If origin is not allowed, no CORS headers are set — browser blocks it
+
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
     response.headers["Vary"] = "Origin"

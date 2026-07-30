@@ -11,7 +11,7 @@ Routes (must match frontend lib/api.ts workerApi exactly):
     GET   /workers/{worker_id}/earnings       → earnings summary
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional, List
 import os
@@ -31,6 +31,7 @@ if __package__ and "." in __package__:
         WorkerServiceOut,
     )
     from ..auth_utils import get_current_user
+    from ..services.rate_limiter import rate_limit
     from ..services.worker_services import build_worker_services, build_worker_service_out
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -390,11 +391,13 @@ def get_worker_bookings(
 @router.get("/{worker_id}/reviews")
 def get_worker_reviews(
     worker_id: str,
+    request: Request,
     page: int = 1,
     limit: int = 20,
     db: Session = Depends(get_db),
 ):
     """Public endpoint — returns all reviews for a specialist profile."""
+    rate_limit(request, "worker-reviews", max_requests=30, window_seconds=60)
     from dbmodels import Booking, User as UserModel
     skip = (page - 1) * limit
 

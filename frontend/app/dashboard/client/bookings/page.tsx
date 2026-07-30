@@ -128,11 +128,10 @@ export default function ClientBookingsPage() {
   function openWs(bookingId: string) {
     if (wsRefs.current.has(bookingId)) return;
     const token = getToken();
-    const params = new URLSearchParams();
-    if (token) params.set("token", token);
-    const query = params.toString();
+    // Pass token via Sec-WebSocket-Protocol header (not URL) to avoid token leakage
     const ws = new WebSocket(
-      `${WS_BASE}/ws/bookings/${encodeURIComponent(bookingId)}${query ? `?${query}` : ""}`
+      `${WS_BASE}/ws/bookings/${encodeURIComponent(bookingId)}`,
+      token ? [`Bearer ${token}`] : []
     );
     // Track whether the socket has finished connecting. Closing a socket that is
     // still in CONNECTING throws a browser warning ("closed before the connection

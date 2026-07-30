@@ -13,15 +13,15 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // Allow images from any hostname (lock down in production)
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "**" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "platform-lookaside.fbsbx.com" },
+      { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "http", hostname: "localhost" },
     ],
   },
 
-  // Proxy /api calls to FastAPI during development
   async rewrites() {
     return [
       {
@@ -31,7 +31,40 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Strict mode
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(self)",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+        ],
+      },
+    ];
+  },
+
   reactStrictMode: true,
 };
 

@@ -41,6 +41,7 @@ run-logs/
 
 # Database files
 *.sqlite3
+*.db
 
 # Node modules (frontend)
 node_modules/
