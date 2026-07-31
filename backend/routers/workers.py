@@ -50,6 +50,7 @@ else:
         WorkerServiceOut,
     )
     from auth_utils import get_current_user
+    from services.rate_limiter import rate_limit
     from services.worker_services import build_worker_services, build_worker_service_out
 
 router = APIRouter(prefix="/workers", tags=["Workers"])

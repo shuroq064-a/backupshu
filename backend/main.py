@@ -1,11 +1,13 @@
 import os
 import logging
+from pathlib import Path
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
+from sqlalchemy import text
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 import dbmodels
 from database import engine
@@ -13,6 +15,16 @@ from database import engine
 logger = logging.getLogger(__name__)
 
 dbmodels.Base.metadata.create_all(bind=engine)
+
+# Ensure token_version column exists (added after initial table creation)
+try:
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0"
+        ))
+        conn.commit()
+except Exception:
+    logger.warning("Could not add token_version column — it may already exist")
 
 
 if __package__:
@@ -74,12 +86,15 @@ async def cors_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         response = Response(status_code=204)
     else:
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            logger.exception("Unhandled exception in route handler")
+            response = Response(status_code=500, content="Internal Server Error")
 
     if origin and is_origin_allowed(origin, get_cors_origins()):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-    # If origin is not allowed, no CORS headers are set — browser blocks it
 
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"

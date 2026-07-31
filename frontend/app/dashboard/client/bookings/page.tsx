@@ -128,11 +128,10 @@ export default function ClientBookingsPage() {
   function openWs(bookingId: string) {
     if (wsRefs.current.has(bookingId)) return;
     const token = getToken();
-    // Pass token via Sec-WebSocket-Protocol header (not URL) to avoid token leakage
-    const ws = new WebSocket(
-      `${WS_BASE}/ws/bookings/${encodeURIComponent(bookingId)}`,
-      token ? [`Bearer ${token}`] : []
-    );
+    const wsUrl = token
+      ? `${WS_BASE}/ws/bookings/${encodeURIComponent(bookingId)}?token=${encodeURIComponent(token)}`
+      : `${WS_BASE}/ws/bookings/${encodeURIComponent(bookingId)}`;
+    const ws = new WebSocket(wsUrl);
     // Track whether the socket has finished connecting. Closing a socket that is
     // still in CONNECTING throws a browser warning ("closed before the connection
     // is established"), which happens under React StrictMode's dev double-invoke.

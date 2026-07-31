@@ -126,8 +126,7 @@ export default function SpecialistCommunicationHub() {
     const token = getToken();
     if (!token) return;
     const ws = new WebSocket(
-      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(selectedBookingId)}`,
-      [`Bearer ${token}`]
+      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(selectedBookingId)}?token=${encodeURIComponent(token)}`
     );
     ws.onmessage = (e) => {
       try {

@@ -26,7 +26,7 @@ function websocketUrl(value: string | undefined, apiUrl: string) {
 export const API_BASE_URL = publicUrl(
   "NEXT_PUBLIC_API_URL",
   rawApiBaseUrl,
-  "http://localhost:8000"
+  "http://localhost:8001"
 );
 
 export const WS_BASE_URL = websocketUrl(rawWsBaseUrl, API_BASE_URL);

@@ -209,8 +209,7 @@ export default function BookingsManagerPage() {
       const token = getToken();
       if (!token) return;
       const socket = new WebSocket(
-        `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}`,
-        [`Bearer ${token}`]
+        `${WS_BASE}/ws/specialist/${encodeURIComponent(workerId)}?token=${encodeURIComponent(token)}`
       );
       ws = socket;
       socket.onopen = () => {

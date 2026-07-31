@@ -71,6 +71,7 @@ else:
         LocationSelectionResponse,
     )
     from dbmodels import User, LocationPermission
+    from services.rate_limiter import rate_limit
     from services.ola_maps.eta_service import OlaMapsServiceError
     from services.ola_maps.geocoding_service import geocode_address
     from services.ola_maps.place_service import search_places

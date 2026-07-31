@@ -1234,8 +1234,7 @@ function SpecialistDirectChat({
     const token = getToken();
     if (!token || !bookingId) return;
     const ws = new WebSocket(
-      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}`,
-      [`Bearer ${token}`]
+      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}?token=${encodeURIComponent(token)}`
     );
     let alive = true;
     ws.onopen = () => {};

@@ -335,8 +335,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     if (!token) return;
 
     const ws = new WebSocket(
-      `${WS_BASE_URL}/ws/bookings/${encodeURIComponent(booking.id)}`,
-      [`Bearer ${token}`]
+      `${WS_BASE_URL}/ws/bookings/${encodeURIComponent(booking.id)}?token=${encodeURIComponent(token)}`
     );
 
     let opened = false;

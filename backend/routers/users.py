@@ -46,6 +46,7 @@ else:
         ChangePasswordRequest,
     )
     from auth_utils import get_current_user
+    from services.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/users", tags=["User Profile"])
 
