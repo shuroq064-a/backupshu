@@ -437,10 +437,13 @@ export const bookingApi = {
       `/users/${userId}/bookings${status ? `?status=${status}` : ""}`
     ),
 
-  updateStatus: (bookingId: string, status: string, reason?: string) =>
+  updateStatus: (bookingId: string, status: string, reason?: string, otp?: string) =>
     apiClient.patch<import("@/types").BookingDetail>(`/bookings/${bookingId}/status`, {
-      status, reason,
+      status, reason, otp,
     }),
+
+  getBookingOtp: (bookingId: string) =>
+    apiClient.get<{ otp: string; expiresAt: string }>(`/bookings/${bookingId}/otp`),
 
   submitReview: (bookingId: string, rating: number, feedback: string) =>
     apiClient.post(`/bookings/${bookingId}/review`, { rating, feedback }),

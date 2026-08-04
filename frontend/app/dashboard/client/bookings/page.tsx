@@ -81,6 +81,12 @@ export default function ClientBookingsPage() {
       const data = await bookingApi.getMyBookings(user.id);
       setBookings(data);
       setPage(1);
+      // Fetch OTP for any reached bookings that don't have it yet
+      data.filter(b => b.status === "reached" && !b.otp).forEach(b => {
+        bookingApi.getBookingOtp(b.id).then(res => {
+          setBookings(prev => prev.map(p => p.id === b.id ? { ...p, otp: res.otp, otpExpiresAt: res.expiresAt } : p));
+        }).catch(() => {});
+      });
     } catch (err) {
       console.error(err);
       setBookings([]);
@@ -148,22 +154,65 @@ export default function ClientBookingsPage() {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+
+        // Handle OTP refresh events
+        if (data.type === "OTP_GENERATED") {
+          setBookings(prev => prev.map(b =>
+            b.id === data.bookingId
+              ? { ...b, otp: data.otp, otpExpiresAt: data.expiresAt }
+              : b
+          ));
+          setSelectedBooking(prev =>
+            prev && prev.id === data.bookingId
+              ? { ...prev, otp: data.otp, otpExpiresAt: data.expiresAt }
+              : prev
+          );
+          showToast("New OTP generated! Share it with your specialist.", "info");
+          return;
+        }
+
         if (data.type !== "STATUS_UPDATE") return;
 
-        // Update booking status in state
+        // Update booking status in state (also pick up OTP if included)
         setBookings(prev => prev.map(b =>
-          b.id === data.bookingId ? { ...b, status: data.status } : b
+          b.id === data.bookingId
+            ? {
+                ...b,
+                status: data.status,
+                ...(data.otp ? { otp: data.otp, otpExpiresAt: data.otpExpiresAt } : {}),
+              }
+            : b
         ));
+        // Also update selectedBooking if the modal is open for this booking
+        setSelectedBooking(prev =>
+          prev && prev.id === data.bookingId
+            ? { ...prev, status: data.status, ...(data.otp ? { otp: data.otp, otpExpiresAt: data.otpExpiresAt } : {}) }
+            : prev
+        );
 
         const msg =
           data.status === "accepted"  ? `${data.specialistName || "Specialist"} accepted your request!` :
           data.status === "started"   ? `${data.specialistName || "Specialist"} is on the way!` :
-          data.status === "reached"   ? `Specialist has arrived!` :
+          data.status === "reached"   ? `Specialist has arrived! Share the OTP with them.` :
           data.status === "ongoing"   ? `Work has started!` :
           data.status === "completed" ? `Job complete! Please rate your experience.` :
           null;
 
         if (msg) showToast(msg, data.status === "completed" ? "success" : "info");
+
+        // On reached — also fetch fresh detail to guarantee OTP is present
+        if (data.status === "reached") {
+          bookingApi.getById(data.bookingId).then((detail) => {
+            setBookings(prev => prev.map(b =>
+              b.id === data.bookingId ? { ...b, otp: detail.otp, otpExpiresAt: detail.otpExpiresAt } : b
+            ));
+            setSelectedBooking(prev =>
+              prev && prev.id === data.bookingId
+                ? { ...prev, otp: detail.otp, otpExpiresAt: detail.otpExpiresAt }
+                : prev
+            );
+          }).catch(() => {});
+        }
 
         // On complete — close WS and auto-open the locked rating → payment modal
         if (data.status === "completed") {
@@ -488,6 +537,24 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
         </div>
         <BookingProgressCard booking={booking} />
       </div>
+
+      {/* OTP Display — only when reached and OTP exists */}
+      {booking.status === "reached" && booking.otp && (
+        <div className="mb-4 rounded-2xl p-4 bg-gradient-to-br from-emerald-50 via-primary/5 to-emerald-50 border border-emerald-200/60 relative overflow-hidden">
+          <div className="absolute inset-0 bg-primary/5 animate-pulse rounded-2xl" />
+          <div className="relative flex items-center gap-2 mb-3">
+            <span className="material-symbols-outlined text-emerald-600 text-lg">shield</span>
+            <p className="text-xs font-bold text-gray-900">Tell this code to your specialist</p>
+          </div>
+          <div className="relative flex justify-center gap-2.5">
+            {booking.otp.split("").map((digit, i) => (
+              <div key={i} className="w-12 h-12 rounded-xl bg-white border-2 border-emerald-300 flex items-center justify-center shadow-sm">
+                <span className="text-xl font-mono font-bold text-emerald-600 tabular-nums">{digit}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-outline-variant/60">
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">

@@ -137,6 +137,9 @@ class Booking(Base):
     cancellation_reason = Column(Text, nullable=True)
     cancelled_by = Column(String, nullable=True)
 
+    otp_code = Column(String(4), nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

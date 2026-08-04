@@ -39,7 +39,7 @@ export function GpsTrackingProvider({ children }: { children: React.ReactNode })
     try {
       await bookingApi.updateLocation(bookingId, pos.latitude, pos.longitude);
     } catch {
-      // silent — WebSocket will compensate
+      // silent — will retry on next interval tick
     }
   }, []);
 
@@ -64,9 +64,13 @@ export function GpsTrackingProvider({ children }: { children: React.ReactNode })
           timestamp: geo.timestamp,
         };
         setPosition(pos);
+        setError(null);
         sendToBackend(bookingId, pos);
       },
-      (err) => setError(err.message),
+      (err) => {
+        const msg = err.code === 1 ? "GPS permission denied" : err.code === 2 ? "GPS unavailable" : "GPS timeout";
+        setError(msg);
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
@@ -79,28 +83,14 @@ export function GpsTrackingProvider({ children }: { children: React.ReactNode })
           timestamp: geo.timestamp,
         };
         setPosition(pos);
+        setError(null);
       },
-      (err) => setError(err.message),
+      (err) => {
+        const msg = err.code === 1 ? "GPS permission denied" : err.code === 2 ? "GPS unavailable" : "GPS timeout";
+        setError(msg);
+      },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
     );
-
-    intervalRef.current = setInterval(() => {
-      if (!bookingIdRef.current) return;
-      navigator.geolocation.getCurrentPosition(
-        (geo) => {
-          const pos: GpsPosition = {
-            latitude: geo.coords.latitude,
-            longitude: geo.coords.longitude,
-            accuracy: geo.coords.accuracy,
-            timestamp: geo.timestamp,
-          };
-          setPosition(pos);
-          if (bookingIdRef.current) sendToBackend(bookingIdRef.current, pos);
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 3000 }
-      );
-    }, 8000);
   }, [sendToBackend]);
 
   const stopTracking = useCallback(() => {
@@ -115,6 +105,7 @@ export function GpsTrackingProvider({ children }: { children: React.ReactNode })
     bookingIdRef.current = null;
     setIsTracking(false);
     setPosition(null);
+    setError(null);
   }, []);
 
   useEffect(() => {

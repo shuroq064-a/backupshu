@@ -38,7 +38,7 @@ export function ReviewForm({ bookingId, bookingNumber, serviceType, specialistNa
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] p-4 overflow-y-auto">
       <div className="min-h-full flex items-center justify-center">
         <div className="bg-surface-container-lowest rounded-3xl w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl my-8">
 

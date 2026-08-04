@@ -164,6 +164,8 @@ export interface BookingDetail extends Booking {
   cancelledBy?: "client" | "specialist" | "system";
   isPaid?: boolean;
   paymentStatus?: "created" | "attempted" | "captured" | "failed" | "none";
+  otp?: string;
+  otpExpiresAt?: string;
   // Location fields for live tracking
   customerLatitude?: number;
   customerLongitude?: number;

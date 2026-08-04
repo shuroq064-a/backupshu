@@ -14,6 +14,8 @@ import { useGpsTracking } from "@/components/tracking/GpsTrackingContext";
 import dynamic from "next/dynamic";
 import type { BookingDetail, BookingStatus, ServiceOption } from "@/types";
 import { STATUS_META as SM } from "@/types";
+import { AnimatedCheckmark } from "@/components/ui/AnimatedCheckmark";
+import { OtpInput } from "@/components/interior/otp-input";
 
 const LiveTrackingMap = dynamic(() => import("@/components/tracking/LiveTrackingMap"), { ssr: false });
 
@@ -51,6 +53,11 @@ export default function BookingsManagerPage() {
   const [appointments, setAppointments] = useState<BookingDetail[]>([]);
   const [completedJobs, setCompletedJobs] = useState<BookingDetail[]>([]);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+
+  // ── OTP Modal State ──
+  const [otpModalBooking, setOtpModalBooking] = useState<BookingDetail | null>(null);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpStatus, setOtpStatus] = useState<"idle" | "checking" | "error" | "success">("idle");
 
   // Auto-send GPS for the first active job in started/reached/ongoing status
   const activeTrackingJob = activeJobs.find(
@@ -245,15 +252,27 @@ export default function BookingsManagerPage() {
 
   // ── Status Updates ──
   async function handleStatusUpdate(bookingId: string, nextStatus: string) {
-    setStatusUpdating(bookingId);
     // Guard: never fire an unsupported transition (e.g. on an already-completed
     // or cancelled booking). This prevents spurious 422s from the backend.
     const current = activeJobs.find((b) => b.id === bookingId)?.status
       ?? appointments.find((b) => b.id === bookingId)?.status;
     if (current && !ALLOWED_TRANSITIONS[current]?.includes(nextStatus)) {
-      setStatusUpdating(null);
       return;
     }
+
+    // OTP gate: reached → ongoing requires OTP input
+    if (current === "reached" && nextStatus === "ongoing") {
+      const job = activeJobs.find((b) => b.id === bookingId)
+        ?? appointments.find((b) => b.id === bookingId);
+      if (job) {
+        setOtpModalBooking(job);
+        setOtpValue("");
+        setOtpStatus("idle");
+      }
+      return;
+    }
+
+    setStatusUpdating(bookingId);
     // Register the optimistic status so WebSocket-triggered loadData merges it
     // back instead of reverting to the old server value.
     pendingUpdatesRef.current.set(bookingId, nextStatus);
@@ -273,6 +292,31 @@ export default function BookingsManagerPage() {
       // real server status on the next refresh.
       pendingUpdatesRef.current.delete(bookingId);
       showToast(err instanceof Error ? err.message : "Failed to update status", "error");
+    } finally {
+      setStatusUpdating(null);
+    }
+  }
+
+  // ── OTP Submit ──
+  async function handleOtpSubmit() {
+    if (!otpModalBooking || otpValue.length !== 4) return;
+    setOtpStatus("checking");
+    setStatusUpdating(otpModalBooking.id);
+    try {
+      await bookingApi.updateStatus(otpModalBooking.id, "ongoing", undefined, otpValue);
+      setOtpStatus("success");
+      showToast("Work started! OTP verified.", "success");
+      setActiveJobs((prev) =>
+        prev.map((b) => (b.id === otpModalBooking.id ? { ...b, status: "ongoing" as BookingStatus } : b))
+      );
+      setTimeout(() => {
+        setOtpModalBooking(null);
+        setOtpValue("");
+        setOtpStatus("idle");
+      }, 1500);
+    } catch (err) {
+      setOtpStatus("error");
+      showToast(err instanceof Error ? err.message : "Invalid OTP. Ask client for the new code.", "error");
     } finally {
       setStatusUpdating(null);
     }
@@ -737,6 +781,85 @@ export default function BookingsManagerPage() {
             await loadData();
           }}
         />
+      )}
+
+      {/* OTP Verification Modal — reached → ongoing */}
+      {otpModalBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { setOtpModalBooking(null); setOtpValue(""); setOtpStatus("idle"); }}>
+          <div
+            className="w-full max-w-[360px] bg-[#1C1C1E] dark:bg-[#2C2C2E] rounded-[28px] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {otpStatus === "success" ? (
+              /* ── Success State ── */
+              <div className="px-8 pt-10 pb-10 flex flex-col items-center gap-4">
+                <AnimatedCheckmark size={88} />
+                <div className="text-center space-y-1.5">
+                  <h3 className="text-xl font-bold text-white">OTP Verified!</h3>
+                  <p className="text-sm text-gray-400">Starting work now...</p>
+                </div>
+              </div>
+            ) : (
+              /* ── OTP Input State ── */
+              <div className="px-8 pt-8 pb-7">
+                {/* Header */}
+                <div className="text-center mb-7">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-white" style={{ fontSize: 28 }}>pin</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-1">Enter OTP</h3>
+                  <p className="text-sm text-gray-400">
+                    Ask the client for the code
+                  </p>
+                </div>
+
+                {/* interior.dev OTP Input — dark mode fits perfectly here */}
+                <div className="flex justify-center">
+                  <OtpInput
+                    length={4}
+                    mode="numeric"
+                    autoFocus
+                    disabled={otpStatus === "checking"}
+                    status={otpStatus === "error" ? "error" : "idle"}
+                    errorMessage={otpStatus === "error" ? "Invalid or expired code." : ""}
+                    hint=""
+                    groupEvery={4}
+                    onChange={(v) => { setOtpValue(v); if (otpStatus === "error") setOtpStatus("idle"); }}
+                    onComplete={(v) => { setOtpValue(v); }}
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-8">
+                  <button
+                    onClick={() => { setOtpModalBooking(null); setOtpValue(""); setOtpStatus("idle"); }}
+                    className="flex-1 h-12 rounded-2xl border border-white/10 text-gray-400 text-sm font-semibold hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleOtpSubmit}
+                    disabled={otpValue.length !== 4 || otpStatus === "checking"}
+                    className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                      otpValue.length !== 4 || otpStatus === "checking"
+                        ? "bg-white/10 text-gray-500 cursor-not-allowed"
+                        : "bg-emerald-500 text-white hover:bg-emerald-400 active:scale-[0.97] cursor-pointer shadow-lg shadow-emerald-500/25"
+                    }`}
+                  >
+                    {otpStatus === "checking" ? (
+                      <>
+                        <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                        Verifying...
+                      </>
+                    ) : (
+                      "Start Work"
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

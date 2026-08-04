@@ -501,6 +501,8 @@ class BookingDetailOut(BookingListOut):
     isPaid: bool = False
     paymentStatus: Optional[str] = None  # "created"|"attempted"|"captured"|"failed"|"none"
     workerId: Optional[str] = None
+    otp: Optional[str] = None
+    otpExpiresAt: Optional[datetime] = None
 
 
 # User query and intent schemas
@@ -724,6 +726,7 @@ class BookingAddressConfirm(BaseModel):
 class BookingStatusUpdate(BaseModel):
     status: str   # accepted|rejected|started|reached|ongoing|completed|cancelled
     reason: Optional[str] = None
+    otp: Optional[str] = None
 
 
 # ── Task 05: Review submission ────────────────────────────────────────────────

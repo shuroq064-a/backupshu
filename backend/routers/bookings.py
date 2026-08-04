@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 import jwt
-import uuid, json, os, sys
+import uuid, json, os, sys, random, string
 
 if __package__ and "." in __package__:
     from ..database import get_db, SessionLocal
@@ -165,6 +165,62 @@ class SpecialistConnectionManager:
 
 
 specialist_manager = SpecialistConnectionManager()
+
+
+# ── OTP helpers ──────────────────────────────────────────────────────────────
+
+OTP_LENGTH = 4
+OTP_TTL_SECONDS = 180  # 3 minutes
+
+# Tracks background OTP refresh tasks so they can be cancelled if status changes
+_otp_refresh_tasks: Dict[str, asyncio.Task] = {}
+
+
+def _generate_otp() -> str:
+    """Generate a cryptographically random 4-digit OTP (no leading zeros excluded)."""
+    return ''.join(random.choices(string.digits, k=OTP_LENGTH))
+
+
+async def _otp_refresh_loop(booking_id: str):
+    """Background task: every 3 minutes, regenerate OTP and push to client."""
+    try:
+        while True:
+            await asyncio.sleep(OTP_TTL_SECONDS)
+            db = SessionLocal()
+            try:
+                booking = db.query(Booking).filter(Booking.id == booking_id).first()
+                if not booking or booking.status != "reached":
+                    break
+                new_otp = _generate_otp()
+                booking.otp_code = new_otp
+                booking.otp_expires_at = datetime.utcnow() + timedelta(seconds=OTP_TTL_SECONDS)
+                db.commit()
+                # Push new OTP to client via WebSocket
+                await manager.broadcast(booking_id, {
+                    "type": "OTP_GENERATED",
+                    "bookingId": booking_id,
+                    "otp": new_otp,
+                    "expiresAt": booking.otp_expires_at.isoformat() + "Z",
+                })
+            except Exception:
+                pass
+            finally:
+                db.close()
+    except asyncio.CancelledError:
+        pass
+
+
+def _cancel_otp_refresh(booking_id: str):
+    """Cancel any running OTP refresh task for this booking."""
+    task = _otp_refresh_tasks.pop(booking_id, None)
+    if task and not task.done():
+        task.cancel()
+
+
+def _start_otp_refresh(booking_id: str):
+    """Start the OTP refresh background task for this booking."""
+    _cancel_otp_refresh(booking_id)
+    _otp_refresh_tasks[booking_id] = asyncio.create_task(_otp_refresh_loop(booking_id))
 
 
 async def notify_specialists_of_request(booking_id: str, db: Session):
@@ -444,6 +500,8 @@ def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
         workerId=booking.worker_id,
         isPaid=is_paid,
         paymentStatus=payment_status,
+        otp=booking.otp_code if booking.status == "reached" else None,
+        otpExpiresAt=booking.otp_expires_at if booking.status == "reached" else None,
     )
 
 
@@ -754,6 +812,32 @@ async def update_booking_status(
                 detail=f"Cannot move from '{booking.status}' to '{payload.status}'.",
             )
 
+        # ── OTP: validate when going reached → ongoing ──────────────────
+        if booking.status == "reached" and payload.status == "ongoing":
+            if not payload.otp:
+                raise HTTPException(status_code=400, detail="OTP is required to start work.")
+            if not booking.otp_code or booking.otp_code != payload.otp:
+                raise HTTPException(status_code=400, detail="Invalid OTP. Ask the client for the current code.")
+            if booking.otp_expires_at and booking.otp_expires_at < datetime.utcnow():
+                raise HTTPException(status_code=400, detail="OTP has expired. Ask the client for a new code.")
+            # OTP valid — clear it
+            booking.otp_code = None
+            booking.otp_expires_at = None
+            _cancel_otp_refresh(booking_id)
+
+        # ── OTP: generate when arriving at reached ──────────────────────
+        if payload.status == "reached":
+            new_otp = _generate_otp()
+            booking.otp_code = new_otp
+            booking.otp_expires_at = datetime.utcnow() + timedelta(seconds=OTP_TTL_SECONDS)
+            _start_otp_refresh(booking_id)
+
+        # Cancel OTP refresh if status moves away from reached (e.g. cancel)
+        if booking.status == "reached" and payload.status in ("cancelled",):
+            _cancel_otp_refresh(booking_id)
+            booking.otp_code = None
+            booking.otp_expires_at = None
+
         booking.status = payload.status
         booking.updated_at = datetime.utcnow()
 
@@ -770,7 +854,7 @@ async def update_booking_status(
     detail = _build_detail(booking, db)
 
     # Broadcast via WebSocket to the client
-    await manager.broadcast(booking_id, {
+    ws_payload: dict = {
         "type": "STATUS_UPDATE",
         "bookingId": booking_id,
         "status": booking.status,
@@ -778,13 +862,65 @@ async def update_booking_status(
         "serviceType": booking.service_type,
         "specialistName": detail.specialist.name if detail.specialist else "",
         "statusLabel": STATUS_LABELS.get(booking.status, booking.status),
-    })
+    }
+    # Include OTP in the status update so client gets it in one shot
+    if booking.status == "reached" and booking.otp_code:
+        ws_payload["otp"] = booking.otp_code
+        ws_payload["otpExpiresAt"] = booking.otp_expires_at.isoformat() + "Z" if booking.otp_expires_at else None
+
+    await manager.broadcast(booking_id, ws_payload)
+
+    # Push OTP to client when reached
+    if booking.status == "reached" and booking.otp_code:
+        await manager.broadcast(booking_id, {
+            "type": "OTP_GENERATED",
+            "bookingId": booking_id,
+            "otp": booking.otp_code,
+            "expiresAt": booking.otp_expires_at.isoformat() + "Z" if booking.otp_expires_at else None,
+        })
 
     # Also notify the assigned specialist's live channel so their Bookings Manager
     # refreshes on real changes instead of polling.
     await notify_specialist_of_update(booking_id, db)
 
     return detail
+
+
+# ─────────────────────────────────────────────
+#  GET /bookings/{id}/otp — client fetches OTP
+# ─────────────────────────────────────────────
+
+@router.get("/bookings/{booking_id}/otp")
+def get_booking_otp(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    if booking.client_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    if booking.status != "reached":
+        raise HTTPException(status_code=404, detail="No active OTP for this booking.")
+
+    # Auto-regenerate if OTP is missing or expired
+    is_expired = (
+        not booking.otp_code
+        or (booking.otp_expires_at and booking.otp_expires_at < datetime.utcnow())
+    )
+    if is_expired:
+        booking.otp_code = _generate_otp()
+        booking.otp_expires_at = datetime.utcnow() + timedelta(seconds=OTP_TTL_SECONDS)
+        db.commit()
+        db.refresh(booking)
+        # Ensure the refresh loop is running
+        _start_otp_refresh(booking_id)
+
+    return {
+        "otp": booking.otp_code,
+        "expiresAt": booking.otp_expires_at.isoformat() + "Z" if booking.otp_expires_at else None,
+    }
 
 
 # ─────────────────────────────────────────────

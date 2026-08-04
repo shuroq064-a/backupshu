@@ -121,3 +121,31 @@ app.include_router(assistant.router)            # /assistant/chat (LLM chat brai
 app.include_router(messages.router)             # /messages (specialist <-> client chat)
 app.include_router(ai_chat.router)              # /ai-chat (AI chat session history)
 app.include_router(payments.router)            # /payments (Razorpay integration)
+
+
+# ── Startup: restart OTP refresh loops for active reached bookings ───────────
+@app.on_event("startup")
+async def _restart_otp_refresh_loops():
+    """On server restart, find all bookings still in 'reached' status and
+    restart their OTP refresh background tasks so the client keeps getting
+    fresh OTPs every 3 minutes."""
+    from routers.bookings import _start_otp_refresh, OTP_TTL_SECONDS
+    from dbmodels import Booking
+    from database import SessionLocal
+    from datetime import datetime, timedelta
+    import random, string
+
+    db = SessionLocal()
+    try:
+        bookings = db.query(Booking).filter(Booking.status == "reached").all()
+        for b in bookings:
+            # Refresh OTP if expired
+            if not b.otp_code or (b.otp_expires_at and b.otp_expires_at < datetime.utcnow()):
+                b.otp_code = ''.join(random.choices(string.digits, k=4))
+                b.otp_expires_at = datetime.utcnow() + timedelta(seconds=OTP_TTL_SECONDS)
+            db.commit()
+            _start_otp_refresh(b.id)
+    except Exception:
+        pass
+    finally:
+        db.close()

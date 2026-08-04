@@ -48,13 +48,15 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   const followModeRef = useRef(true);
   const routeCoordsRef = useRef<[number, number][]>([]);
 
-  // Throttle refs for OSRM route re-fetch
   const lastFetchPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const lastFetchTimeRef = useRef<number>(0);
+  const routeFetchInFlightRef = useRef(false);
+  const routeOpenTimeRef = useRef<number>(0);
+  const FITBOUNDS_GRACE_MS = 2000;
   const FETCH_MIN_DISTANCE_M = 100;
   const FETCH_MIN_INTERVAL_MS = 30000;
 
-  const { position: gpsPosition, isTracking } = useGpsTracking();
+  const { position: gpsPosition, isTracking, error: gpsContextError } = useGpsTracking();
 
   const [eta, setEta] = useState<number | null>(booking.etaMinutes ?? null);
   const [distance, setDistance] = useState<string | null>(null);
@@ -68,47 +70,25 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
   const specialistName = booking.specialist?.name || "Specialist";
 
-  // Sync waitingForGps when booking prop updates with new location
+  useEffect(() => {
+    if (gpsContextError) setGpsError(gpsContextError);
+  }, [gpsContextError]);
+
   useEffect(() => {
     if (role === "specialist" && booking.currentLatitude && booking.currentLongitude) {
       setIsWaiting(false);
     }
   }, [booking.currentLatitude, booking.currentLongitude, role]);
 
-  // For specialist: update marker from GPS context (no WebSocket roundtrip needed for own position)
-  useEffect(() => {
-    if (role !== "specialist" || !gpsPosition || !isOpen) return;
-    if (!leafletMap.current || !isMapLoaded) return;
-
-    import("leaflet").then((leaflet) => {
-      const L = leaflet.default;
-      const map = leafletMap.current as L.Map;
-      if (!map) return;
-
-      setIsWaiting(false);
-
-      if (!specialistMarkerRef.current) {
-        specialistMarkerRef.current = L.marker([gpsPosition.latitude, gpsPosition.longitude], { icon: makeSpecIconRef.current(L) })
-          .addTo(map)
-          .bindPopup("Your location");
-        if (followModeRef.current) followNavRef.current(map, gpsPosition.latitude, gpsPosition.longitude);
-        const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
-        if (cLat && cLng) throttledFetchRouteRef.current(L, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
-      } else {
-        (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([gpsPosition.latitude, gpsPosition.longitude]);
-        if (followModeRef.current) followNavRef.current(map, gpsPosition.latitude, gpsPosition.longitude);
-        const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
-        if (cLat && cLng) throttledFetchRouteRef.current(L, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
-      }
-    }).catch(() => {});
-  }, [gpsPosition, role, isOpen, isMapLoaded, booking.customerLatitude, booking.customerLongitude]);
+  const isClosingRef = useRef(false);
 
   const toggleOpen = () => {
     if (isOpen) {
+      isClosingRef.current = true;
       setIsMapLoaded(false);
       setIsOpen(false);
-      onClose();
     } else {
+      isClosingRef.current = false;
       setIsOpen(true);
     }
   };
@@ -120,44 +100,56 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     mass: 0.8,
   };
 
-  // ── Leaflet helpers ──
+  const clearRoute = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (map: any) => {
+      if (routeLayerRef.current) { map.removeLayer(routeLayerRef.current); routeLayerRef.current = null; }
+      if (glowLayerRef.current) { map.removeLayer(glowLayerRef.current); glowLayerRef.current = null; }
+    },
+    []
+  );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const clearRoute = useCallback((map: any) => {
-    if (routeLayerRef.current) { map.removeLayer(routeLayerRef.current); routeLayerRef.current = null; }
-    if (glowLayerRef.current) { map.removeLayer(glowLayerRef.current); glowLayerRef.current = null; }
-  }, []);
+  const drawRoute = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (L: any, map: any, coords: [number, number][]) => {
+      if (!coords.length) return;
+      clearRoute(map);
+      routeCoordsRef.current = coords;
+      glowLayerRef.current = L.polyline(coords, { color: "#22c55e", weight: 8, opacity: 0.12, smoothFactor: 1.5, lineCap: "round", lineJoin: "round" }).addTo(map);
+      routeLayerRef.current = L.polyline(coords, { color: "#16a34a", weight: 3.5, opacity: 0.9, smoothFactor: 1.5, lineCap: "round", lineJoin: "round" }).addTo(map);
+    },
+    [clearRoute]
+  );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const drawRoute = useCallback((L: any, map: any, coords: [number, number][]) => {
-    clearRoute(map);
-    routeCoordsRef.current = coords;
-    glowLayerRef.current = L.polyline(coords, { color: "#00897b", weight: 12, opacity: 0.15, lineCap: "round", lineJoin: "round" }).addTo(map);
-    routeLayerRef.current = L.polyline(coords, { color: "#1a1a2e", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }).addTo(map);
-  }, [clearRoute]);
-
-  const getBearingFromRoute = useCallback((specLat: number, specLng: number): number => {
-    const coords = routeCoordsRef.current;
-    if (coords.length < 2) {
-      const clat = booking.customerLatitude;
-      const clng = booking.customerLongitude;
-      if (clat && clng) return calcBearing(specLat, specLng, clat, clng);
-      return lastBearingRef.current;
-    }
-    let minDist = Infinity, idx = 0;
-    for (let i = 0; i < coords.length; i++) {
-      const d = (coords[i][0] - specLat) ** 2 + (coords[i][1] - specLng) ** 2;
-      if (d < minDist) { minDist = d; idx = i; }
-    }
-    const next = Math.min(idx + 3, coords.length - 1);
-    if (next === idx) {
-      const clat = booking.customerLatitude;
-      const clng = booking.customerLongitude;
-      if (clat && clng) return calcBearing(specLat, specLng, clat, clng);
-      return lastBearingRef.current;
-    }
-    return calcBearing(coords[idx][0], coords[idx][1], coords[next][0], coords[next][1]);
-  }, [booking.customerLatitude, booking.customerLongitude]);
+  const getBearingFromRoute = useCallback(
+    (specLat: number, specLng: number): number => {
+      const coords = routeCoordsRef.current;
+      if (coords.length < 2) {
+        const clat = booking.customerLatitude;
+        const clng = booking.customerLongitude;
+        if (clat && clng) return calcBearing(specLat, specLng, clat, clng);
+        return lastBearingRef.current;
+      }
+      let minDist = Infinity,
+        idx = 0;
+      for (let i = 0; i < coords.length; i++) {
+        const d = haversineMeters(specLat, specLng, coords[i][0], coords[i][1]);
+        if (d < minDist) {
+          minDist = d;
+          idx = i;
+        }
+      }
+      const next = Math.min(idx + 3, coords.length - 1);
+      if (next === idx) {
+        const clat = booking.customerLatitude;
+        const clng = booking.customerLongitude;
+        if (clat && clng) return calcBearing(specLat, specLng, clat, clng);
+        return lastBearingRef.current;
+      }
+      return calcBearing(coords[idx][0], coords[idx][1], coords[next][0], coords[next][1]);
+    },
+    [booking.customerLatitude, booking.customerLongitude]
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const followNavigation = useCallback((map: any, specLat: number, specLng: number) => {
@@ -166,30 +158,21 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     map.setView([specLat, specLng], map.getZoom(), { animate: true, duration: 0.6 });
     if (map.setBearing) map.setBearing(-bearing);
     const mapHeight = mapRef.current?.clientHeight ?? 500;
-    requestAnimationFrame(() => {
-      setTimeout(() => { map.panBy([0, mapHeight * 0.3], { animate: true, duration: 0.3 }); }, 80);
-    });
+    map.panBy([0, mapHeight * 0.3], { animate: true, duration: 0.3 });
   }, [getBearingFromRoute]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const throttledFetchRoute = useCallback(async (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
-    const now = Date.now();
-    const lastPos = lastFetchPosRef.current;
-    const lastTime = lastFetchTimeRef.current;
-    if (lastPos && (now - lastTime) < FETCH_MIN_INTERVAL_MS) {
-      const distMoved = haversineMeters(sLat, sLng, lastPos.lat, lastPos.lng);
-      if (distMoved < FETCH_MIN_DISTANCE_M) return;
-    }
-    lastFetchPosRef.current = { lat: sLat, lng: sLng };
-    lastFetchTimeRef.current = now;
+  const fetchRouteFromOSRM = useCallback(async (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
+    if (routeFetchInFlightRef.current) return;
+    routeFetchInFlightRef.current = true;
 
     const url = `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${cLng},${cLat}?overview=full&geometries=geojson`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let data: any = null;
     try {
       const res = await fetch(url);
       data = await res.json();
     } catch {
-      // retry once after 1s
       await new Promise((r) => setTimeout(r, 1000));
       try {
         const res2 = await fetch(url);
@@ -197,15 +180,44 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       } catch {}
     }
 
+    routeFetchInFlightRef.current = false;
+    if (!leafletMap.current) return;
+
     if (data?.code === "Ok" && data.routes?.length) {
       const route = data.routes[0];
-      const coords: [number, number][] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]]);
+      const rawCoords = route.geometry?.coordinates;
+      if (!rawCoords?.length) return;
+      const coords: [number, number][] = rawCoords.map((c: [number, number]) => [c[1], c[0]]);
+      if (coords.length < 2) return;
       setDistance(route.distance >= 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`);
       if (!booking.etaMinutes && route.duration) setEta(Math.ceil(route.duration / 60));
       drawRoute(L, map, coords);
-      if (followModeRef.current) followNavigation(map, sLat, sLng);
+      if (Date.now() - routeOpenTimeRef.current < FITBOUNDS_GRACE_MS) {
+        const bounds = L.latLngBounds([sLat, sLng], [cLat, cLng]);
+        map.fitBounds(bounds.pad(0.15), { animate: true, duration: 0.5 });
+      } else if (followModeRef.current) {
+        followNavigation(map, sLat, sLng);
+      }
     }
-  }, [booking.etaMinutes, drawRoute, followNavigation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawRoute, followNavigation]);
+
+  const throttledFetchRoute = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
+      const now = Date.now();
+      const lastPos = lastFetchPosRef.current;
+      const lastTime = lastFetchTimeRef.current;
+      if (lastPos && (now - lastTime) < FETCH_MIN_INTERVAL_MS) {
+        const distMoved = haversineMeters(sLat, sLng, lastPos.lat, lastPos.lng);
+        if (distMoved < FETCH_MIN_DISTANCE_M) return;
+      }
+      lastFetchPosRef.current = { lat: sLat, lng: sLng };
+      lastFetchTimeRef.current = now;
+      fetchRouteFromOSRM(L, map, sLat, sLng, cLat, cLng);
+    },
+    [fetchRouteFromOSRM]
+  );
 
   const recenter = useCallback(() => {
     if (!leafletMap.current) return;
@@ -217,60 +229,114 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       if (!map) return;
       if (specialistMarkerRef.current) {
         const ll = (specialistMarkerRef.current as { getLatLng: () => { lat: number; lng: number } }).getLatLng();
-        followNavigation(map, ll.lat, ll.lng);
+        if (role === "specialist") {
+          followNavigation(map, ll.lat, ll.lng);
+        } else {
+          map.setView([ll.lat, ll.lng], 17, { animate: true, duration: 0.4 });
+          if (map.setBearing) map.setBearing(0);
+        }
       }
     }).catch(() => {});
-  }, [followNavigation]);
+  }, [role, followNavigation]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const makeSpecIcon = useCallback((L: any) => L.divIcon({
-    className: "",
-    html: `<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
-      <div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(0,137,123,.15);animation:navPulse 2s ease-in-out infinite;"></div>
-      <div style="width:36px;height:36px;border-radius:50%;background:#00897b;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,137,123,.5);border:3px solid white;position:relative;z-index:1;">
-        <span style="font-size:18px;">🚲</span>
-      </div>
-      <style>@keyframes navPulse{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.4);opacity:0}}</style>
-    </div>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-  }), []);
+  const makeSpecIcon = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (L: any) => {
+      if (!document.getElementById("nav-pulse-keyframes")) {
+        const style = document.createElement("style");
+        style.id = "nav-pulse-keyframes";
+        style.textContent = "@keyframes navPulse{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.4);opacity:0}}";
+        document.head.appendChild(style);
+      }
+      return L.divIcon({
+        className: "",
+        html: `<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+          <div style="position:absolute;width:48px;height:48px;border-radius:50%;background:rgba(0,137,123,.15);animation:navPulse 2s ease-in-out infinite;"></div>
+          <div style="width:36px;height:36px;border-radius:50%;background:#00897b;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,137,123,.5);border:3px solid white;position:relative;z-index:1;">
+            <span style="font-size:18px;">🚲</span>
+          </div>
+        </div>`,
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+      });
+    },
+    []
+  );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const makeClientIcon = useCallback((L: any) => L.divIcon({
-    className: "",
-    html: `<div style="width:32px;height:32px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(239,68,68,.4);border:3px solid white;">
-      <span class="material-symbols-outlined" style="font-size:15px;color:white">person</span>
-    </div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-  }), []);
+  const makeClientIcon = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (L: any) => L.divIcon({
+      className: "",
+      html: `<div style="width:32px;height:32px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(239,68,68,.4);border:3px solid white;">
+        <span class="material-symbols-outlined" style="font-size:15px;color:white">person</span>
+      </div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    }),
+    []
+  );
 
-  // ── Init Leaflet when expanded ──
+  // ── Master effect: owns map lifecycle, markers, route, WS, GPS ──
   useEffect(() => {
-    if (!isOpen || !mapRef.current || leafletMap.current) return;
-    let cancelled = false;
+    if (!isOpen || !mapRef.current) return;
+    let disposed = false;
+    let invalidateTimer1: ReturnType<typeof setTimeout> | null = null;
+    let invalidateTimer2: ReturnType<typeof setTimeout> | null = null;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let L: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let map: any = null;
+    let onDragStart: (() => void) | null = null;
+
+    // ── Reset all state for fresh open ──
+    specialistMarkerRef.current = null;
+    routeLayerRef.current = null;
+    glowLayerRef.current = null;
+    routeCoordsRef.current = [];
+    lastFetchPosRef.current = null;
+    lastFetchTimeRef.current = 0;
+    routeFetchInFlightRef.current = false;
+    routeOpenTimeRef.current = Date.now();
+    followModeRef.current = true;
+    lastBearingRef.current = 0;
 
     const timer = setTimeout(async () => {
-      if (cancelled || !mapRef.current) return;
+      if (disposed || !mapRef.current) return;
 
-      const leaflet = await import("leaflet");
-      await import("leaflet-rotate");
-      const L = leaflet.default;
-      if (cancelled || !mapRef.current) return;
+      if (!document.getElementById("leaflet-css")) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        link.id = "leaflet-css";
+        document.head.appendChild(link);
+      }
+
+      try {
+        const leaflet = await import("leaflet");
+        await import("leaflet-rotate");
+        L = leaflet.default;
+      } catch {
+        if (!disposed) setGpsError("Failed to load map. Check your connection.");
+        return;
+      }
+      if (disposed || !mapRef.current) return;
 
       const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
       const sLat = booking.currentLatitude, sLng = booking.currentLongitude;
-      // Client: always center on their own location first; Specialist: center on their position
-      const centerLat = role === "client" ? (cLat ?? sLat ?? 17.385) : (sLat ?? cLat ?? 17.385);
-      const centerLng = role === "client" ? (cLng ?? sLng ?? 78.4867) : (sLng ?? cLng ?? 78.4867);
+      const centerLat = role === "client" ? (cLat ?? sLat) : (sLat ?? cLat);
+      const centerLng = role === "client" ? (cLng ?? sLng) : (sLng ?? cLng);
 
-      const map = L.map(mapRef.current, {
+      map = L.map(mapRef.current, {
         zoomControl: false, attributionControl: false,
         dragging: true, scrollWheelZoom: true, doubleClickZoom: true, touchZoom: true,
         bounceAtZoomLimits: false,
         rotate: true, rotateControl: false, pitch: false,
-      }).setView([centerLat, centerLng], 18);
+      }).setView(
+        centerLat && centerLng ? [centerLat, centerLng] : [17.385, 78.4867],
+        18
+      );
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
@@ -284,96 +350,131 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
         specialistMarkerRef.current = L.marker([sLat, sLng], { icon: makeSpecIcon(L) })
           .addTo(map)
           .bindPopup(role === "client" ? specialistName : "Your location");
-        if (cLat && cLng) throttledFetchRoute(L, map, sLat, sLng, cLat, cLng);
-        else map.setView([sLat, sLng], 18);
-      } else if (cLat && cLng) {
-        map.setView([cLat, cLng], 18);
-        if (role === "specialist") {
-          setIsWaiting(true);
-        }
+        if (role === "specialist") setIsWaiting(false);
+      } else if (role === "specialist") {
+        setIsWaiting(true);
       }
 
-      map.on("dragstart", () => { followModeRef.current = false; setIsFollowing(false); });
+      if (cLat && cLng && sLat && sLng) {
+        fetchRouteFromOSRM(L, map, sLat, sLng, cLat, cLng);
+      } else if (sLat && sLng) {
+        map.setView([sLat, sLng], 18);
+      } else if (cLat && cLng) {
+        map.setView([cLat, cLng], 18);
+      }
+
+      onDragStart = () => { followModeRef.current = false; setIsFollowing(false); };
+      map.on("dragstart", onDragStart);
 
       leafletMap.current = map;
       setIsMapLoaded(true);
 
-      setTimeout(() => { map.invalidateSize(); }, 300);
-      setTimeout(() => { map.invalidateSize(); }, 800);
+      invalidateTimer1 = setTimeout(() => { if (!disposed && leafletMap.current) map.invalidateSize(); }, 300);
+      invalidateTimer2 = setTimeout(() => { if (!disposed && leafletMap.current) map.invalidateSize(); }, 800);
+
+      // ── WebSocket: live location updates ──
+      const token = getToken();
+      if (token) {
+        const safeToken = token;
+        function connectWs() {
+          if (disposed) return;
+          ws = new WebSocket(
+            `${WS_BASE_URL}/ws/bookings/${encodeURIComponent(booking.id)}?token=${encodeURIComponent(safeToken)}`
+          );
+          ws.onmessage = (e) => {
+            try {
+              const data = JSON.parse(e.data) as LocationUpdateEvent;
+              if (data.type !== "LOCATION_UPDATE") return;
+              if (data.etaMinutes != null) setEta(data.etaMinutes);
+              if (!leafletMap.current || !L || disposed) return;
+
+              const map = leafletMap.current;
+
+              if (!specialistMarkerRef.current) {
+                specialistMarkerRef.current = L.marker([data.latitude, data.longitude], { icon: makeSpecIcon(L) })
+                  .addTo(map)
+                  .bindPopup(role === "client" ? specialistName : "Your location");
+                setIsWaiting(false);
+                const destLat = booking.customerLatitude, destLng = booking.customerLongitude;
+                if (destLat && destLng) fetchRouteFromOSRM(L, map, data.latitude, data.longitude, destLat, destLng);
+              } else {
+                (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([data.latitude, data.longitude]);
+                if (followModeRef.current) followNavigation(map, data.latitude, data.longitude);
+                const destLat = booking.customerLatitude, destLng = booking.customerLongitude;
+                if (destLat && destLng) throttledFetchRoute(L, map, data.latitude, data.longitude, destLat, destLng);
+              }
+            } catch {}
+          };
+          ws.onerror = () => ws?.close();
+          ws.onclose = () => {
+            if (!disposed) reconnectTimer = setTimeout(connectWs, 3000);
+          };
+        }
+        connectWs();
+      }
     }, 200);
 
     return () => {
-      cancelled = true;
+      disposed = true;
       clearTimeout(timer);
-      if (leafletMap.current && typeof (leafletMap.current as { remove?: () => void }).remove === "function") {
-        (leafletMap.current as { remove: () => void }).remove();
-        leafletMap.current = null;
-      }
+      if (invalidateTimer1) clearTimeout(invalidateTimer1);
+      if (invalidateTimer2) clearTimeout(invalidateTimer2);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws && ws.readyState <= WebSocket.OPEN) ws.close();
+      if (onDragStart && map) try { map.off("dragstart", onDragStart); } catch {}
+      if (map && typeof map.remove === "function") try { map.remove(); } catch {}
+      leafletMap.current = null;
+      specialistMarkerRef.current = null;
+      routeLayerRef.current = null;
+      glowLayerRef.current = null;
+      routeCoordsRef.current = [];
+      lastFetchPosRef.current = null;
+      lastFetchTimeRef.current = 0;
+      routeFetchInFlightRef.current = false;
+      routeOpenTimeRef.current = 0;
       setIsMapLoaded(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Keep WS handler stable via refs to prevent reconnects
-  const throttledFetchRouteRef = useRef(throttledFetchRoute);
-  throttledFetchRouteRef.current = throttledFetchRoute;
-  const followNavRef = useRef(followNavigation);
-  followNavRef.current = followNavigation;
-  const makeSpecIconRef = useRef(makeSpecIcon);
-  makeSpecIconRef.current = makeSpecIcon;
-  const bookingRef = useRef(booking);
-  bookingRef.current = booking;
-  const roleRef = useRef(role);
-  roleRef.current = role;
-  const specialistNameRef = useRef(specialistName);
-  specialistNameRef.current = specialistName;
-
-  // ── WebSocket: live location updates (stable, reconnects only on isOpen/booking.id) ──
+  // ── GPS context: specialist sends own position to server ──
   useEffect(() => {
-    if (!isOpen) return;
-    const token = getToken();
-    if (!token) return;
+    if (role !== "specialist" || !gpsPosition || !isOpen || !isMapLoaded) return;
+    if (!leafletMap.current) return;
 
-    const ws = new WebSocket(
-      `${WS_BASE_URL}/ws/bookings/${encodeURIComponent(booking.id)}?token=${encodeURIComponent(token)}`
-    );
+    let cancelled = false;
+    setIsWaiting(false);
 
-    let opened = false;
-    ws.onopen = () => { opened = true; };
-    ws.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data) as LocationUpdateEvent;
-        if (data.type !== "LOCATION_UPDATE") return;
-        if (data.etaMinutes != null) setEta(data.etaMinutes);
-        if (!leafletMap.current) return;
-
+    if (!specialistMarkerRef.current) {
+      import("leaflet").then((leaflet) => {
+        if (cancelled || !leafletMap.current) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const map = leafletMap.current as any;
+        const LocalL = leaflet.default;
+        specialistMarkerRef.current = LocalL.marker([gpsPosition.latitude, gpsPosition.longitude], { icon: makeSpecIcon(LocalL) })
+          .addTo(map)
+          .bindPopup("Your location");
+        if (followModeRef.current) followNavigation(map, gpsPosition.latitude, gpsPosition.longitude);
+        const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
+        if (cLat && cLng) fetchRouteFromOSRM(LocalL, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
+      }).catch(() => {});
+    } else {
+      (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([gpsPosition.latitude, gpsPosition.longitude]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (followModeRef.current) followNavigation(leafletMap.current as any, gpsPosition.latitude, gpsPosition.longitude);
+      const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
+      if (cLat && cLng) {
         import("leaflet").then((leaflet) => {
-          const L = leaflet.default;
-          const map = leafletMap.current as L.Map;
-          if (!map) return;
-          const b = bookingRef.current;
-          const r = roleRef.current;
-          const sName = specialistNameRef.current;
-
-          if (!specialistMarkerRef.current) {
-            specialistMarkerRef.current = L.marker([data.latitude, data.longitude], { icon: makeSpecIconRef.current(L) })
-              .addTo(map)
-              .bindPopup(r === "client" ? sName : "Your location");
-            setIsWaiting(false);
-            const cLat = b.customerLatitude, cLng = b.customerLongitude;
-            if (cLat && cLng) throttledFetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
-          } else {
-            (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([data.latitude, data.longitude]);
-            if (followModeRef.current) followNavRef.current(map, data.latitude, data.longitude);
-            const cLat = b.customerLatitude, cLng = b.customerLongitude;
-            if (cLat && cLng) throttledFetchRouteRef.current(L, map, data.latitude, data.longitude, cLat, cLng);
-          }
+          if (cancelled || !leafletMap.current) return;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          throttledFetchRoute(leaflet.default, leafletMap.current as any, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
         }).catch(() => {});
-      } catch {}
-    };
-    ws.onerror = () => ws.close();
-    return () => { if (opened) ws.close(); else ws.onopen = () => ws.close(); };
-  }, [isOpen, booking.id]);
+      }
+    }
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gpsPosition, role, isOpen, isMapLoaded]);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -385,11 +486,14 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     : "Starting location tracking...";
 
   return createPortal(
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => { if (isClosingRef.current) { isClosingRef.current = false; onClose(); } }}>
       {!isOpen ? (
         /* --- PILL BUTTON (fixed bottom-center) --- */
         <motion.div
           key="pill"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleOpen(); } }}
           onClick={toggleOpen}
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] group flex cursor-pointer items-center justify-center overflow-hidden bg-[#E5E4EE] shadow-lg transition-colors duration-300 dark:bg-[#1C1C1E]"
           style={{ width: 200, height: 52, borderRadius: 26 }}
@@ -466,7 +570,6 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                         onClick={() => {
                           setGpsError(null);
                           setIsWaiting(true);
-                          // GPS context will handle position updates automatically
                         }}
                         className="text-[11px] font-bold text-primary hover:underline cursor-pointer ml-1"
                       >

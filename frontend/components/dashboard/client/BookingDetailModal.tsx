@@ -38,6 +38,61 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
   const [isPaid, setIsPaid] = useState(!!booking.isPaid);
   const [showTracking, setShowTracking] = useState(false);
 
+  // ── OTP countdown + auto-refresh ────────────────────────
+  const [otpCountdown, setOtpCountdown] = useState<string>("");
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [localOtp, setLocalOtp] = useState(booking.otp || "");
+  const [localOtpExpires, setLocalOtpExpires] = useState(booking.otpExpiresAt || "");
+
+  // Fetch OTP when modal opens for reached status
+  const fetchOtp = useRef<() => void>(() => {});
+  fetchOtp.current = () => {
+    if (booking.status === "reached" && booking.id) {
+      import("@/lib/api").then(({ bookingApi }) =>
+        bookingApi.getBookingOtp(booking.id).then((res) => {
+          setLocalOtp(res.otp);
+          setLocalOtpExpires(res.expiresAt);
+        }).catch(() => {})
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (booking.status === "reached" && !booking.otp && booking.id) {
+      fetchOtp.current();
+    }
+  }, [booking.id, booking.status, booking.otp]);
+
+  useEffect(() => {
+    if (booking.status !== "reached") {
+      setOtpCountdown("");
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      return;
+    }
+    function updateCountdown() {
+      if (!localOtpExpires) {
+        fetchOtp.current();
+        return;
+      }
+      const now = Date.now();
+      const expires = new Date(localOtpExpires!).getTime();
+      const diff = expires - now;
+      if (diff <= 0) {
+        // Auto-fetch new OTP from backend (it auto-regenerates)
+        setOtpCountdown("Refreshing...");
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        fetchOtp.current();
+        return;
+      }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setOtpCountdown(`${mins}:${secs.toString().padStart(2, "0")}`);
+    }
+    updateCountdown();
+    countdownRef.current = setInterval(updateCountdown, 1000);
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, [booking.status, localOtpExpires]);
+
   // ── Lock state ──────────────────────────────────────────
   const needsLock = booking.status === "completed" && !isPaid;
   const isLocked = needsLock;
@@ -419,6 +474,45 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
                   }
                 />
               </div>
+
+              {/* ── OTP Display (reached status) ───────── */}
+              {booking.status === "reached" && localOtp && (
+                <div className="rounded-2xl p-6 bg-gradient-to-br from-emerald-50 via-primary/5 to-emerald-50 border border-emerald-200/60 relative overflow-hidden">
+                  {/* Subtle animated pulse background */}
+                  <div className="absolute inset-0 bg-primary/5 animate-pulse rounded-2xl" />
+
+                  <div className="relative flex items-center gap-2.5 mb-4">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-emerald-600 text-lg">shield</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Verification Code</p>
+                      <p className="text-[11px] text-on-surface-variant">Tell this code to your specialist</p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex justify-center gap-3 my-5">
+                    {localOtp.split("").map((digit, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ scale: 0.8, opacity: 0, y: 10 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.08, type: "spring", stiffness: 300, damping: 20 }}
+                        className="w-16 h-16 rounded-2xl bg-white border-2 border-emerald-300 flex items-center justify-center shadow-md shadow-emerald-500/10"
+                      >
+                        <span className="text-3xl font-mono font-bold text-emerald-600 tabular-nums">{digit}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <div className="relative flex items-center justify-center gap-1.5 text-xs">
+                    <span className="material-symbols-outlined text-sm text-on-surface-variant">timer</span>
+                    <span className={`font-semibold ${otpCountdown === "Expired" ? "text-red-500" : "text-on-surface-variant"}`}>
+                      {otpCountdown === "Expired" ? "Code expired — new code incoming" : `Expires in ${otpCountdown}`}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* ── Active: Action buttons (started/reached/ongoing) ───────── */}
               {["started", "reached", "ongoing"].includes(booking.status) && (
