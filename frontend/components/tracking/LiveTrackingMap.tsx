@@ -115,8 +115,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       if (!coords.length) return;
       clearRoute(map);
       routeCoordsRef.current = coords;
-      glowLayerRef.current = L.polyline(coords, { color: "#22c55e", weight: 8, opacity: 0.12, smoothFactor: 1.5, lineCap: "round", lineJoin: "round" }).addTo(map);
-      routeLayerRef.current = L.polyline(coords, { color: "#16a34a", weight: 3.5, opacity: 0.9, smoothFactor: 1.5, lineCap: "round", lineJoin: "round" }).addTo(map);
+      glowLayerRef.current = L.polyline(coords, { color: "#3b82f6", weight: 8, opacity: 0.15, smoothFactor: 1.5, lineCap: "round", lineJoin: "round" }).addTo(map);
+      routeLayerRef.current = L.polyline(coords, { color: "#2563eb", weight: 3.5, opacity: 0.9, smoothFactor: 1.5, lineCap: "round", lineJoin: "round" }).addTo(map);
     },
     [clearRoute]
   );

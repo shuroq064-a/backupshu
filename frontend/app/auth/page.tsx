@@ -41,6 +41,7 @@ function AuthPageInner() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   // Redirect if already logged in
   useEffect(() => {
@@ -65,6 +66,11 @@ function AuthPageInner() {
     }
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setPasswordError("");
+    if (tab === "register" && password.trim().length < 8) {
+      setPasswordError("Password must be at least 8 characters long.");
+      return;
+    }
     if (tab === "login") {
         const result = await dispatch(loginUser({ email: email.trim(), password: password.trim() }));
         if (loginUser.fulfilled.match(result)) {
@@ -183,10 +189,18 @@ function AuthPageInner() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-20 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-gray-50"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (passwordError) setPasswordError("");
+                  }}
+                  className={`w-full pl-11 pr-20 py-3 border ${
+                    passwordError ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
+                  } rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400`}
                   required
                 />
+              {tab === "register" && passwordError && (
+                <p className="mt-1.5 text-xs text-red-600">{passwordError}</p>
+              )}
               {tab === "login" && (
                 <button
                   type="button"
