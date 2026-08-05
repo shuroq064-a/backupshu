@@ -205,6 +205,7 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
   const [error, setError] = useState("");
   const [hint, setHint] = useState("");
   const [isRelocating, setIsRelocating] = useState(false);
+  const relocatingRef = useRef(false);
   const { theme, setTheme } = useMapTheme();
 
   const handleTheme = (id: string) => {
@@ -217,39 +218,62 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
       setError("Location detection is not supported by your browser.");
       return;
     }
+    if (relocatingRef.current) return;
+    relocatingRef.current = true;
     setIsRelocating(true);
     setError("");
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lng);
-        setPlaces([]);
-        setHint("");
+    setHint("Detecting your location…");
+
+    let watchId: number | null = null;
+    const stop = () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    };
+
+    const finish = (lat: number, lng: number) => {
+      stop();
+      setLatitude(lat);
+      setLongitude(lng);
+      setPlaces([]);
+      setHint("");
+      (async () => {
         try {
-          const resolved = await locationPermissionApi.reverseGeocode(lat, lng);
-          setQuery(resolved.formatted_address || "");
+          if (lat !== latitude || lng !== longitude) {
+            const resolved = await locationPermissionApi.reverseGeocode(lat, lng);
+            setQuery(resolved.formatted_address || "");
+          }
         } catch {
           setQuery("");
         } finally {
+          relocatingRef.current = false;
           setIsRelocating(false);
         }
-      },
-      async (err) => {
-        let msg = "Could not detect location.";
-        if (err.code === 1) {
-          msg = "Location is blocked for this site. Allow it (lock icon → Site settings → Location) and turn on Windows 'Location services' to use GPS.";
-        } else if (err.code === 2) {
-          msg = "Location details are unavailable.";
-        } else if (err.code === 3) {
-          msg = "Location request timed out.";
-        }
-        setHint(`${msg} You can keep the pin you placed — it's saved as your service location.`);
-        setIsRelocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 }
-    );
+      })();
+    };
+
+    const onError = (err: GeolocationPositionError) => {
+      stop();
+      let msg = "Could not detect location.";
+      if (err.code === 1) {
+        msg = "Location is blocked for this site. Allow it (lock icon → Site settings → Location) and turn on Windows 'Location services' to use GPS.";
+      } else if (err.code === 2) {
+        msg = "Location details are unavailable.";
+      } else if (err.code === 3) {
+        msg = "Location request timed out.";
+      }
+      setHint(`${msg} You can keep the pin you placed — it's saved as your service location.`);
+      relocatingRef.current = false;
+      setIsRelocating(false);
+    };
+
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => finish(position.coords.latitude, position.coords.longitude),
+        onError,
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+      );
+    } catch {
+      onError({ code: 2, message: "", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError);
+    }
   }
 
   useEffect(() => {

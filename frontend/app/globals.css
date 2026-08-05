@@ -466,6 +466,16 @@ body {
   animation: pulseGlow 2s ease-in-out infinite;
 }
 
+/* Taste-skill §6.B: collapse entrance animations to static under reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-pop-in,
+  .animate-fade-in-up,
+  .animate-slide-in-left {
+    animation: none !important;
+  }
+}
+
 /* Stitch "User - Settings & Profile" soft transition */
 .transition-soft {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

@@ -785,35 +785,39 @@ export default function BookingsManagerPage() {
 
       {/* OTP Verification Modal — reached → ongoing */}
       {otpModalBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { setOtpModalBooking(null); setOtpValue(""); setOtpStatus("idle"); }}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => { setOtpModalBooking(null); setOtpValue(""); setOtpStatus("idle"); }}
+        >
           <div
-            className="w-full max-w-[360px] bg-[#1C1C1E] dark:bg-[#2C2C2E] rounded-[28px] shadow-2xl overflow-hidden"
+            className="w-full max-w-[380px] overflow-hidden rounded-[28px] bg-surface-container-high text-on-surface shadow-2xl ring-1 ring-outline-variant/40 animate-pop-in"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="otp-title"
           >
             {otpStatus === "success" ? (
               /* ── Success State ── */
-              <div className="px-8 pt-10 pb-10 flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-4 px-8 py-10">
                 <AnimatedCheckmark size={88} />
-                <div className="text-center space-y-1.5">
-                  <h3 className="text-xl font-bold text-white">OTP Verified!</h3>
-                  <p className="text-sm text-gray-400">Starting work now...</p>
+                <div className="space-y-1.5 text-center">
+                  <h3 className="text-xl font-bold text-on-surface">OTP Verified!</h3>
+                  <p className="text-sm text-on-surface-variant">Starting work now…</p>
                 </div>
               </div>
             ) : (
               /* ── OTP Input State ── */
               <div className="px-8 pt-8 pb-7">
                 {/* Header */}
-                <div className="text-center mb-7">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/10 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white" style={{ fontSize: 28 }}>pin</span>
+                <div className="mb-7 text-center">
+                  <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+                    <span className="material-symbols-outlined" style={{ fontSize: 26 }}>pin</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">Enter OTP</h3>
-                  <p className="text-sm text-gray-400">
-                    Ask the client for the code
-                  </p>
+                  <h3 id="otp-title" className="text-xl font-bold text-on-surface">Enter OTP</h3>
+                  <p className="mt-1 text-sm text-on-surface-variant">Ask the client for the code</p>
                 </div>
 
-                {/* interior.dev OTP Input — dark mode fits perfectly here */}
+                {/* interior.dev OTP Input */}
                 <div className="flex justify-center">
                   <OtpInput
                     length={4}
@@ -830,26 +834,26 @@ export default function BookingsManagerPage() {
                 </div>
 
                 {/* Buttons */}
-                <div className="flex gap-3 mt-8">
+                <div className="mt-8 flex gap-3">
                   <button
                     onClick={() => { setOtpModalBooking(null); setOtpValue(""); setOtpStatus("idle"); }}
-                    className="flex-1 h-12 rounded-2xl border border-white/10 text-gray-400 text-sm font-semibold hover:bg-white/5 active:bg-white/10 transition-colors cursor-pointer"
+                    className="h-12 flex-1 rounded-2xl border border-outline-variant text-sm font-semibold text-on-surface-variant transition-colors hover:bg-surface-container-highest active:bg-surface-container-high active:scale-[0.98] cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleOtpSubmit}
                     disabled={otpValue.length !== 4 || otpStatus === "checking"}
-                    className={`flex-1 h-12 rounded-2xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                    className={`h-12 flex-1 rounded-2xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                       otpValue.length !== 4 || otpStatus === "checking"
-                        ? "bg-white/10 text-gray-500 cursor-not-allowed"
-                        : "bg-emerald-500 text-white hover:bg-emerald-400 active:scale-[0.97] cursor-pointer shadow-lg shadow-emerald-500/25"
+                        ? "bg-surface-container-highest text-on-surface-variant/70 cursor-not-allowed"
+                        : "bg-primary text-on-primary hover:bg-primary-container active:scale-[0.97] cursor-pointer shadow-lg shadow-primary/25"
                     }`}
                   >
                     {otpStatus === "checking" ? (
                       <>
                         <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-                        Verifying...
+                        Verifying…
                       </>
                     ) : (
                       "Start Work"

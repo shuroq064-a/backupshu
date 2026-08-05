@@ -439,7 +439,7 @@ async def validate_location_selection(
     
     All validation logic is centralized in _validate_location() helper.
     """
-    rate_limit(request, "validate-location", max_requests=10, window_seconds=60)
+    rate_limit(request, "validate-location", max_requests=30, window_seconds=60)
     result = _validate_location(
         address=payload.address,
         latitude=payload.latitude,
@@ -481,7 +481,7 @@ async def search_location_places(
     to geocoding the raw query so the user still gets a selectable point to drop
     the pin on.
     """
-    rate_limit(request, "search", max_requests=20, window_seconds=60)
+    rate_limit(request, "search", max_requests=40, window_seconds=60)
     try:
         places = search_places(query)
     except (OlaMapsServiceError, ValueError):
@@ -688,7 +688,7 @@ async def get_ip_location(request: Request):
     server's view of the caller's IP. Uses ip-api.com — a server-friendly
     service with no API key needed for non-commercial use.
     """
-    rate_limit(request, "ip-location", max_requests=10, window_seconds=60)
+    rate_limit(request, "ip-location", max_requests=30, window_seconds=60)
     import httpx
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
