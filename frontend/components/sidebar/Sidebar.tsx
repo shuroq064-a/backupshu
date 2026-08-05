@@ -347,7 +347,6 @@ export function Sidebar({
   const specialistNav = [
     { href: "/dashboard/specialist", label: "Dashboard", icon: "dashboard" },
     { href: "/dashboard/specialist/bookings", label: "Bookings", icon: "calendar_today" },
-    { href: "/dashboard/specialist/chat", label: "Chat", icon: "chat_bubble_outline" },
     { href: "/dashboard/specialist/earnings", label: "Earnings", icon: "payments" },
     { href: "/dashboard/specialist/settings", label: "Settings", icon: "settings" },
   ];

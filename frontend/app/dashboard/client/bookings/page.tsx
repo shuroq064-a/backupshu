@@ -9,6 +9,8 @@ import { getToken } from "@/lib/auth";
 import type { BookingDetail } from "@/types";
 import { STATUS_META } from "@/types";
 import { BookingDetailModal } from "@/components/dashboard/client/BookingDetailModal";
+import { BookingChatPopup } from "@/components/dashboard/client/BookingChatPopup";
+import { useConversationUnread } from "@/hooks/useConversationUnread";
 import { BookingProgressCard } from "@/components/ui/BookingProgressCard";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -67,6 +69,8 @@ export default function ClientBookingsPage() {
     setPage(1);
   }
   const [selectedBooking, setSelectedBooking] = useState<BookingDetail | null>(null);
+  const [chatBooking, setChatBooking] = useState<BookingDetail | null>(null);
+  const { unreadByBooking, clearBooking } = useConversationUnread("client");
 
   const PAGE_SIZE = 5;
 
@@ -96,6 +100,20 @@ export default function ClientBookingsPage() {
   }
 
   useEffect(() => { loadBookings(); }, [user?.id]);
+
+  // Keep the popup in sync with live booking updates: refresh the booking
+  // snapshot while it stays active, and auto-close once it is no longer
+  // active (completed / cancelled / rejected).
+  useEffect(() => {
+    if (!chatBooking) return;
+    const fresh = bookings.find(b => b.id === chatBooking.id);
+    if (!fresh) return;
+    if (["accepted", "started", "reached", "ongoing"].includes(fresh.status)) {
+      if (fresh !== chatBooking) setChatBooking(fresh);
+    } else {
+      setChatBooking(null);
+    }
+  }, [bookings, chatBooking]);
 
   // Refetch bookings after a successful payment
   useEffect(() => {
@@ -340,7 +358,11 @@ export default function ClientBookingsPage() {
                         key={b.id}
                         booking={b}
                         onViewDetails={() => handleOpenBooking(b)}
-                        onChat={() => router.push(`/dashboard/client/chat`)}
+                        onChat={() => {
+                          setChatBooking(b);
+                          clearBooking(b.id);
+                        }}
+                        unread={chatBooking?.id !== b.id ? unreadByBooking[b.id] || 0 : 0}
                       />
                     ))}
                   </div>
@@ -445,6 +467,14 @@ export default function ClientBookingsPage() {
       {selectedBooking && (
         <BookingDetailModal booking={selectedBooking} onClose={() => setSelectedBooking(null)} />
       )}
+
+      {chatBooking && (
+        <BookingChatPopup
+          booking={chatBooking}
+          currentUser={user}
+          onClose={() => setChatBooking(null)}
+        />
+      )}
     </div>
   );
 }
@@ -495,10 +525,11 @@ function Pager({ current, totalPages, onPage }: {
 
 // ── Sub-components for Bookings Page ──────────────────────────────────────────
 
-function ActiveBookingCard({ booking, onViewDetails, onChat }: {
+function ActiveBookingCard({ booking, onViewDetails, onChat, unread = 0 }: {
   booking: BookingDetail;
   onViewDetails: () => void;
   onChat: () => void;
+  unread?: number;
 }) {
   const icon = SERVICE_ICONS_OUTLINED[booking.serviceType] || "build";
   const progressPercent = STATUS_PROGRESS[booking.status] || 0;
@@ -568,10 +599,17 @@ function ActiveBookingCard({ booking, onViewDetails, onChat }: {
               onClose={() => {}}
             />
           )}
-          <button onClick={onChat} className="flex items-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer">
-            <span className="material-symbols-outlined text-[18px]">chat</span>
-            <span className="text-xs font-bold">Chat</span>
-          </button>
+          {["accepted", "started", "reached", "ongoing"].includes(booking.status) && (
+            <button onClick={onChat} className="relative flex items-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer">
+              <span className="material-symbols-outlined text-[18px]">chat</span>
+              <span className="text-xs font-bold">Chat</span>
+              {unread > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </button>
+          )}
           <button onClick={onViewDetails} className="px-4 py-3 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
             View Details
           </button>

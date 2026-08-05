@@ -16,6 +16,8 @@ import type { BookingDetail, BookingStatus, ServiceOption } from "@/types";
 import { STATUS_META as SM } from "@/types";
 import { AnimatedCheckmark } from "@/components/ui/AnimatedCheckmark";
 import { OtpInput } from "@/components/interior/otp-input";
+import { SpecialistBookingChatPopup } from "@/components/dashboard/specialist/SpecialistBookingChatPopup";
+import { useConversationUnread } from "@/hooks/useConversationUnread";
 
 const LiveTrackingMap = dynamic(() => import("@/components/tracking/LiveTrackingMap"), { ssr: false });
 
@@ -58,6 +60,28 @@ export default function BookingsManagerPage() {
   const [otpModalBooking, setOtpModalBooking] = useState<BookingDetail | null>(null);
   const [otpValue, setOtpValue] = useState("");
   const [otpStatus, setOtpStatus] = useState<"idle" | "checking" | "error" | "success">("idle");
+
+  // ── Chat Popup State ──
+  const [chatJob, setChatJob] = useState<BookingDetail | null>(null);
+  const { unreadByBooking, clearBooking } = useConversationUnread("worker");
+
+  // Keep the popup in sync with live booking updates: refresh the booking
+  // snapshot while it stays active, and auto-close once it is no longer
+  // active — either the status left the active set or the job disappeared
+  // from `activeJobs` (completed jobs move to the history list).
+  useEffect(() => {
+    if (!chatJob) return;
+    const fresh = activeJobs.find((b) => b.id === chatJob.id);
+    if (!fresh) {
+      setChatJob(null);
+      return;
+    }
+    if (["accepted", "started", "reached", "ongoing"].includes(fresh.status)) {
+      if (fresh !== chatJob) setChatJob(fresh);
+    } else {
+      setChatJob(null);
+    }
+  }, [activeJobs, chatJob]);
 
   // Auto-send GPS for the first active job in started/reached/ongoing status
   const activeTrackingJob = activeJobs.find(
@@ -462,12 +486,17 @@ export default function BookingsManagerPage() {
 
                         <div className="flex gap-2.5 shrink-0 items-center md:ml-auto">
                           <button
-                             onClick={() => router.push(`/dashboard/specialist/chat?clientName=${encodeURIComponent(job.clientName || "")}`)}
-                             className="flex items-center justify-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer"
+                             onClick={() => { setChatJob(job); clearBooking(job.id); }}
+                             className="relative flex items-center justify-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer"
                              aria-label="Chat"
                            >
                              <span className="material-symbols-outlined text-[18px]">chat</span>
                              <span className="text-xs font-bold">Chat</span>
+                             {chatJob?.id !== job.id && (unreadByBooking[job.id] || 0) > 0 && (
+                               <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                                 {unreadByBooking[job.id] > 9 ? "9+" : unreadByBooking[job.id]}
+                               </span>
+                             )}
                            </button>
                           {["accepted", "started", "reached", "ongoing"].includes(job.status) && (
                             <LiveTrackingMap
@@ -783,9 +812,17 @@ export default function BookingsManagerPage() {
         />
       )}
 
+      {/* Chat popup */}
+      {chatJob && (
+        <SpecialistBookingChatPopup
+          booking={chatJob}
+          currentUser={user}
+          onClose={() => setChatJob(null)}
+        />
+      )}
+
       {/* OTP Verification Modal — reached → ongoing */}
-      {otpModalBooking && (
-        <div
+      {otpModalBooking && (        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[6px] p-4 animate-fade-in"
           onClick={() => { setOtpModalBooking(null); setOtpValue(""); setOtpStatus("idle"); }}
         >

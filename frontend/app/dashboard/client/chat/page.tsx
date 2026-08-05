@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { bookingApi, streamAssistantChat, messageApi, type ChatMessageDTO, type ConversationDTO } from "@/lib/api";
+import { bookingApi, streamAssistantChat } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { WS_BASE_URL } from "@/lib/config";
 import { useAppSelector } from "@/store";
@@ -26,51 +26,7 @@ import {
   MessageContent,
 } from "@/components/prompt-kit/message";
 import { ChatPromptInput } from "@/components/chat-prompt-input";
-
-// ── Specialist Avatar Image Pool (shared with client dashboard) ──
-const SPECIALIST_AVATARS: Record<string, string[]> = {
-  plumbing: ["/images/specialists/plumber_1.png", "/images/specialists/plumber_2.png"],
-  electrical: ["/images/specialists/electrician_1.png", "/images/specialists/electrician_2.png"],
-  ac_repair: ["/images/specialists/hvac_1.png", "/images/specialists/hvac_2.png"],
-  hvac: ["/images/specialists/hvac_1.png", "/images/specialists/hvac_2.png"],
-  painting: ["/images/specialists/painter_1.png"],
-  carpenter: ["/images/specialists/carpenter_1.png"],
-  carpentry: ["/images/specialists/carpenter_1.png"],
-  tech_support: ["/images/specialists/techsupport_1.png"],
-  cleaning: ["/images/specialists/cleaning_1.png"],
-  general: ["/images/specialists/general_1.png", "/images/specialists/general_2.png"],
-};
-
-const ALL_AVATARS = [
-  "/images/specialists/plumber_1.png",
-  "/images/specialists/electrician_1.png",
-  "/images/specialists/hvac_1.png",
-  "/images/specialists/painter_1.png",
-  "/images/specialists/carpenter_1.png",
-  "/images/specialists/techsupport_1.png",
-  "/images/specialists/cleaning_1.png",
-  "/images/specialists/general_1.png",
-  "/images/specialists/plumber_2.png",
-  "/images/specialists/electrician_2.png",
-  "/images/specialists/hvac_2.png",
-  "/images/specialists/general_2.png",
-];
-
-function getSpecialistAvatar(name: string, serviceName?: string): string {
-  const seed = (name || "specialist") + (serviceName || "");
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
-  }
-  hash = Math.abs(hash);
-  const serviceKey = (serviceName || "").toLowerCase().replace(/\s+/g, "_");
-  for (const [key, pool] of Object.entries(SPECIALIST_AVATARS)) {
-    if (serviceKey.includes(key) || key.includes(serviceKey)) {
-      return pool[hash % pool.length];
-    }
-  }
-  return ALL_AVATARS[hash % ALL_AVATARS.length];
-}
+import { getSpecialistAvatar } from "@/lib/avatar";
 import type {
   ChatMessage,
   MatchedWorkerOut,
@@ -97,70 +53,6 @@ export default function RedesignedClientChat() {
   const { user } = useAppSelector((s) => s.auth);
   const { isComplete, missingFields } = useProfileGuard();
   const { showToast } = useToast();
-
-  // Selected chat target: "ai" or the specialist workerId
-  const [activeChatTarget, setActiveChatTarget] = useState<"ai" | string>("ai");
-  const [sidebarWidth, setSidebarWidth] = useState(320);
-  const sidebarResizeCleanupRef = useRef<(() => void) | null>(null);
-
-  // ── Real specialist conversations (backend-backed direct messaging) ──
-  const [rawConversations, setRawConversations] = useState<ConversationDTO[]>([]);
-
-  // Show ALL conversations for this user, regardless of whether they're the
-  // client or specialist on each booking. This lets users see chats from both
-  // perspectives in one place.
-  const conversations = useMemo(
-    () => rawConversations,
-    [rawConversations],
-  );
-
-  const loadConversations = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const data = await messageApi.conversations();
-      setRawConversations(data);
-    } catch (err) {
-      console.error("Failed to load conversations:", err);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    void loadConversations();
-    // Poll so newly received specialist messages surface without a manual
-    // refresh, but skip polling while the tab is hidden to avoid needless
-    // authenticated traffic.
-    const t = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      void loadConversations();
-    }, 15000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void loadConversations();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(t);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [loadConversations]);
-
-  const handleSidebarResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = sidebarWidth;
-    const handleMove = (moveEvent: PointerEvent) => {
-      setSidebarWidth(Math.max(260, Math.min(440, startWidth + moveEvent.clientX - startX)));
-    };
-    const handleEnd = () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleEnd);
-      sidebarResizeCleanupRef.current = null;
-    };
-    sidebarResizeCleanupRef.current?.();
-    sidebarResizeCleanupRef.current = handleEnd;
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleEnd);
-  };
-
 
   // ── Chat persistence via localStorage ────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -635,153 +527,20 @@ export default function RedesignedClientChat() {
         ? "Choose a service location first..."
         : "Describe the service you need (e.g. My sink is leaking)...";
 
-  // List of active specialists from active bookings to populate the sidebar list
-  const activeChatsList = messages
-    .filter(m => m.specialist && acceptedMsgIds.has(m.id))
-    .map(m => m.specialist!)
-    .filter((sp, idx, self) => self.findIndex(s => s.workerId === sp.workerId) === idx);
-
-  // The conversation currently open in the direct-chat pane (keyed by bookingId).
-  const activeConversation =
-    activeChatTarget !== "ai"
-      ? conversations.find((c) => c.bookingId === activeChatTarget) || null
-      : null;
-
   return (
-    <div className="flex h-full flex-col md:flex-row overflow-hidden bg-background text-on-surface">
-
-      {/* Sidebar / Active Chats List Panel */}
-      <section className="relative w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-outline-variant bg-surface-container-lowest flex flex-col h-full max-md:h-[42vh]"
-        style={{ width: typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches ? sidebarWidth : undefined }}>
-        <div className="p-5 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-on-surface">
+      {/* Top AppBar */}
+      <header className="h-16 border-b border-outline-variant flex items-center justify-between px-4 sm:px-6 bg-surface-container-low backdrop-blur-md z-10">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-primary">chat</span>
           <div>
-            <h3 className="font-semibold text-lg text-primary dark:text-white">Active Chats</h3>
-            <p className="text-xs text-on-surface-variant">Manage your conversations</p>
+            <h2 className="font-bold text-on-surface">AI Service Assistant</h2>
+            <p className="text-[10px] text-green-600 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span> Active Session
+            </p>
           </div>
-          {messages.length > 0 && (
-            <button onClick={handleClearChat}
-              className="text-xs text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
-              Clear
-            </button>
-          )}
         </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {/* Default AI assistant chat item */}
-          <div
-            onClick={() => setActiveChatTarget("ai")}
-            className={`flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-all ${
-              activeChatTarget === "ai"
-                ? "bg-primary/10 border-l-4 border-primary shadow-sm"
-                : "hover:bg-surface-container-low"
-            }`}
-          >
-            <div className="w-11 h-11 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center text-xl shrink-0 font-bold">
-              <span className="material-symbols-outlined">support_agent</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center">
-                <p className="font-semibold text-sm text-on-surface truncate">AI Service Assistant</p>
-                <span className="w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-surface-container-lowest"></span>
-              </div>
-              <p className="text-xs text-on-surface-variant truncate mt-0.5">Ask questions and find specialists</p>
-            </div>
-          </div>
-
-          {/* Direct message conversations with specialists (backend-backed) */}
-          {conversations.map((c) => {
-            const isSelected = activeChatTarget === c.bookingId;
-            return (
-              <div
-                key={c.bookingId}
-                onClick={() => {
-                  setActiveChatTarget(c.bookingId);
-                  void loadConversations();
-                }}
-                className={`flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-all ${
-                  isSelected
-                    ? "bg-primary/10 border-l-4 border-primary shadow-sm"
-                    : "hover:bg-surface-container-low"
-                }`}
-              >
-                <div className="w-11 h-11 rounded-xl overflow-hidden bg-secondary-container shrink-0">
-                  <img
-                    className="w-full h-full object-cover"
-                    src={getSpecialistAvatar(c.otherName, c.serviceType || undefined)}
-                    alt={c.otherName}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <p className="font-semibold text-sm text-on-surface truncate">{c.otherName}</p>
-                    {c.unread > 0 && (
-                      <span className="ml-1 shrink-0 text-[10px] font-bold text-white bg-primary rounded-full px-1.5 py-0.5">
-                        {c.unread}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-on-surface-variant truncate mt-0.5">{c.lastMessage}</p>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* AI-matched specialists that don't yet have a message thread.
-              Messages are booking-scoped, so until the specialist sends the
-              first message there is no thread to open — show them as an
-              informational (non-clickable) hint rather than a dead-end. */}
-          {activeChatsList
-            .filter((sp) => !conversations.some((c) => c.otherId === sp.workerId))
-            .map(sp => (
-            <div
-              key={sp.workerId}
-              title="No messages yet — this specialist will appear here once they message you."
-              className="flex items-center gap-3 p-3.5 rounded-2xl transition-all opacity-70 cursor-default"
-            >
-              <div className="w-11 h-11 rounded-xl overflow-hidden bg-secondary-container shrink-0">
-                <img
-                  className="w-full h-full object-cover"
-                  src={sp.avatar || getSpecialistAvatar(sp.name, sp.services?.[0]?.service_name)}
-                  alt={sp.name}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center">
-                  <p className="font-semibold text-sm text-on-surface truncate">{sp.name}</p>
-                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-surface-container-lowest"></span>
-                </div>
-                <p className="text-xs text-on-surface-variant truncate mt-0.5">Matched · no messages yet</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize chat list"
-          onPointerDown={handleSidebarResizeStart}
-          className="group absolute inset-y-0 -right-2 z-20 hidden w-4 cursor-col-resize touch-none items-center justify-center md:flex"
-        >
-          <span className="material-symbols-outlined rotate-90 rounded-full bg-surface-container px-0.5 text-[18px] text-outline-variant shadow-sm transition-colors group-hover:text-primary">drag_handle</span>
-        </div>
-      </section>
-
-      {/* Main Chat Interface */}
-      <section className="flex-1 min-h-0 flex flex-col h-full bg-background relative">
-        {/* Top AppBar */}
-        <header className="h-16 border-b border-outline-variant flex items-center justify-between px-4 sm:px-6 bg-surface-container-low backdrop-blur-md z-10">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary">chat</span>
-            <div>
-              <h2 className="font-bold text-on-surface">
-                {activeChatTarget === "ai"
-                  ? "AI Service Assistant"
-                  : activeConversation?.otherName || "Specialist"}
-              </h2>
-              <p className="text-[10px] text-green-600 font-semibold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span> Active Session
-              </p>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
           {/* Service PIN info */}
           <div className="hidden sm:flex items-center gap-2 bg-surface-container px-4 py-1.5 rounded-full border border-outline-variant text-xs shadow-sm">
             <span className="text-primary font-bold">PIN:</span>
@@ -795,76 +554,69 @@ export default function RedesignedClientChat() {
               Change
             </button>
           </div>
-        </header>
-
-        {/* Profile incomplete warning banner */}
-        {isComplete === false && (
-          <div className="mx-6 mt-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 shadow-sm">
-            <span className="material-symbols-outlined text-lg text-amber-400">warning</span>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800">Profile configuration required</p>
-              <p className="text-xs text-amber-700 mt-0.5">Add your missing details ({missingFields.join(" and ")}) to authorize booking requests.</p>
-            </div>
-            <button onClick={() => router.push("/dashboard/profile")}
-              className="px-4.5 py-2 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm shadow-amber-100">
-              Complete Profile
+          {messages.length > 0 && (
+            <button onClick={handleClearChat}
+              className="text-xs text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
+              Clear
             </button>
+          )}
+        </div>
+      </header>
+
+      {/* Profile incomplete warning banner */}
+      {isComplete === false && (
+        <div className="mx-6 mt-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 shadow-sm">
+          <span className="material-symbols-outlined text-lg text-amber-400">warning</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800">Profile configuration required</p>
+            <p className="text-xs text-amber-700 mt-0.5">Add your missing details ({missingFields.join(" and ")}) to authorize booking requests.</p>
           </div>
-        )}
+          <button onClick={() => router.push("/dashboard/profile")}
+            className="px-4.5 py-2 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm shadow-amber-100">
+            Complete Profile
+          </button>
+        </div>
+      )}
 
-        {/* Messages list area */}
-        {activeChatTarget === "ai" ? (
-          <>
-            <ChatContainerRoot className="chat-scrollbar">
-              <ChatContainerContent className="p-4 md:p-6 space-y-4">
-                {messages.length === 0 && <EmptyState onSuggestionClick={s => setInput(s)} />}
+      {/* Messages list area */}
+      <ChatContainerRoot className="chat-scrollbar">
+        <ChatContainerContent className="p-4 md:p-6 space-y-4">
+          {messages.length === 0 && <EmptyState onSuggestionClick={s => setInput(s)} />}
 
-                {messages.map(msg => (
-                  <div key={msg.id}>
-                    {msg.role === "user"
-                      ? <UserBubble message={msg} user={user} />
-                      :                       <BotBubble
-                          message={msg}
-                          isAccepted={acceptedMsgIds.has(msg.id)}
-                          liveStatus={msg.bookingId ? statusByBooking.get(msg.bookingId) : undefined}
-                          onSpecialistClick={sp => setDetailSpecialist(sp)}
-                          onViewJob={handleViewJob}
-                          onChooseSpecialist={(workerId) => handleChooseSpecialist(workerId, msg.id)}
-                        />
-                    }
-                  </div>
-                ))}
-                <ChatContainerScrollAnchor />
-              </ChatContainerContent>
-              <ScrollButton />
-            </ChatContainerRoot>
-
-            {/* AI Input Bar */}
-            <div className="p-4">
-              <div className="mx-auto max-w-3xl">
-                <ChatPromptInput
-                  value={input}
-                  onChange={setInput}
-                  onSend={handleSend}
-                  onStop={handleStop}
-                  isLoading={isSearching}
-                  disabled={isChatDisabled}
-                  placeholder={inputPlaceholder}
-                />
-              </div>
+          {messages.map(msg => (
+            <div key={msg.id}>
+              {msg.role === "user"
+                ? <UserBubble message={msg} user={user} />
+                :                       <BotBubble
+                    message={msg}
+                    isAccepted={acceptedMsgIds.has(msg.id)}
+                    liveStatus={msg.bookingId ? statusByBooking.get(msg.bookingId) : undefined}
+                    onSpecialistClick={sp => setDetailSpecialist(sp)}
+                    onViewJob={handleViewJob}
+                    onChooseSpecialist={(workerId) => handleChooseSpecialist(workerId, msg.id)}
+                  />
+              }
             </div>
-          </>
-        ) : activeConversation ? (
-          <SpecialistDirectChat
-            conversation={activeConversation}
-            currentUser={user}
-            onSent={() => void loadConversations()}
-            onError={(m) => showToast(m, "error")}
+          ))}
+          <ChatContainerScrollAnchor />
+        </ChatContainerContent>
+        <ScrollButton />
+      </ChatContainerRoot>
+
+      {/* AI Input Bar */}
+      <div className="p-4">
+        <div className="mx-auto max-w-3xl">
+          <ChatPromptInput
+            value={input}
+            onChange={setInput}
+            onSend={handleSend}
+            onStop={handleStop}
+            isLoading={isSearching}
+            disabled={isChatDisabled}
+            placeholder={inputPlaceholder}
           />
-        ) : (
-          <SpecialistDirectChatEmpty />
-        )}
-      </section>
+        </div>
+      </div>
 
       {/* Specialist details modal */}
       {detailSpecialist && (
@@ -1125,232 +877,5 @@ function SpecialistCard({ specialist, liveStatus, onNameClick, bookingId, onView
         )}
       </div>
     </div>
-  );
-}
-
-function SpecialistDirectChatEmpty() {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center max-w-sm mx-auto">
-      <div className="w-16 h-16 rounded-full bg-secondary/10 text-secondary flex items-center justify-center text-2xl font-bold">
-        Chat
-      </div>
-      <div>
-        <h4 className="font-semibold text-on-surface">Select a Conversation</h4>
-        <p className="text-xs text-on-surface-variant mt-1.5">Choose a specialist from your list to view the chat history and reply to their messages.</p>
-      </div>
-    </div>
-  );
-}
-
-function fmtTime(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function SpecialistDirectChat({
-  conversation,
-  currentUser,
-  onSent,
-  onError,
-}: {
-  conversation: ConversationDTO;
-  currentUser: User | null;
-  onSent: () => void;
-  onError: (message: string) => void;
-}) {
-  const [msgs, setMsgs] = useState<ChatMessageDTO[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const sendingRef = useRef(false);
-  const bookingId = conversation.bookingId;
-
-  // Merge server messages with local state by id so an in-flight optimistic
-  // send is never clobbered by a poll landing mid-send (avoids duplicate/flicker).
-  const mergeServer = useCallback((server: ChatMessageDTO[]) => {
-    setMsgs((prev) => {
-      const seen = new Set<string>();
-      const deduped: ChatMessageDTO[] = [];
-      for (const m of server) {
-        if (!seen.has(m.id)) {
-          seen.add(m.id);
-          deduped.push(m);
-        }
-      }
-      const pendingTemp = prev.filter(
-        (m) => m.id.startsWith("temp-") && !server.some((s) => s.id === m.id),
-      );
-      return [...deduped, ...pendingTemp];
-    });
-  }, []);
-
-  // Append a single server-pushed message (WebSocket) without duplicating one
-  // we already have by id.
-  const appendPush = useCallback((incoming: ChatMessageDTO) => {
-    setMsgs((prev) =>
-      prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming],
-    );
-  }, []);
-
-  const load = useCallback(
-    (initial = false) => {
-      if (initial) setLoading(true);
-      messageApi
-        .listByBooking(bookingId)
-        .then((server) => {
-          // Don't overwrite while a send is resolving; the send handler will
-          // reconcile and the next poll will pick up the saved copy.
-          if (sendingRef.current) return;
-          mergeServer(server);
-        })
-        .catch(() => {
-          if (initial) setMsgs([]);
-        })
-        .finally(() => {
-          if (initial) setLoading(false);
-        });
-    },
-    [bookingId, mergeServer],
-  );
-
-  // Reload history when the selected conversation changes, then poll for
-  // incoming replies while the tab is visible (polling is the fallback; the
-  // WebSocket below delivers messages instantly).
-  useEffect(() => {
-    load(true);
-    const t = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      load(false);
-    }, 8000);
-    return () => clearInterval(t);
-  }, [load]);
-
-  // Live message channel: receive new messages instantly instead of waiting
-  // for the 8s poll. Opening the thread also marks messages as read server-side.
-  useEffect(() => {
-    const token = getToken();
-    if (!token || !bookingId) return;
-    const ws = new WebSocket(
-      `${WS_BASE_URL}/messages/ws/${encodeURIComponent(bookingId)}?token=${encodeURIComponent(token)}`
-    );
-    let alive = true;
-    ws.onopen = () => {};
-    ws.onmessage = (e) => {
-      if (!alive) return;
-      try {
-        const data = JSON.parse(e.data) as ChatMessageDTO;
-        appendPush(data);
-        void load(false);
-      } catch {}
-    };
-    return () => {
-      alive = false;
-      ws.close();
-    };
-  }, [bookingId, appendPush, load]);
-
-  async function send() {
-    const body = text.trim();
-    if (!body || sending) return;
-    setSending(true);
-    sendingRef.current = true;
-    const optimistic: ChatMessageDTO = {
-      id: `temp-${Date.now()}`,
-      bookingId,
-      senderType: "client",
-      senderId: currentUser?.id || "",
-      recipientType: "worker",
-      recipientId: conversation.otherId,
-      text: body,
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-    setMsgs((prev) => [...prev, optimistic]);
-    setText("");
-    try {
-      const saved = await messageApi.send(bookingId, body, "worker", conversation.otherId);
-      setMsgs((prev) => prev.map((m) => (m.id === optimistic.id ? saved : m)));
-      onSent();
-    } catch {
-      onError("Could not send message. Please retry.");
-      setMsgs((prev) => prev.filter((m) => m.id !== optimistic.id));
-    } finally {
-      setSending(false);
-      sendingRef.current = false;
-    }
-  }
-
-  const clientAvatar = getSpecialistAvatar(
-    currentUser?.name || currentUser?.email?.split("@")[0] || "You",
-  );
-  const specialistAvatar = getSpecialistAvatar(conversation.otherName, conversation.serviceType || undefined);
-
-  return (
-    <>
-      <ChatContainerRoot className="chat-scrollbar">
-        <ChatContainerContent className="p-4 md:p-6 space-y-4">
-          {loading && msgs.length === 0 ? (
-            <div className="flex justify-center py-10">
-              <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            </div>
-          ) : msgs.length === 0 ? (
-            <div className="text-center text-sm text-on-surface-variant py-10">
-              No messages yet. Say hello to {conversation.otherName}!
-            </div>
-          ) : (
-            msgs.map((m) => {
-              const isMe = m.senderType === conversation.callerRole;
-              if (isMe) {
-                return (
-                  <Message key={m.id} className="justify-end">
-      <div className="max-w-[85%] sm:max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-on-primary shadow-md shadow-primary/5">
-                      <p className="text-sm leading-relaxed">{m.text}</p>
-                      <span className="mt-1 block text-right text-[10px] text-white/70">
-                        {fmtTime(m.createdAt)}
-                      </span>
-                    </div>
-                    <MessageAvatar
-                      src={clientAvatar}
-                      fallback={currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase() || "U"}
-                      className="border border-primary/20 bg-primary/15 text-primary"
-                    />
-                  </Message>
-                );
-              }
-              return (
-                <Message key={m.id}>
-                  <MessageAvatar src={specialistAvatar} fallback={conversation.otherName?.[0] || "S"} />
-                  <MessageContent className="max-w-xl space-y-2">
-                    <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
-                      <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{m.text}</p>
-                      <span className="mt-1 block text-right text-[10px] text-on-surface-variant">
-                        {fmtTime(m.createdAt)}
-                      </span>
-                    </div>
-                  </MessageContent>
-                </Message>
-              );
-            })
-          )}
-          <ChatContainerScrollAnchor />
-        </ChatContainerContent>
-      </ChatContainerRoot>
-
-      {/* Specialist Direct Message Input — same ChatPromptInput as the AI chat */}
-      <div className="p-4">
-        <div className="mx-auto max-w-3xl">
-          <ChatPromptInput
-            value={text}
-            onChange={setText}
-            onSend={send}
-            isLoading={sending}
-            placeholder={`Message ${conversation.otherName}...`}
-          />
-        </div>
-      </div>
-    </>
   );
 }
