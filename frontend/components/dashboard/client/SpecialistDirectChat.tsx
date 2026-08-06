@@ -10,11 +10,8 @@ import {
   ChatContainerContent,
   ChatContainerScrollAnchor,
 } from "@/components/prompt-kit/chat-container";
-import {
-  Message,
-  MessageAvatar,
-  MessageContent,
-} from "@/components/prompt-kit/message";
+import { ChatConversation } from "@/components/ui/chat-conversation";
+import type { ChatMessage } from "@/components/ui/types";
 import { ChatPromptInput } from "@/components/chat-prompt-input";
 import type { User } from "@/types";
 
@@ -172,10 +169,28 @@ export function SpecialistDirectChat({
     ? undefined
     : getSpecialistAvatar(conversation.otherName, conversation.serviceType || undefined);
 
+  const chatMessages: ChatMessage[] = msgs.map((m) => {
+    const isMe = m.senderType === conversation.callerRole;
+    return {
+      type: "text",
+      content: m.text,
+      author: isMe
+        ? currentUser?.name || currentUser?.email?.split("@")[0] || "You"
+        : conversation.otherName,
+      avatarUrl: isMe ? ownAvatar : otherAvatarSrc,
+      avatarFallback: isMe
+        ? currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase() || "U"
+        : conversation.otherName?.[0] || "S",
+      time: fmtTime(m.createdAt),
+      isOwn: isMe,
+      status: isMe ? (m.read ? "read" : "delivered") : undefined,
+    };
+  });
+
   return (
     <>
       <ChatContainerRoot className="chat-scrollbar">
-        <ChatContainerContent className="p-4 md:p-6 space-y-4">
+        <ChatContainerContent className="p-4 md:p-6">
           {loading && msgs.length === 0 ? (
             <div className="flex justify-center py-10">
               <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -185,39 +200,7 @@ export function SpecialistDirectChat({
               No messages yet. Say hello to {conversation.otherName}!
             </div>
           ) : (
-            msgs.map((m) => {
-              const isMe = m.senderType === conversation.callerRole;
-              if (isMe) {
-                return (
-                  <Message key={m.id} className="justify-end">
-      <div className="max-w-[85%] sm:max-w-xl rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-on-primary shadow-md shadow-primary/5">
-                      <p className="text-sm leading-relaxed">{m.text}</p>
-                      <span className="mt-1 block text-right text-[10px] text-white/70">
-                        {fmtTime(m.createdAt)}
-                      </span>
-                    </div>
-                    <MessageAvatar
-                      src={ownAvatar}
-                      fallback={currentUser?.name?.[0] || currentUser?.email?.[0]?.toUpperCase() || "U"}
-                      className="border border-primary/20 bg-primary/15 text-primary"
-                    />
-                  </Message>
-                );
-              }
-              return (
-                <Message key={m.id}>
-                  <MessageAvatar src={otherAvatarSrc} fallback={conversation.otherName?.[0] || "S"} />
-                  <MessageContent className="max-w-xl space-y-2">
-                    <div className="rounded-2xl rounded-tl-sm bg-surface-container-lowest px-4.5 py-3 shadow-sm border border-outline-variant">
-                      <p className="text-sm leading-relaxed text-on-surface whitespace-pre-wrap">{m.text}</p>
-                      <span className="mt-1 block text-right text-[10px] text-on-surface-variant">
-                        {fmtTime(m.createdAt)}
-                      </span>
-                    </div>
-                  </MessageContent>
-                </Message>
-              );
-            })
+            <ChatConversation data={{ messages: chatMessages }} />
           )}
           <ChatContainerScrollAnchor />
         </ChatContainerContent>

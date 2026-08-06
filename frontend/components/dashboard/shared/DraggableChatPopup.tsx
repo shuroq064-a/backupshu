@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 const POPUP_POS_KEY = "shuroqx_chat_popup_pos";
+const POPUP_W = 420;
+const POPUP_H = 560;
 
 interface DraggableChatPopupProps {
   header: ReactNode;
@@ -12,7 +14,7 @@ interface DraggableChatPopupProps {
 /**
  * Floating chat popup shell. The header acts as the drag handle (pointer
  * capture, synchronous compositor-only transform), position is clamped to
- * the viewport and remembered across sessions.
+ * the viewport and remembered across sessions. Fixed, generously sized.
  */
 export function DraggableChatPopup({ header, children }: DraggableChatPopupProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {
@@ -151,7 +153,7 @@ export function DraggableChatPopup({ header, children }: DraggableChatPopupProps
           : undefined
       }
     >
-      <div className="w-[calc(100vw-2rem)] max-w-[380px] h-[520px] max-h-[85vh] flex flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_24px_80px_-12px_rgba(0,0,0,0.45),0_8px_24px_-8px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-black/[0.05] animate-pop-in">
+      <div className="w-[calc(100vw-2rem)] max-w-[420px] h-[560px] max-h-[85vh] flex flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_24px_80px_-12px_rgba(0,0,0,0.45),0_8px_24px_-8px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-black/[0.05] animate-pop-in">
         <div
           onPointerDown={handleHeaderPointerDown}
           onPointerMove={handleHeaderPointerMove}

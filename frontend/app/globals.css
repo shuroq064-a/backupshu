@@ -58,6 +58,13 @@
   --color-error: #ba1a1a;
   --color-error-container: #ffdad6;
   --color-on-error-container: #93000a;
+  --color-card: var(--color-surface-container-lowest);
+  --color-card-foreground: var(--color-on-surface);
+  --color-popover: var(--color-surface-container-lowest);
+  --color-popover-foreground: var(--color-on-surface);
+  --color-accent: var(--color-surface-container-high);
+  --color-accent-foreground: var(--color-on-surface);
+  --color-input: var(--color-outline-variant);
 
   --font-sans: "Inter", sans-serif;
 
@@ -159,6 +166,13 @@
   --color-muted: #1b2429;
   --color-muted-foreground: #a7b0b8;
   --color-ring: #0d9488;
+  --color-card: var(--color-surface-container-lowest);
+  --color-card-foreground: var(--color-on-surface);
+  --color-popover: var(--color-surface-container-lowest);
+  --color-popover-foreground: var(--color-on-surface);
+  --color-accent: var(--color-surface-container-high);
+  --color-accent-foreground: var(--color-on-surface);
+  --color-input: var(--color-outline-variant);
 
   /* Primary â€” clear teal (not cyan/blue), white-text safe */
   --color-primary: #0d9488;
