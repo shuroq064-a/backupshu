@@ -20,9 +20,9 @@ const FEATURES = [
 ];
 
 const LINKS = [
-  { icon: "system_update", label: "Version 1.0.0", href: "#" },
-  { icon: "description", label: "Privacy Policy", href: "#" },
-  { icon: "gavel", label: "Terms & Conditions", href: "#" },
+  { icon: "system_update", label: "Version 1.0.0", href: undefined },
+  { icon: "description", label: "Privacy Policy", href: "/dashboard/settings/privacy" },
+  { icon: "gavel", label: "Terms & Conditions", href: "/dashboard/settings/terms" },
 ];
 
 export default function AboutPage() {
@@ -86,21 +86,33 @@ export default function AboutPage() {
 
       {/* ── Links ───────────────────────────── */}
       <div className="mt-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-2 shadow-sm">
-        {LINKS.map((link) => (
-          <a
-            key={link.label}
-            href={link.href}
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-on-surface transition-soft hover:bg-surface-container-low"
-          >
-            <span className="material-symbols-outlined text-on-surface-variant">
-              {link.icon}
-            </span>
-            <span className="flex-1">{link.label}</span>
-            <span className="material-symbols-outlined text-outline">
-              chevron_right
-            </span>
-          </a>
-        ))}
+        {LINKS.map((link) =>
+          link.href ? (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-on-surface transition-soft hover:bg-surface-container-low"
+            >
+              <span className="material-symbols-outlined text-on-surface-variant">
+                {link.icon}
+              </span>
+              <span className="flex-1">{link.label}</span>
+              <span className="material-symbols-outlined text-outline">
+                chevron_right
+              </span>
+            </Link>
+          ) : (
+            <div
+              key={link.label}
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-on-surface"
+            >
+              <span className="material-symbols-outlined text-on-surface-variant">
+                {link.icon}
+              </span>
+              <span className="flex-1">{link.label}</span>
+            </div>
+          )
+        )}
       </div>
 
       {/* ── Contact ─────────────────────────── */}
@@ -126,7 +138,22 @@ export default function AboutPage() {
           >
             <span className="material-symbols-outlined">call</span>
           </a>
+          <a
+            href="https://wa.me/919999999999"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-container/10 text-primary transition-soft hover:bg-primary-container/20"
+            aria-label="WhatsApp support"
+          >
+            <span className="material-symbols-outlined">chat</span>
+          </a>
         </div>
+        <p className="mt-3 text-xs text-on-surface-variant">
+          Monday - Saturday, 9:00 AM - 9:00 PM IST ·{" "}
+          <Link href="/dashboard/settings/help" className="text-primary hover:underline">
+            Visit Help &amp; Support
+          </Link>
+        </p>
       </div>
     </div>
   );

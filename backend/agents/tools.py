@@ -20,7 +20,10 @@ if __package__ and "." in __package__:
     from ..database import get_db
     from .. import dbmodels
     from ..services.llm.catalog import resolve_intent, build_booking_context
-    from ..services.worker_matching import find_available_workers_by_intent
+    from ..services.worker_matching import (
+        find_available_workers_by_intent,
+        find_nearby_workers_by_intent,
+    )
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     if BACKEND_DIR not in sys.path:
@@ -28,7 +31,10 @@ else:
     from database import get_db
     import dbmodels
     from services.llm.catalog import resolve_intent, build_booking_context
-    from services.worker_matching import find_available_workers_by_intent
+    from services.worker_matching import (
+        find_available_workers_by_intent,
+        find_nearby_workers_by_intent,
+    )
 
 
 ACTIVE_STATUSES = {"upcoming", "accepted", "started", "reached", "ongoing"}
@@ -168,13 +174,83 @@ async def tool_cancel_booking(db, booking_id: str, user) -> dict:
     }
 
 
-async def tool_search_specialists(db, intent: str) -> dict:
-    """Find verified, available specialists for a (free-text) service intent.
+async def tool_list_nearby_specialists(
+    db,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict:
+    """List verified, available, NOT busy specialists near the customer across
+    EVERY service category (not one intent) — used for "who is near me?".
 
-    Returns a dict with the canonical intent, a human reply, and worker payloads
-    (or an empty list when none are available). Enriched with experience, rating
-    hints and price where available so the agent can compare specialists.
+    Deterministic: every name/distance comes from the database. Without
+    coordinates we return no workers (strict — ask for the location first).
     """
+    if latitude is None or longitude is None:
+        return {
+            "ok": False,
+            "workers": [],
+            "summary": "I need your location to find nearby specialists. Please select your service location first.",
+        }
+
+    services = db.query(dbmodels.Service).all()
+    by_service: dict[str, list[dict]] = {}
+    seen: set[str] = set()
+    for service in services:
+        nearby = find_nearby_workers_by_intent(db, service.name, latitude, longitude)
+        for w in nearby:
+            # Same specialist may legitimately appear under several services;
+            # `seen` only tracks unique workers for the summary count.
+            seen.add(w.id)
+            by_service.setdefault(service.name, []).append(
+                {
+                    "worker_id": w.id,
+                    "name": w.name or w.email.split("@")[0],
+                    "distance_km": w.distanceKm,
+                }
+            )
+
+    total = len(seen)
+    if not total:
+        return {
+            "ok": True,
+            "workers": [],
+            "by_service": {},
+            "summary": "No available specialists within 5 km of your location right now.",
+        }
+    lines = [
+        f"{svc}: " + ", ".join(f"{s['name']} ({s['distance_km']} km)" for s in items)
+        for svc, items in by_service.items()
+    ]
+    return {
+        "ok": True,
+        "workers": [w for items in by_service.values() for w in items],
+        "by_service": by_service,
+        "summary": f"Found {total} specialist(s) near you: " + "; ".join(lines),
+    }
+
+
+async def tool_search_specialists(
+    db,
+    intent: str,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict:
+    """Find verified, available, NOT busy specialists for a (free-text) service intent.
+
+    When `latitude`/`longitude` are provided, only specialists within the
+    configured radius (SPECIALIST_RADIUS_KM, default 5 km) of the customer's
+    location are returned, sorted nearest-first with `distanceKm` on each
+    payload. Without coordinates we return no specialists (strict — the
+    assistant must ask the customer for their location first).
+    """
+    if latitude is None or longitude is None:
+        return {
+            "ok": False,
+            "intent": None,
+            "reply": "",
+            "workers": [],
+            "summary": "I need your location to find nearby specialists. Please select your service location first.",
+        }
     canonical = resolve_intent(db, intent)
     if not canonical:
         return {
@@ -184,7 +260,7 @@ async def tool_search_specialists(db, intent: str) -> dict:
             "workers": [],
             "summary": f"No matching service for '{intent}'.",
         }
-    workers = find_available_workers_by_intent(db, canonical)
+    workers = find_nearby_workers_by_intent(db, canonical, latitude, longitude)
     # Enrich each worker payload with price/experience/rating context the agent
     # can use to give the customer a stronger, data-backed recommendation.
     enriched = []
@@ -287,6 +363,7 @@ async def tool_booking_status(db, booking_id: str, user) -> dict:
 
 TOOLS = {
     "search_specialists": tool_search_specialists,
+    "list_nearby_specialists": tool_list_nearby_specialists,
     "my_bookings": tool_my_bookings,
     "booking_status": tool_booking_status,
     "service_catalog": tool_service_catalog,

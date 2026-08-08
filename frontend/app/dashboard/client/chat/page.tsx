@@ -95,15 +95,20 @@ export default function RedesignedClientChat() {
     setHydrated(true);
   }, [user?.id]);
 
-  // Pre-fill prompt from URL if any (e.g. from Discover page category click)
+  // Pre-fill prompt from URL if any (e.g. from Discover page category click).
+  // The param is consumed once and removed from the URL so a reload never
+  // restores text the user has already cleared.
+  const prefilledQueryRef = useRef(false);
   useEffect(() => {
-    if (hydrated) {
+    if (hydrated && !prefilledQueryRef.current) {
       const query = searchParams.get("query");
       if (query) {
         setInput(query);
+        prefilledQueryRef.current = true;
+        router.replace(window.location.pathname, { scroll: false });
       }
     }
-  }, [hydrated, searchParams]);
+  }, [hydrated, searchParams, router]);
 
   useEffect(() => {
     function handleServiceLocation(event: Event) {
@@ -281,6 +286,7 @@ export default function RedesignedClientChat() {
       isVerified: worker.isVerified,
       price: worker.price ?? undefined,
       experienceYears: worker.experienceYears ?? undefined,
+      distanceKm: worker.distanceKm ?? undefined,
     };
   }
 
@@ -491,7 +497,10 @@ export default function RedesignedClientChat() {
         }
       },
       undefined,
-      history
+      history,
+      serviceLocation?.latitude !== undefined && serviceLocation?.longitude !== undefined
+        ? { latitude: serviceLocation.latitude, longitude: serviceLocation.longitude }
+        : undefined
       );
     } catch (err) {
       updateMessage(assistantMsgId, {
@@ -532,6 +541,13 @@ export default function RedesignedClientChat() {
       {/* Top AppBar */}
       <header className="h-16 border-b border-outline-variant flex items-center justify-between px-4 sm:px-6 bg-surface-container-low backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            aria-label="Back"
+            className="flex items-center rounded-lg px-1 py-1 text-on-surface-variant transition-soft hover:bg-surface-container-high"
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
           <span className="material-symbols-outlined text-primary">chat</span>
           <div>
             <h2 className="font-bold text-on-surface">AI Service Assistant</h2>
@@ -540,9 +556,9 @@ export default function RedesignedClientChat() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 mr-20">
           {/* Service PIN info */}
-          <div className="hidden sm:flex items-center gap-2 bg-surface-container px-4 py-1.5 rounded-full border border-outline-variant text-xs shadow-sm">
+          <div className="hidden sm:flex items-center gap-2 bg-surface-container pl-4 pr-1.5 py-1.5 rounded-full border border-outline-variant text-xs shadow-sm">
             <span className="text-primary font-bold">PIN:</span>
             <span className="text-on-surface-variant truncate max-w-44">
               {selectedLocationAddress || "Choose Location"}
@@ -553,10 +569,19 @@ export default function RedesignedClientChat() {
             >
               Change
             </button>
+            {messages.length > 0 && (
+              <>
+                <span className="w-px h-4 bg-outline-variant mx-0.5"></span>
+                <button onClick={handleClearChat}
+                  className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors font-medium">
+                  Clear
+                </button>
+              </>
+            )}
           </div>
           {messages.length > 0 && (
             <button onClick={handleClearChat}
-              className="text-xs text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
+              className="sm:hidden text-xs text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
               Clear
             </button>
           )}

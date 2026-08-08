@@ -14,10 +14,10 @@ import {
   DeleteModal,
   DangerZone,
   SettingsFooter,
-  DisplaySection,
   PreferencesSection,
   SupportInfoList,
 } from "@/components/settings/SettingsShared";
+import BackButton from "@/components/ui/BackButton";
 
 export default function SpecialistSettingsPage() {
   const router = useRouter();
@@ -71,17 +71,20 @@ export default function SpecialistSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-screen-2xl px-4 py-8 font-sans md:px-8">
+    <div className="mx-auto max-w-screen-2xl px-4 py-2 font-sans md:px-8">
       {/* ── Header ─────────────────────────── */}
-      <header className="mb-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="mb-2 text-3xl font-bold tracking-tight text-on-surface">
-              Specialist Settings
-            </h2>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Manage your specialist account, availability, and payouts.
-            </p>
+      <header className="mb-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <BackButton label="" fallback="/dashboard/specialist" className="px-1.5 py-1.5 shrink-0" />
+            <div>
+              <h2 className="mb-2 text-3xl font-bold tracking-tight text-on-surface">
+                Specialist Settings
+              </h2>
+              <p className="font-body-md text-body-md text-on-surface-variant">
+                Manage your specialist account, availability, and payouts.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
@@ -177,6 +180,8 @@ export default function SpecialistSettingsPage() {
             </div>
           </section>
 
+          {/* Specialist Profile & Skills + Account & Security — side by side */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
           {/* Specialist Profile & Skills */}
           <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
             <div className="mb-6 flex items-center gap-3">
@@ -238,12 +243,13 @@ export default function SpecialistSettingsPage() {
               />
             </div>
           </section>
+          </div>
 
           {/* Danger zone — tucked below Account & Security, kept compact */}
           <DangerZone
             compact
             onLogout={account.handleLogout}
-            onRequestDelete={() => account.setShowDeleteConfirm(true)}
+            onRequestDelete={account.handleOpenDelete}
           />
         </div>
 
@@ -294,9 +300,6 @@ export default function SpecialistSettingsPage() {
             </div>
           </section>
 
-          {/* Display */}
-          <DisplaySection dark={dark} setDark={setDark} applyTheme={applyTheme} />
-
           {/* Preferences */}
           <PreferencesSection
             notifications={notifications}
@@ -343,6 +346,14 @@ export default function SpecialistSettingsPage() {
         }}
         deleting={account.isDeleting}
         error={account.deleteError}
+        step={account.deleteStep}
+        contact={account.deleteContact}
+        via={account.deleteVia}
+        otpSent={account.deleteOtpSent}
+        sendingOtp={account.isSendingDeleteOtp}
+        otp={account.deleteOtp}
+        setOtp={account.setDeleteOtp}
+        onSendOtp={account.handleProceedToOtp}
       />
     </div>
   );

@@ -59,26 +59,35 @@ def supervisor_prompt() -> str:
         "- booking_status(db, booking_id, user): live status of one booking.\n"
         "- search_specialists(db, intent): verified+available specialists for a service (with "
         "price/experience where available).\n"
+        "- list_nearby_specialists(db): every verified+available specialist near the customer "
+        "across ALL service categories, with real distances.\n"
         "- service_catalog(db): every service category ShuroqX offers.\n"
         "- estimate_cost(db, intent): price + ETA estimate for a service from real pricing.\n"
         "- cancel_booking(db, booking_id, user): cancel the customer's own upcoming booking.\n\n"
         "Respond with ONLY a JSON object (no prose, no code fences):\n"
         '{"agent": "chat"|"booking"|"tracking"|"clarify", "thought": "<one-line plan>", '
         '"tools": [{"name": "my_bookings"|"booking_status"|"search_specialists"|'
-        '"service_catalog"|"estimate_cost"|"cancel_booking", "args": {...}}]}\n'
+        '"list_nearby_specialists"|"service_catalog"|"estimate_cost"|"cancel_booking", "args": {...}}]}\n'
         "Rules:\n"
+        "- HARD RULE: every factual answer must be grounded in a tool. If the customer asks "
+        "anything with a factual answer (price, ETA, availability, specialist names, booking "
+        "status, service list, account info), you MUST run the relevant tool first and include "
+        "its data. Never let the agent answer facts without tool data.\n"
         "- For tracking/status questions, run my_bookings (or booking_status) first; agent=tracking.\n"
         "- If the message mentions cancelling/stopping a booking, run my_bookings first and set "
         "agent=tracking with tool cancel_booking using the booking id.\n"
         "- For booking intent OR price/ETA questions, run search_specialists AND estimate_cost; "
         "agent=booking.\n"
+        "- If the customer asks who/what specialists are near them or to list nearby specialists "
+        "(any wording: 'near me', 'nearby', 'who is available'), run list_nearby_specialists; "
+        "agent=chat (the listing itself is generated deterministically from tool data).\n"
         "- If the customer asks 'what services' or 'what can you do', run service_catalog; agent=chat.\n"
         "- If the request is too vague to act on (e.g. 'something broke', 'need help'), set "
         "agent=clarify and tools=[]; the clarify agent will ask a focused question.\n"
         "- For everything else set agent=chat and tools=[].\n"
         "- booking_status/cancel_booking args is just the booking id string; "
         'search_specialists/estimate_cost args is {"intent": "<free text service>"}; '
-        "service_catalog takes no args. You may list up to 3 tools."
+        "list_nearby_specialists and service_catalog take no args. You may list up to 3 tools."
     )
 
 
@@ -118,6 +127,17 @@ def chat_agent_prompt(booking_context: str = "") -> str:
         "- If tool data (service catalog, price estimate, or availability) was provided for this "
         "turn, USE it — quote the real categories, prices, and ETAs. Never invent numbers; if no "
         "tool data was provided, keep guidance general but honest.\n"
+        "- ABSOLUTE RULE (no unbacked facts): never state a price, ETA, distance, specialist "
+        "name, booking status, or any ShuroqX fact that this turn's tool data does not contain. "
+        "If the question needs facts you don't have tool data for, say you don't have that "
+        "information and offer what you CAN do (prices, specialists near them, booking status).\n"
+        "- HARD RULE (anti-fabrication): NEVER name a specialist that was not explicitly listed in "
+        "this turn's tool data. Only mention a specialist by name if their name appears in the "
+        "SPECIALISTS / NEARBY SPECIALISTS tool output. If tool data lists no specialists, say no "
+        "specialists are available nearby — do not invent names, categories, or distances.\n"
+        "- If the customer asked to LIST nearby specialists, do not enumerate names in your text at "
+        "all — the app shows the real specialist cards beside your reply. Just say how many were "
+        "found and invite them to pick one.\n"
         "- Be dynamic: vary your response style based on the question. A simple question gets a short "
         "answer. A complex question gets a detailed walkthrough. Match the energy of the customer."
     )
@@ -149,14 +169,14 @@ def booking_agent_prompt() -> str:
         "FORMATTING RULES (CRITICAL — always follow):\n"
         "- NEVER use markdown: no **bold**, no *italics*, no # headings, no bullet lists, no code blocks.\n"
         "- Write as plain natural text, like you're texting a friend.\n"
-        "- When listing specialists, just mention their names naturally in a sentence.\n"
+        "- Mention specialist names ONLY if they appear in this turn's tool data. Never invent any.\n"
         "- Be conversational and warm, not robotic.\n\n"
         "Tool data for this turn (specialists found, their price/experience, and a cost/ETA "
         "estimate) is provided to you. Use it: name the service, give the estimate "
         "(e.g. 'around Rs.X, specialist in ~Y min'), and mention the verified specialists by name "
-        "so the customer can pick. Do not invent specialist names, prices, or ETAs beyond what the "
-        "tools returned. Keep it warm and 1-3 sentences. If no specialists were found, say so kindly "
-        "and offer to notify them when one is available."
+        "so the customer can pick — but ONLY names from the tool data. Do not invent specialist "
+        "names, prices, or ETAs beyond what the tools returned. If no specialists were found, say "
+        "so kindly and offer to notify them when one is available. Keep it warm and 1-3 sentences."
     )
 
 

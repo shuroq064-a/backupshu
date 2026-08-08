@@ -160,6 +160,11 @@ export const workerApi = {
       ...(extra?.price_override != null ? { price_override: extra.price_override } : {}),
       ...(extra?.experience_years != null ? { experience_years: extra.experience_years } : {}),
     }),
+
+  updateLocation: (
+    workerId: string,
+    body: { latitude: number; longitude: number; address?: string }
+  ) => apiClient.patch<SpecialistProfile>(`/workers/${workerId}/location`, body),
 };
 
 export const servicesApi = {
@@ -237,8 +242,19 @@ export const userApi = {
   changePassword: (payload: ChangePasswordPayload) =>
     apiClient.post<{ message: string }>("/users/change-password", payload),
 
-  deleteAccount: () =>
-    apiClient.delete<{ message: string; status: string }>("/users/me"),
+  requestDeleteVerification: () =>
+    apiClient.post<{
+      ok: boolean;
+      via: string;
+      contact: string;
+      expiresInSeconds: number;
+      dev_otp?: string;
+    }>("/users/me/delete-verification", {}),
+
+  deleteAccount: (otp?: string) =>
+    apiClient.delete<{ message: string; status: string }>(
+      otp ? `/users/me?otp=${encodeURIComponent(otp)}` : "/users/me"
+    ),
 
   getAddresses: () =>
     apiClient.get<SavedAddress[]>("/users/me/addresses"),
@@ -256,10 +272,17 @@ export const userApi = {
 // ── Marketplace / Search ──────────────────────
 
 export const marketplaceApi = {
-  searchSpecialists: (query: string, location?: string) =>
+  searchSpecialists: (
+    query: string,
+    location?: string,
+    coords?: { latitude: number; longitude: number }
+  ) =>
     apiClient.post<SpecialistResult[]>("/marketplace/search", {
       query,
       location,
+      ...(coords
+        ? { latitude: coords.latitude, longitude: coords.longitude }
+        : {}),
     }),
 
   getBookings: (userId: string) =>
@@ -333,7 +356,8 @@ export async function streamAssistantChat(
   message: string,
   onEvent: (event: import("@/types").AssistantStreamEvent) => void,
   signal?: AbortSignal,
-  history?: { role: "user" | "assistant"; content: string }[]
+  history?: { role: "user" | "assistant"; content: string }[],
+  location?: { latitude: number; longitude: number }
 ): Promise<void> {
   const token = getToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -344,6 +368,12 @@ export async function streamAssistantChat(
   // and can answer "where is my specialist?" from prior context.
   if (history && history.length) {
     body.context = JSON.stringify(history.slice(-20));
+  }
+  // Send the customer's location so the assistant only matches specialists
+  // within the configured radius (5 km) of the service address.
+  if (location) {
+    body.latitude = location.latitude;
+    body.longitude = location.longitude;
   }
 
   const res = await fetch(`${BASE_URL}/assistant/chat`, {

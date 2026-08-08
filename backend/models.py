@@ -362,6 +362,15 @@ class SpecialistProfileOut(BaseModel):
     verificationStatus: str
     isAvailable: bool
     rejectionReason: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class WorkerLocationUpdateRequest(BaseModel):
+    """PATCH /workers/{worker_id}/location — home base coordinates."""
+
+    latitude: float
+    longitude: float
 
 
 class WorkerOut(SpecialistProfileOut):
@@ -515,6 +524,8 @@ class AssistantChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     context: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class UserQueryIntentUpdateRequest(BaseModel):
@@ -563,6 +574,7 @@ class MatchedWorkerOut(BaseModel):
     language: Optional[str] = None
     submittedAt: Optional[str] = None
     reviewedAt: Optional[str] = None
+    distanceKm: Optional[float] = None
 
 
 class UserQueryProcessResponse(BaseModel):
@@ -583,6 +595,8 @@ class IntentWorkerMatchResponse(BaseModel):
 class MarketplaceSearchRequest(BaseModel):
     query: str
     location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class MarketplaceSpecialistOut(BaseModel):

@@ -527,7 +527,11 @@ export function Sidebar({
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-3 px-4 py-3 bg-surface-container rounded-xl">
+            <button
+              type="button"
+              onClick={() => router.push(activeMode === "specialist" ? "/dashboard/specialist/settings" : "/dashboard/settings")}
+              className="flex w-full items-center gap-3 px-4 py-3 bg-surface-container rounded-xl text-left transition-soft hover:bg-surface-container-high cursor-pointer"
+            >
               <div className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden">
                 {user.avatar ? (
                   <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
@@ -541,7 +545,8 @@ export function Sidebar({
                 </p>
                 <p className="text-[10px] text-gray-500 truncate mt-0.5">Premium User</p>
               </div>
-            </div>
+              <span className="material-symbols-outlined ml-auto text-sm text-gray-400">chevron_right</span>
+            </button>
           )
         )}
       </div>

@@ -24,6 +24,7 @@ if __package__ and "." in __package__:
     from ..models import (
         SpecialistProfileOut,
         UpdateAvailabilityRequest,
+        WorkerLocationUpdateRequest,
         BookingDetailOut,
         WorkerCreate,
         WorkerOut,
@@ -43,6 +44,7 @@ else:
     from models import (
         SpecialistProfileOut,
         UpdateAvailabilityRequest,
+        WorkerLocationUpdateRequest,
         BookingDetailOut,
         WorkerCreate,
         WorkerOut,
@@ -52,6 +54,10 @@ else:
     from auth_utils import get_current_user
     from services.rate_limiter import rate_limit
     from services.worker_services import build_worker_services, build_worker_service_out
+    from services.worker_location import (
+        sync_worker_home_from_address,
+        set_worker_home_coordinates,
+    )
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
 
@@ -80,6 +86,8 @@ def _build_profile(worker: Worker) -> SpecialistProfileOut:
         verificationStatus=worker.verification_status,
         isAvailable=worker.is_available,
         rejectionReason=worker.rejection_reason,
+        latitude=worker.latitude,
+        longitude=worker.longitude,
     )
 
 
@@ -133,6 +141,10 @@ def create_worker_profile(
     )
     db.add(worker_service)
     db.commit()
+
+    # Seed the home base from the profile address so the specialist is
+    # findable by the 5 km nearby matcher as soon as they submit onboarding.
+    sync_worker_home_from_address(db, current_user)
 
     return _build_profile(_get_worker_with_services(db, worker.id))
 
@@ -335,6 +347,46 @@ def update_availability(
     db.commit()
 
     return {"is_available": worker.is_available}
+
+
+# ─────────────────────────────────────────────
+#  PATCH /workers/{worker_id}/location
+#  Home base coordinates — the AI's 5km nearby search uses these.
+# ─────────────────────────────────────────────
+
+@router.patch("/{worker_id}/location")
+def update_worker_location(
+    worker_id: str,
+    payload: WorkerLocationUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save the specialist's home base coordinates for nearby matching."""
+    worker = db.query(Worker).filter(Worker.id == worker_id).first()
+    if not worker:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Worker not found",
+        )
+    if worker.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    if not (-90 <= payload.latitude <= 90) or not (-180 <= payload.longitude <= 180):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid coordinates",
+        )
+
+    set_worker_home_coordinates(db, worker, payload.latitude, payload.longitude)
+
+    return {
+        "worker_id": worker.id,
+        "latitude": worker.latitude,
+        "longitude": worker.longitude,
+    }
 
 
 # ─────────────────────────────────────────────

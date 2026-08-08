@@ -160,14 +160,19 @@ async def assistant_chat(
     query_id = new_query.id
 
     history = _build_history(payload)
+    location = (
+        (payload.latitude, payload.longitude)
+        if payload.latitude is not None and payload.longitude is not None
+        else None
+    )
 
     async def event_generator():
         yield ev_start(query_id)
         try:
             # Multi-agent orchestrator: supervisor routes to chat / booking / tracking
-            # agents, runs domain tools (live specialist search, booking status), and
-            # streams the reply (+ agent/thought/tool events) back to the client.
-            async for chunk in run_agents(db, current_user, message, history):
+            # agents, runs domain tools (live specialist search within 5km of the
+            # customer's location, booking status), and streams the reply back.
+            async for chunk in run_agents(db, current_user, message, history, location):
                 yield chunk
         except LLMUnavailable:
             # Honest failure — do NOT fabricate a conversation or a classifier fallback.

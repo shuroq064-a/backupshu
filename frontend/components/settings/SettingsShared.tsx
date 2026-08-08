@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store";
 import { logout } from "@/store/slices/authSlice";
 import { userApi } from "@/lib/api";
+import { OtpInput, type OtpInputHandle } from "@/components/interior/otp-input";
 
 export const LANGUAGE_ITEMS = [
   { id: "en-US", label: "English (US)" },
@@ -95,6 +96,12 @@ export function useAccountActions() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteStep, setDeleteStep] = useState<"ask" | "otp">("ask");
+  const [deleteContact, setDeleteContact] = useState<string>("");
+  const [deleteVia, setDeleteVia] = useState<"email" | "sms">("email");
+  const [deleteOtpSent, setDeleteOtpSent] = useState(false);
+  const [isSendingDeleteOtp, setIsSendingDeleteOtp] = useState(false);
+  const [deleteOtp, setDeleteOtp] = useState("");
 
   const [showPw, setShowPw] = useState(false);
   const [pw, setPw] = useState({ current: "", next: "" });
@@ -108,11 +115,51 @@ export function useAccountActions() {
     router.replace("/auth");
   }
 
-  async function handleDeleteConfirm() {
+  async function handleSendDeleteOtp() {
+    setIsSendingDeleteOtp(true);
+    setDeleteError(null);
+    try {
+      const res = await userApi.requestDeleteVerification();
+      setDeleteContact(res.contact);
+      setDeleteVia(res.via === "sms" ? "sms" : "email");
+      setDeleteOtpSent(true);
+      if (res.dev_otp) {
+        setDeleteOtp(res.dev_otp);
+      }
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to send verification code"
+      );
+    } finally {
+      setIsSendingDeleteOtp(false);
+    }
+  }
+
+  function handleOpenDelete() {
+    setDeleteStep("ask");
+    setDeleteOtp("");
+    setDeleteOtpSent(false);
+    setDeleteContact("");
+    setDeleteError(null);
+    setShowDeleteConfirm(true);
+  }
+
+  function handleProceedToOtp() {
+    setDeleteStep("otp");
+    setDeleteError(null);
+    void handleSendDeleteOtp();
+  }
+
+  async function handleDeleteConfirm(otp?: string) {
+    const code = otp ?? deleteOtp;
+    if (!code || code.length === 0) {
+      setDeleteError("Please enter the verification code");
+      return;
+    }
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      await userApi.deleteAccount();
+      await userApi.deleteAccount(code);
       dispatch(logout());
       document.cookie = "shuroqx_session=; path=/; max-age=0";
       setTimeout(() => {
@@ -154,6 +201,16 @@ export function useAccountActions() {
     isDeleting,
     deleteError,
     setDeleteError,
+    deleteStep,
+    deleteContact,
+    deleteVia,
+    deleteOtpSent,
+    isSendingDeleteOtp,
+    deleteOtp,
+    setDeleteOtp,
+    handleOpenDelete,
+    handleProceedToOtp,
+    handleSendDeleteOtp,
     showPw,
     setShowPw,
     pw,
@@ -257,54 +314,162 @@ export function PasswordModal({
   );
 }
 
-// ── Delete Account Modal ──
+// ── Delete Account Modal (OTP-verified) ──
 export function DeleteModal({
   open,
-  onConfirm,
   onCancel,
+  onConfirm,
   deleting,
   error,
+  step,
+  contact,
+  via,
+  otpSent,
+  sendingOtp,
+  otp,
+  setOtp,
+  onSendOtp,
 }: {
   open: boolean;
-  onConfirm: () => void;
   onCancel: () => void;
+  onConfirm: (otp: string) => void;
   deleting: boolean;
   error: string | null;
+  step: "ask" | "otp";
+  contact: string;
+  via: "email" | "sms";
+  otpSent: boolean;
+  sendingOtp: boolean;
+  otp: string;
+  setOtp: (v: string) => void;
+  onSendOtp: () => void;
 }) {
+  const otpRef = useRef<OtpInputHandle>(null);
+  const [otpError, setOtpError] = useState(false);
+  const [otpExpiry, setOtpExpiry] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open && step === "otp" && !otpSent && !sendingOtp) onSendOtp();
+  }, [open, step, otpSent, sendingOtp, onSendOtp]);
+
+  useEffect(() => {
+    if (open) {
+      setOtpError(false);
+    }
+  }, [open, step]);
+
+  useEffect(() => {
+    if (error && step === "otp") {
+      setOtpError(true);
+      otpRef.current?.clear();
+    }
+  }, [error, step]);
+
+  const handleComplete = (value: string) => {
+    setOtpError(false);
+    onConfirm(value);
+  };
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-sm animate-pop-in rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-red-50 text-2xl text-red-500">
-          <span className="material-symbols-outlined">delete_forever</span>
-        </div>
-        <p className="mb-2 text-center text-lg font-bold text-on-surface">
-          Delete Account?
-        </p>
-        <p className="mb-6 text-center text-sm text-on-surface-variant">
-          This action is permanent and cannot be undone. All your data will be deleted.
-        </p>
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
-            <p className="text-sm text-red-600">{error}</p>
-          </div>
+        {step === "ask" ? (
+          <>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-red-50 text-2xl text-red-500">
+              <span className="material-symbols-outlined">delete_forever</span>
+            </div>
+            <p className="mb-2 text-center text-lg font-bold text-on-surface">
+              Delete Account?
+            </p>
+            <p className="mb-6 text-center text-sm text-on-surface-variant">
+              This action is permanent and cannot be undone. To confirm, we'll
+              send a one-time verification code to your registered email.
+            </p>
+            {error && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={onCancel}
+                disabled={deleting}
+                className="flex-1 rounded-lg border border-outline-variant py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onSendOtp}
+                disabled={sendingOtp}
+                className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sendingOtp ? "Sending code..." : "Send code"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-red-50 text-2xl text-red-500">
+              <span className="material-symbols-outlined">verified_user</span>
+            </div>
+            <p className="mb-2 text-center text-lg font-bold text-on-surface">
+              Verify to delete
+            </p>
+            <p className="mb-1 text-center text-sm text-on-surface-variant">
+              Enter the {via === "sms" ? "SMS" : "email"} code sent to
+            </p>
+            <p className="mb-4 text-center text-sm font-semibold text-on-surface">
+              {contact || "your registered email"}
+            </p>
+
+            <div className="mb-4 flex justify-center">
+              <OtpInput
+                ref={otpRef}
+                length={6}
+                mode="numeric"
+                status={otpError ? "error" : "idle"}
+                errorMessage={error ?? ""}
+                hint={otpSent ? "Code sent — check your inbox" : ""}
+                autoFocus
+                onComplete={handleComplete}
+                className="[&_input]:h-11 [&_input]:w-10"
+              />
+            </div>
+
+            <p className="mb-2 text-center text-[11px] text-on-surface-variant">
+              Code expires in 5 minutes. Didn't receive it?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpError(false);
+                  onSendOtp();
+                }}
+                disabled={sendingOtp}
+                className="font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                {sendingOtp ? "Sending..." : "Resend code"}
+              </button>
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={onCancel}
+                disabled={deleting}
+                className="flex-1 rounded-lg border border-outline-variant py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => onConfirm(otp)}
+                disabled={deleting || !otp}
+                className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete permanently"}
+              </button>
+            </div>
+          </>
         )}
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            disabled={deleting}
-            className="flex-1 rounded-lg border border-outline-variant py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={deleting}
-            className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -386,13 +551,16 @@ export function SupportInfoList({ router }: { router: ReturnType<typeof useRoute
   return (
     <ul className="space-y-4 font-label-md text-label-md">
       <li
-        onClick={() => router.push("/dashboard/settings/about")}
+        onClick={() => router.push("/dashboard/settings/help")}
         className="flex cursor-pointer items-center justify-between text-on-surface-variant transition-soft hover:text-primary"
       >
-        <span>Help Center</span>
+        <span>Help &amp; Support</span>
         <span className="material-symbols-outlined text-sm">arrow_forward</span>
       </li>
-      <li className="flex cursor-pointer items-center justify-between text-on-surface-variant transition-soft hover:text-primary">
+      <li
+        onClick={() => router.push("/dashboard/settings/terms")}
+        className="flex cursor-pointer items-center justify-between text-on-surface-variant transition-soft hover:text-primary"
+      >
         <span>Terms of Service</span>
         <span className="material-symbols-outlined text-sm">arrow_forward</span>
       </li>

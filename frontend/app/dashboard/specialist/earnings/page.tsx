@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "@/store";
 import { fetchSpecialistProfile } from "@/store/slices/authSlice";
 import type { BookingDetail, EarningsData, SpecialistProfile } from "@/types";
 import { VerificationPendingCard } from "@/components/ui/VerificationPendingCard";
+import BackButton from "@/components/ui/BackButton";
 
 type Period = "week" | "month" | "total";
 
@@ -211,9 +212,12 @@ export default function SpecialistEarningsPage() {
     ) : (
     <div className="p-4 sm:p-6 max-w-screen-2xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Track your income and performance</p>
+        <div className="flex items-center gap-2">
+          <BackButton label="" fallback="/dashboard/specialist" className="px-1.5 py-1.5 shrink-0" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Earnings</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Track your income and performance</p>
+          </div>
         </div>
         <button
           onClick={loadEarnings}

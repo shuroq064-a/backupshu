@@ -47,10 +47,83 @@ else:
     )
     from auth_utils import get_current_user
     from services.rate_limiter import rate_limit
+    from services.worker_location import sync_worker_home_from_address
 
 router = APIRouter(prefix="/users", tags=["User Profile"])
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+# ── Delete-account OTP verification ──────────────────────────────────────────
+# OTPs are stored in memory (hashed), so a restart invalidates them — which is
+# fine for a short-lived verification step.
+
+import hashlib
+import random
+import string
+import threading
+from datetime import datetime, timedelta
+
+_DELETE_OTP_LENGTH = 6
+_DELETE_OTP_TTL = timedelta(minutes=5)
+_DELETE_OTP_MAX_ATTEMPTS = 5
+_delete_otp_lock = threading.Lock()
+_delete_otp_store: dict[str, dict] = {}
+
+
+def _mask_email(email: str) -> str:
+    """Mask an email for display, e.g. a***@gmail.com."""
+    local, _, domain = email.partition("@")
+    if len(local) <= 1:
+        return "***@" + domain
+    return local[0] + "***@" + domain
+
+
+def _store_delete_otp(user_id: str, otp: str) -> None:
+    digest = hashlib.sha256(otp.encode()).hexdigest()
+    with _delete_otp_lock:
+        _delete_otp_store[user_id] = {
+            "hash": digest,
+            "expires_at": datetime.utcnow() + _DELETE_OTP_TTL,
+            "attempts": 0,
+        }
+
+
+def _verify_delete_otp(user_id: str, otp: str) -> bool:
+    with _delete_otp_lock:
+        entry = _delete_otp_store.get(user_id)
+        if not entry:
+            return False
+        if datetime.utcnow() > entry["expires_at"]:
+            _delete_otp_store.pop(user_id, None)
+            return False
+        entry["attempts"] += 1
+        if entry["attempts"] > _DELETE_OTP_MAX_ATTEMPTS:
+            _delete_otp_store.pop(user_id, None)
+            return False
+        if not hashlib.sha256(otp.encode()).hexdigest() == entry["hash"]:
+            return False
+        _delete_otp_store.pop(user_id, None)
+        return True
+
+
+def _send_delete_otp_email(user: User, otp: str) -> bool:
+    from services.email_service import is_email_configured, send_email
+
+    if not is_email_configured():
+        return False
+    subject = "ShuroqX — confirm account deletion"
+    body = (
+        "<div style='font-family:Arial,sans-serif;max-width:480px;margin:auto;'>"
+        "<h2 style='color:#222;'>Confirm account deletion</h2>"
+        "<p style='color:#444;'>You requested to permanently delete your ShuroqX account. "
+        "Use this one-time code to confirm:</p>"
+        f"<p style='font-size:28px;font-weight:bold;letter-spacing:6px;color:#e11d48;'>{otp}</p>"
+        "<p style='color:#888;font-size:12px;'>This code expires in 5 minutes. "
+        "If you didn't request this, you can safely ignore this email.</p>"
+        "</div>"
+    )
+    return send_email(user.email, subject, body)
 
 
 def _address_out(address: UserAddress) -> UserAddressOut:
@@ -165,6 +238,10 @@ def update_my_profile(
     if changed:
         db.commit()
         db.refresh(current_user)
+        # The specialist's home base is derived from the profile address, so a
+        # moved address must re-geocode the Worker row — otherwise the 5 km
+        # nearby matcher would keep using the stale coordinates.
+        sync_worker_home_from_address(db, current_user)
 
     return UserProfileOut(
         id=current_user.id,
@@ -328,18 +405,74 @@ def change_password(
 
 
 # ─────────────────────────────────────────────
+#  POST /users/me/delete-verification
+#  Frontend: userApi.requestDeleteVerification()
+#  Used by:  Settings → Delete Account (step 1: send OTP)
+# ─────────────────────────────────────────────
+
+@router.post("/me/delete-verification")
+def request_delete_verification(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Send a one-time OTP to the account's registered email to authorize deletion.
+
+    - Rate limited (5 per hour).
+    - OTP expires after 5 minutes / 5 failed attempts.
+    - If SMTP is not configured: in non-production environments the OTP is
+      returned for testing; in production this is an explicit 503.
+    """
+    rate_limit(request, "delete-verification", max_requests=5, window_seconds=3600)
+
+    otp = "".join(random.choices(string.digits, k=_DELETE_OTP_LENGTH))
+    _store_delete_otp(current_user.id, otp)
+
+    from services.email_service import is_email_configured
+
+    is_prod = os.getenv("APP_ENV", "development") == "production"
+    sent = _send_delete_otp_email(current_user, otp)
+
+    if sent:
+        return {
+            "ok": True,
+            "via": "email",
+            "contact": _mask_email(current_user.email),
+            "expiresInSeconds": int(_DELETE_OTP_TTL.total_seconds()),
+        }
+    if not is_email_configured() and not is_prod:
+        # Local/dev convenience: return the code so flows can be tested.
+        return {
+            "ok": True,
+            "via": "email",
+            "contact": _mask_email(current_user.email),
+            "expiresInSeconds": int(_DELETE_OTP_TTL.total_seconds()),
+            "dev_otp": otp,
+            "dev_hint": "SMTP not configured — dev mode only",
+        }
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="We couldn't send the verification code right now. Please try again later.",
+    )
+
+
+# ─────────────────────────────────────────────
 #  DELETE /users/me
-#  Frontend: userApi.deleteAccount()
+#  Frontend: userApi.deleteAccount(otp)
 #  Used by:  Settings → Delete Account (confirmation)
 # ─────────────────────────────────────────────
 
 @router.delete("/me")
 def delete_account(
+    request: Request,
+    otp: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Permanently delete the current user account.
+    Requires the OTP from POST /users/me/delete-verification.
     This cascades to delete:
     - UserQuery records
     - Worker profile (if specialist)
@@ -351,6 +484,11 @@ def delete_account(
     1. Database-level ON DELETE CASCADE constraints
     2. SQLAlchemy cascade="all, delete-orphan" relationships
     """
+    if not otp or not _verify_delete_otp(current_user.id, otp):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired verification code. Please request a new code and try again.",
+        )
     try:
         user_id = current_user.id
         
@@ -358,9 +496,10 @@ def delete_account(
         # The database foreign key constraints will also enforce cascade delete
         db.delete(current_user)
         db.commit()
-        
-        print(f"✓ User {user_id} account deleted successfully")
-        
+
+        import logging
+        logging.getLogger(__name__).info(f"User {user_id} account deleted successfully")
+
         return {
             "message": "Account deleted successfully",
             "status": "deleted"

@@ -15,6 +15,7 @@ import {
   PreferencesSection,
   SupportInfoList,
 } from "@/components/settings/SettingsShared";
+import BackButton from "@/components/ui/BackButton";
 
 export default function UserSettingsPage() {
   const router = useRouter();
@@ -50,13 +51,16 @@ export default function UserSettingsPage() {
       {/* ── Header ─────────────────────────── */}
       <header className="mb-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="mb-2 text-3xl font-bold tracking-tight text-on-surface">
-              Account Settings
-            </h2>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Manage your profile, security, and application preferences.
-            </p>
+          <div className="flex items-center gap-2">
+            <BackButton label="" fallback="/dashboard" className="px-1.5 py-1.5 shrink-0" />
+            <div>
+              <h2 className="mb-2 text-3xl font-bold tracking-tight text-on-surface">
+                Account Settings
+              </h2>
+              <p className="font-body-md text-body-md text-on-surface-variant">
+                Manage your profile, security, and application preferences.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
@@ -153,7 +157,7 @@ export default function UserSettingsPage() {
           {/* Session Management (compact, under Privacy & Data) */}
           <DangerZone
             onLogout={account.handleLogout}
-            onRequestDelete={() => account.setShowDeleteConfirm(true)}
+            onRequestDelete={account.handleOpenDelete}
           />
         </section>
 
@@ -208,6 +212,14 @@ export default function UserSettingsPage() {
         }}
         deleting={account.isDeleting}
         error={account.deleteError}
+        step={account.deleteStep}
+        contact={account.deleteContact}
+        via={account.deleteVia}
+        otpSent={account.deleteOtpSent}
+        sendingOtp={account.isSendingDeleteOtp}
+        otp={account.deleteOtp}
+        setOtp={account.setDeleteOtp}
+        onSendOtp={account.handleProceedToOtp}
       />
     </div>
   );

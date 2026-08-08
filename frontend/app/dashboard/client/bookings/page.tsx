@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/calendar";
 import { useRouter } from "next/navigation";
 import { parseDate } from "@internationalized/date";
+import BackButton from "@/components/ui/BackButton";
 
 const LiveTrackingMap = dynamic(() =>
   import("@/components/tracking/LiveTrackingMap"), { ssr: false });
@@ -302,9 +303,12 @@ export default function ClientBookingsPage() {
 
       {/* Top Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-outline-variant/60">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">My Bookings</h1>
-          <p className="text-sm text-on-surface-variant mt-1.5">Manage your active progress, upcoming tasks, and transaction history.</p>
+        <div className="flex items-center gap-2">
+          <BackButton label="" fallback="/dashboard/client" className="px-1.5 py-1.5" />
+          <div>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">My Bookings</h1>
+            <p className="text-sm text-on-surface-variant mt-1.5">Manage your active progress, upcoming tasks, and transaction history.</p>
+          </div>
         </div>
         {/* Quick Filter Buttons */}
         <div className="flex bg-surface-container-low p-1 rounded-xl shadow-inner border border-outline-variant/30 shrink-0 overflow-x-auto max-md:w-full">

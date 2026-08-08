@@ -34,6 +34,8 @@ export interface SpecialistProfile {
   etaMinutes?: number;
   visitCharge?: number;
   hasPendingSkill?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 // ── Active Mode ───────────────────────────────
@@ -414,6 +416,9 @@ export interface MatchedWorkerOut {
   reviewedAt?: string | null;
   price?: number | null;
   experienceYears?: number | null;
+  distanceKm?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface IntentWorkerMatchResponse {

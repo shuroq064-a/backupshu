@@ -26,10 +26,13 @@ export default function ServiceDiscoveryPage() {
   const { user } = useAppSelector((s) => s.auth);
   const { showToast } = useToast();
 
-  const [specialists, setSpecialists] = useState<SpecialistResult[]>([]);
+  const [featured, setFeatured] = useState<SpecialistResult[]>([]);
+  const [nearby, setNearby] = useState<SpecialistResult[]>([]);
+  const [recentlyBooked, setRecentlyBooked] = useState<SpecialistResult[]>([]);
+  const [activeTab, setActiveTab] = useState<"Featured" | "Nearby Specialists" | "Recently Booked">("Featured");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSpecialist, setSelectedSpecialist] = useState<SpecialistResult | null>(null);
-  const [locationAddress, setLocationAddress] = useState<string>("");
+  const [serviceLocation, setServiceLocation] = useState<ServiceLocation | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [profileSpecialist, setProfileSpecialist] = useState<SpecialistResult | null>(null);
   const [transactions, setTransactions] = useState<BookingDetail[]>([]);
@@ -43,16 +46,16 @@ export default function ServiceDiscoveryPage() {
   }
 
   useEffect(() => {
-    // Read current service location from localStorage
+    // Read current service location (address + coords) from localStorage
     try {
       const rawLocation = localStorage.getItem(SERVICE_LOCATION_KEY);
       if (rawLocation) {
         const parsed = JSON.parse(rawLocation) as ServiceLocation;
         if (parsed.address) {
-          setLocationAddress(parsed.address);
+          setServiceLocation(parsed);
         }
       } else if (user?.location) {
-        setLocationAddress(user.location);
+        setServiceLocation({ address: user.location, source: "profile" });
       }
     } catch {}
   }, [user]);
@@ -62,7 +65,28 @@ export default function ServiceDiscoveryPage() {
     setTxLoading(true);
     bookingApi
       .getMyBookings(user.id)
-      .then((data) => setTransactions(data.slice(0, 4)))
+      .then((data) => {
+        const recent = data.slice(0, 4);
+        setTransactions(recent);
+        // Recently Booked tab = specialists from real bookings (deduped)
+        const booked: SpecialistResult[] = [];
+        const seen = new Set<string>();
+        for (const tx of recent) {
+          const workerId = (tx as BookingDetail).workerId || tx.id;
+          if (seen.has(workerId)) continue;
+          seen.add(workerId);
+          booked.push({
+            workerId,
+            name: (tx as BookingDetail).specialist?.name || tx.serviceType,
+            services: (tx as BookingDetail).specialist?.services || [],
+            avatar: (tx as BookingDetail).specialist?.avatar || undefined,
+            rating: (tx as BookingDetail).specialist?.rating,
+            isVerified: true,
+            isAvailable: true,
+          });
+        }
+        setRecentlyBooked(booked);
+      })
       .catch(() => {})
       .finally(() => setTxLoading(false));
   }, [user?.id]);
@@ -71,9 +95,33 @@ export default function ServiceDiscoveryPage() {
     async function fetchSpecialists() {
       setIsLoading(true);
       try {
-        // Query for 'plumber' to successfully retrieve available workers from the search endpoint
-        const data = await marketplaceApi.searchSpecialists("plumber", locationAddress || undefined);
-        setSpecialists(data.slice(0, 6));
+        const locationAddress = serviceLocation?.address || "";
+        const coords =
+          serviceLocation?.latitude !== undefined && serviceLocation?.longitude !== undefined
+            ? { latitude: serviceLocation.latitude, longitude: serviceLocation.longitude }
+            : undefined;
+
+        // Featured: all available specialists for the category, best-rated first.
+        const featuredData = await marketplaceApi.searchSpecialists(
+          "plumber",
+          locationAddress || undefined
+        );
+        setFeatured(
+          featuredData
+            .slice()
+            .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+            .slice(0, 6)
+        );
+
+        // Nearby: only specialists within the radius, nearest first (distanceKm
+        // comes from the backend's find_nearby_workers_by_intent). When coords
+        // are missing the backend geocodes the address server-side.
+        const nearbyData = await marketplaceApi.searchSpecialists(
+          "plumber",
+          locationAddress || undefined,
+          coords
+        );
+        setNearby(nearbyData.slice(0, 6));
       } catch (err) {
         console.error("Failed to load specialists:", err);
       } finally {
@@ -81,7 +129,7 @@ export default function ServiceDiscoveryPage() {
       }
     }
     fetchSpecialists();
-  }, [locationAddress]);
+  }, [serviceLocation]);
 
   function handleCategoryClick(query: string) {
     router.push(`/dashboard/client/chat?query=${encodeURIComponent(query)}`);
@@ -91,6 +139,16 @@ export default function ServiceDiscoveryPage() {
     const primaryService = specialist.services?.[0]?.service_name || "general helper";
     router.push(`/dashboard/client/chat?query=${encodeURIComponent(`I want to book ${specialist.name} for ${primaryService} service.`)}`);
   }
+
+  const displayedSpecialists =
+    activeTab === "Nearby Specialists"
+      ? nearby
+      : activeTab === "Recently Booked"
+        ? recentlyBooked
+        : featured;
+
+  const hasCoords =
+    serviceLocation?.latitude !== undefined && serviceLocation?.longitude !== undefined;
 
   const MotionDiv = motion.div;
   const MotionSection = motion.section;
@@ -183,12 +241,14 @@ export default function ServiceDiscoveryPage() {
 
         {/* Filter Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2" role="tablist">
-          {["Featured", "Nearby Specialists", "Recently Booked"].map((filter) => (
+          {(["Featured", "Nearby Specialists", "Recently Booked"] as const).map((filter) => (
             <button
               key={filter}
               role="tab"
+              aria-selected={activeTab === filter}
+              onClick={() => setActiveTab(filter)}
               className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                filter === "Featured"
+                activeTab === filter
                   ? "bg-primary text-on-primary shadow-sm"
                   : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
               }`}
@@ -204,7 +264,39 @@ export default function ServiceDiscoveryPage() {
               <MotionDiv variants={itemVariants} key={n} className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm h-80 animate-pulse" />
             ))}
           </div>
-        ) : specialists.length === 0 ? (
+        ) : activeTab === "Nearby Specialists" && !hasCoords ? (
+          <div className="text-center py-16 bg-surface-container-lowest border border-outline-variant rounded-2xl text-on-surface-variant">
+            <span className="material-symbols-outlined text-4xl text-outline mb-2">my_location</span>
+            <p className="font-semibold text-sm">No service location with coordinates yet.</p>
+            <p className="text-xs text-on-surface-variant/70 mt-1">Set your service location to see specialists within 5 km of you.</p>
+            <button
+              onClick={() => window.dispatchEvent(new Event("shuroqx-open-location-permission"))}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-all hover:opacity-90 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">my_location</span>
+              Set service location
+            </button>
+          </div>
+        ) : activeTab === "Nearby Specialists" && nearby.length === 0 ? (
+          <div className="text-center py-16 bg-surface-container-lowest border border-outline-variant rounded-2xl text-on-surface-variant">
+            <span className="material-symbols-outlined text-4xl text-outline mb-2">hail</span>
+            <p className="font-semibold text-sm">No specialists within 5 km of your location.</p>
+            <p className="text-xs text-on-surface-variant/70 mt-1">Try a different location or check back later.</p>
+          </div>
+        ) : activeTab === "Recently Booked" && recentlyBooked.length === 0 ? (
+          <div className="text-center py-16 bg-surface-container-lowest border border-outline-variant rounded-2xl text-on-surface-variant">
+            <span className="material-symbols-outlined text-4xl text-outline mb-2">history</span>
+            <p className="font-semibold text-sm">No recently booked specialists yet.</p>
+            <p className="text-xs text-on-surface-variant/70 mt-1">Book a specialist and they&apos;ll appear here for quick rebooking.</p>
+            <button
+              onClick={() => setActiveTab("Featured")}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition-all hover:opacity-90 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">search</span>
+              Browse specialists
+            </button>
+          </div>
+        ) : displayedSpecialists.length === 0 ? (
           <div className="text-center py-16 bg-surface-container-lowest border border-outline-variant rounded-2xl text-on-surface-variant">
             <span className="material-symbols-outlined text-4xl text-outline mb-2">hail</span>
             <p className="font-semibold text-sm">No active specialists found in your area right now.</p>
@@ -212,7 +304,7 @@ export default function ServiceDiscoveryPage() {
           </div>
         ) : (
           <MotionDiv variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            {specialists.map((sp) => {
+            {displayedSpecialists.map((sp) => {
               const primaryService = sp.services?.[0]?.service_name || "General Service";
               const spGender = sp.gender === "female" ? "female" : "male";
               return (
@@ -253,15 +345,24 @@ export default function ServiceDiscoveryPage() {
                     <div className="absolute top-4 right-4 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
                       {sp.isVerified ? "Top Rated" : "Verified Expert"}
                     </div>
+
+                    {/* Distance badge — only meaningful for nearby results */}
+                    {sp.distanceKm != null && (
+                      <div className="absolute top-4 left-4 flex items-center gap-1 bg-surface-container-lowest/90 backdrop-blur-md text-on-surface text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                        <span className="material-symbols-outlined text-[13px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>near_me</span>
+                        {sp.distanceKm < 1 ? `${Math.round(sp.distanceKm * 1000)} m` : `${sp.distanceKm.toFixed(1)} km`} away
+                      </div>
+                    )}
                   </div>
 
-                  {/* Card body */}
+                    {/* Card body */}
                   <div className="p-5 flex-1 flex flex-col">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="text-lg font-semibold tracking-tight text-on-surface transition-colors group-hover:text-primary">{sp.name}</h4>
                         <p className="text-xs text-on-surface-variant mt-1">
-                          {primaryService} • 12 yrs exp
+                          {primaryService}
+                          {sp.experienceYears != null ? ` • ${sp.experienceYears} yrs exp` : ""}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/30 text-xs font-bold text-on-surface">
@@ -273,11 +374,13 @@ export default function ServiceDiscoveryPage() {
                     <div className="flex gap-4 border-t border-b border-outline-variant/60 py-3.5 my-4 text-xs">
                       <div className="flex-1 border-r border-outline-variant/50">
                         <p className="text-on-surface-variant uppercase tracking-widest text-[9px] font-bold">Hourly Rate</p>
-                        <p className="font-bold text-primary mt-0.5">₹100/hr</p>
+                        <p className="font-bold text-primary mt-0.5">
+                          {sp.price != null ? `₹${sp.price}/hr` : "₹100/hr"}
+                        </p>
                       </div>
                       <div className="flex-1 pl-2">
                         <p className="text-on-surface-variant uppercase tracking-widest text-[9px] font-bold">Response Time</p>
-                        <p className="font-bold text-on-surface mt-0.5">{'<' } 15 mins</p>
+                        <p className="font-bold text-on-surface mt-0.5">{sp.etaMinutes != null ? `~${sp.etaMinutes} mins` : "< 15 mins"}</p>
                       </div>
                     </div>
 
@@ -291,9 +394,11 @@ export default function ServiceDiscoveryPage() {
                           Vetted
                         </span>
                       )}
-                      <span className="bg-surface-container/50 px-2 py-0.5 text-xs font-normal rounded-md text-on-surface-variant hover:bg-surface-container transition-colors">
-                        12 yrs
-                      </span>
+                      {activeTab === "Recently Booked" && (
+                        <span className="bg-primary/10 px-2 py-0.5 text-xs font-normal rounded-md text-primary hover:bg-primary/15 transition-colors">
+                          Book Again
+                        </span>
+                      )}
                     </div>
                   </div>
                 </MotionDiv>

@@ -18,6 +18,7 @@ import { AnimatedCheckmark } from "@/components/ui/AnimatedCheckmark";
 import { OtpInput } from "@/components/interior/otp-input";
 import { SpecialistBookingChatPopup } from "@/components/dashboard/specialist/SpecialistBookingChatPopup";
 import { useConversationUnread } from "@/hooks/useConversationUnread";
+import BackButton from "@/components/ui/BackButton";
 
 const LiveTrackingMap = dynamic(() => import("@/components/tracking/LiveTrackingMap"), { ssr: false });
 
@@ -402,11 +403,14 @@ export default function BookingsManagerPage() {
 
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/60 pb-5">
-        <div>
-          <h2 className="text-2xl font-bold text-on-surface">Bookings Manager</h2>
-          <p className="text-sm text-on-surface-variant mt-0.5">
-            Manage your professional schedule, update active jobs, and track earnings history.
-          </p>
+        <div className="flex items-center gap-2">
+          <BackButton label="" fallback="/dashboard/specialist" className="px-1.5 py-1.5 shrink-0" />
+          <div>
+            <h2 className="text-2xl font-bold text-on-surface">Bookings Manager</h2>
+            <p className="text-sm text-on-surface-variant mt-0.5">
+              Manage your professional schedule, update active bookings, and track earnings history.
+            </p>
+          </div>
         </div>
         <button
           onClick={() => showToast("Manual booking insertion is restricted to client dispatcher mode.", "info")}

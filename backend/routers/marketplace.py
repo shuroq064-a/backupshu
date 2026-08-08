@@ -2,18 +2,25 @@ from __future__ import annotations
 
 
 
+import logging
 import os
 import sys
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
+
 if __package__ and "." in __package__:
     from .. import dbmodels, models
     from ..auth_utils import get_current_user
     from ..database import get_db
     from ..services.nlp_service import predict_pipeline
-    from ..services.worker_matching import find_available_workers_by_intent
+    from ..services.ola_maps.geocoding_service import geocode_address
+    from ..services.worker_matching import (
+        find_available_workers_by_intent,
+        find_nearby_workers_by_intent,
+    )
     from sqlalchemy import func
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -25,7 +32,11 @@ else:
     from auth_utils import get_current_user
     from database import get_db
     from services.nlp_service import predict_pipeline
-    from services.worker_matching import find_available_workers_by_intent
+    from services.ola_maps.geocoding_service import geocode_address
+    from services.worker_matching import (
+        find_available_workers_by_intent,
+        find_nearby_workers_by_intent,
+    )
     from sqlalchemy import func
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
@@ -70,6 +81,7 @@ def _to_marketplace_specialist(
         isAvailable=worker.isAvailable,
         isVerified=worker.isVerified,
         rating=avg_rating or None,
+        distanceKm=worker.distanceKm,
     )
 
 
@@ -87,6 +99,21 @@ def search_specialists(
         )
 
     intent = _resolve_search_intent(query)
-    workers = find_available_workers_by_intent(db, intent)
+
+    latitude, longitude = payload.latitude, payload.longitude
+    if latitude is None or longitude is None:
+        if payload.location and payload.location.strip():
+            try:
+                geocoded = geocode_address(payload.location.strip())
+                latitude = geocoded["latitude"]
+                longitude = geocoded["longitude"]
+            except Exception:
+                latitude = longitude = None
+                logger.warning("Marketplace search: geocoding failed for %r", payload.location)
+
+    if latitude is not None and longitude is not None:
+        workers = find_nearby_workers_by_intent(db, intent, latitude, longitude)
+    else:
+        workers = find_available_workers_by_intent(db, intent)
 
     return [_to_marketplace_specialist(worker, db) for worker in workers]
