@@ -56,15 +56,17 @@ async function request<T>(
       } catch {
         // non-JSON error body
       }
-      throw new Error(message);
+      throw Object.assign(new Error(message), { status: res.status });
     }
 
     if (res.status === 204) return {} as T;
     return res.json() as Promise<T>;
 
   } catch (err) {
-    // Retry once after 2 seconds (handles cold starts)
-    if (retries > 0) {
+    // Retry once after 2 seconds, but ONLY on network failures (no HTTP
+    // status) — never retry validation/conflict errors, or the browser
+    // issues duplicated requests.
+    if (retries > 0 && !(err instanceof Error && "status" in err)) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       return request<T>(method, path, body, retries - 1);
     }

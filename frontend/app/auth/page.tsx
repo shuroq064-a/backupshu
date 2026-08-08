@@ -42,6 +42,8 @@ function AuthPageInner() {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -66,26 +68,61 @@ function AuthPageInner() {
     }
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setPasswordError("");
-    if (tab === "register" && password.trim().length < 8) {
-      setPasswordError("Password must be at least 8 characters long.");
+    setFormError("");
+
+    if (tab === "register") {
+      if (!name.trim()) {
+        setFormError("Please enter your name.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setFormError("Please enter a valid email address.");
+        return;
+      }
+      const pw = password.trim();
+      if (pw.length < 8) {
+        setPasswordError("Password must be at least 8 characters long.");
+        return;
+      }
+      if (!/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/\d/.test(pw)) {
+        setPasswordError("Password must contain an uppercase letter, a lowercase letter, and a number.");
+        return;
+      }
+    } else if (!email.trim() || !password.trim()) {
+      setFormError("Please enter your email and password.");
       return;
     }
-    if (tab === "login") {
+
+    setSubmitting(true);
+    try {
+      if (tab === "login") {
         const result = await dispatch(loginUser({ email: email.trim(), password: password.trim() }));
         if (loginUser.fulfilled.match(result)) {
-            const token = result.payload.access_token || result.payload.token || "";
-            const role = result.payload.role || "user";
-            setCookieFromToken(token, role);
-            router.replace(role === "admin" ? "/admin/specialists" : redirect);
+          const token = result.payload.access_token || result.payload.token || "";
+          const role = result.payload.role || "user";
+          setCookieFromToken(token, role);
+          router.replace(role === "admin" ? "/admin/specialists" : redirect);
+        } else {
+          setFormError(typeof result.payload === "string" ? result.payload : "Login failed. Please try again.");
         }
-    } else {
+      } else {
         const result = await dispatch(registerUser({ email: email.trim(), password: password.trim(), name: name.trim() }));
         if (registerUser.fulfilled.match(result)) {
-            const token = result.payload.access_token || result.payload.token || "";
-            setCookieFromToken(token, "user");
-            router.replace(redirect);
+          const token = result.payload.access_token || result.payload.token || "";
+          setCookieFromToken(token, "user");
+          router.replace(redirect);
+        } else {
+          setFormError(
+            typeof result.payload === "string"
+              ? result.payload
+              : "Unable to complete registration. Please try again."
+          );
         }
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -133,9 +170,10 @@ function AuthPageInner() {
           </div>
 
           {/* Error Banner */}
-          {(error || nextAuthError) && (
+          {(error || nextAuthError || formError) && (
             <div className="mb-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-              {error || (
+              {formError ||
+                error || (
                 nextAuthError === "OAuthAccountNotLinked"
                   ? "This email is already linked to another login method. Please use your original sign-in method."
                   : nextAuthError === "OAuthCreateAccount"
@@ -214,10 +252,10 @@ function AuthPageInner() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || submitting}
               className="w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-violet-200"
             >
-              {isLoading ? (
+              {isLoading || submitting ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   Please wait…

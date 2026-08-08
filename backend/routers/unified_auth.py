@@ -81,7 +81,7 @@ def register(payload: UserRegister, request: Request, db: Session = Depends(get_
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Unable to complete registration",
+            detail="An account with this email already exists. Try logging in instead.",
         )
 
     user = User(
