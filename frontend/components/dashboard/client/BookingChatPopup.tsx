@@ -48,6 +48,27 @@ export function BookingChatPopup({ booking, currentUser, onClose }: BookingChatP
   const specialistName = booking.specialist?.name || "Specialist";
   const statusMeta = STATUS_META[booking.status] || { label: booking.status, className: "bg-slate-600/15 text-slate-600" };
 
+  // The backend auto-creates a conversation on first message (POST /messages),
+  // so the chat must be usable even when no ConversationDTO exists yet. When the
+  // lookup returns nothing, synthesize one from the booking so the user can send
+  // the first message instead of being stuck on the empty "Say hello" prompt.
+  const conversationForChat: ConversationDTO | null =
+    conversation ??
+    (booking.specialist
+      ? {
+          bookingId: booking.id,
+          bookingNumber: booking.bookingNumber ?? null,
+          serviceType: booking.serviceType ?? null,
+          otherName: specialistName,
+          otherId: booking.workerId ?? "",
+          otherType: "worker",
+          callerRole: "client",
+          lastMessage: "",
+          lastMessageAt: "",
+          unread: 0,
+        }
+      : null);
+
   return (
     <DraggableChatPopup
       header={
@@ -93,12 +114,15 @@ export function BookingChatPopup({ booking, currentUser, onClose }: BookingChatP
         <div className="flex-1 flex items-center justify-center">
           <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
         </div>
-      ) : conversation ? (
+      ) : conversationForChat ? (
         <div className="flex-1 min-h-0 flex flex-col">
           <SpecialistDirectChat
-            conversation={conversation}
+            conversation={conversationForChat}
             currentUser={currentUser}
-            onSent={() => {}}
+            onSent={() => {
+              // Refresh the conversation list so a newly created thread shows up.
+              if (!conversation) loadConversation();
+            }}
             onError={(m) => showToast(m, "error")}
           />
         </div>
@@ -112,7 +136,7 @@ export function BookingChatPopup({ booking, currentUser, onClose }: BookingChatP
             <p className="text-xs text-on-surface-variant mt-1.5 leading-relaxed">
               {failed
                 ? "Couldn't load this conversation. Check your connection and try again."
-                : "No messages yet. Say hello to your specialist to get started."}
+                : "The specialist isn't available to chat yet."}
             </p>
           </div>
           {failed && (
