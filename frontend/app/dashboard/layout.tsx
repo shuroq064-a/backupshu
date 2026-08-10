@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAppSelector } from "@/store";
+import { useAppDispatch, useAppSelector } from "@/store";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { LocationPermissionPrompt } from "@/components/location/LocationPermissionPrompt";
 import { GpsTrackingProvider } from "@/components/tracking/GpsTrackingContext";
 import { clearSession } from "@/lib/auth";
+import { hydrateAuth, logout } from "@/store/slices/authSlice";
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { user, isHydrated } = useAppSelector((s) => s.auth);
   const [redirecting, setRedirecting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -33,6 +35,24 @@ export default function DashboardLayout({
     window.addEventListener("shuroqx-open-mobile-nav", openMobileNav);
     return () => window.removeEventListener("shuroqx-open-mobile-nav", openMobileNav);
   }, []);
+
+  // Cross-tab session sync: when another tab logs in/out or switches account,
+  // this tab must adopt the new identity immediately. Otherwise it keeps the
+  // old Redux profile while API calls (token from localStorage) authenticate
+  // as the NEW user — which is how bookings ended up stamped with the wrong
+  // client_id ("bookings merged across accounts").
+  useEffect(() => {
+    function onSessionChange(e: StorageEvent) {
+      if (e.key !== "shuroqx_session") return;
+      if (e.newValue === null) {
+        dispatch(logout());
+      } else {
+        dispatch(hydrateAuth());
+      }
+    }
+    window.addEventListener("storage", onSessionChange);
+    return () => window.removeEventListener("storage", onSessionChange);
+  }, [dispatch]);
 
   // Client-side auth guard (middleware handles SSR).
   // If the cookie says authenticated but the client store has no user

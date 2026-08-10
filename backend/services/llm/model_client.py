@@ -97,10 +97,11 @@ def _gemini_payload(messages: Iterable[dict], *, stream: bool, temperature: floa
     }
 
 
-def _gemini_url(method: str) -> str:
+def _gemini_url(method: str, *, sse: bool = False) -> str:
     base = f"{FALLBACK_BASE_URL}/models/{FALLBACK_MODEL}:{method}"
     sep = "&" if "?" in base else "?"
-    return f"{base}{sep}key={FALLBACK_API_KEY}&alt=sse"
+    sse_part = "&alt=sse" if sse else ""
+    return f"{base}{sep}key={FALLBACK_API_KEY}{sse_part}"
 
 
 # ── Primary (OpenAI-compatible) helpers ───────────────────────────────────────
@@ -286,7 +287,7 @@ async def _fallback_stream(
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
                     "POST",
-                    _gemini_url("streamGenerateContent"),
+                    _gemini_url("streamGenerateContent", sse=True),
                     headers={"Content-Type": "application/json"},
                     json=_gemini_payload(messages, stream=True, temperature=temperature),
                 ) as resp:

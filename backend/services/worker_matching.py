@@ -22,10 +22,13 @@ else:
     from services.geo_utils import calculate_distance
 
 
-# Specialist is considered BUSY while a booking is in any of these statuses.
-# "upcoming" counts as busy only when a worker is already assigned to it.
+# Specialist is considered BUSY only while a booking is CONFIRMED to them.
+# "upcoming" (proposed / awaiting specialist acceptance) does NOT make a
+# specialist busy — they are still bookable until they accept. Marking every
+# pending request as busy would hide a specialist from all searches the moment
+# one customer books them (a customer couldn't see/re-book NEY after requesting him).
 BUSY_BOOKING_STATUSES = ("accepted", "started", "reached", "ongoing")
-ASSIGNED_BUSY_STATUSES = BUSY_BOOKING_STATUSES + ("upcoming",)
+ASSIGNED_BUSY_STATUSES = BUSY_BOOKING_STATUSES
 
 # Nearby search radius (km). Overridable via SPECIALIST_RADIUS_KM env var.
 DEFAULT_RADIUS_KM = 5.0
@@ -241,9 +244,15 @@ def build_worker_payload(
 def _available_worker_rows(
     db: Session,
     matched_service: dbmodels.Service,
+    include_busy: bool = False,
 ) -> list[tuple[dbmodels.Worker, dbmodels.User]]:
-    """(Worker, User) rows for verified, available, not-busy specialists of a service."""
-    return (
+    """(Worker, User) rows for verified specialists of a service.
+
+    By default only available + not-busy rows are returned (the "bookable"
+    set). With `include_busy=True` busy specialists are included too, so callers
+    can explain WHY a nearby specialist is not bookable.
+    """
+    q = (
         db.query(dbmodels.Worker, dbmodels.User)
         .join(dbmodels.User, dbmodels.User.id == dbmodels.Worker.user_id)
         .join(dbmodels.Worker.services)
@@ -252,12 +261,14 @@ def _available_worker_rows(
                 dbmodels.WorkerService.service
             )
         )
-        .filter(dbmodels.Worker.is_available.is_(True))
-        .filter(~_busy_worker_exists(dbmodels.Worker.id))
         .filter(dbmodels.WorkerService.service_id == matched_service.id)
         .filter(dbmodels.WorkerService.status == "verified")
-        .all()
     )
+    if not include_busy:
+        q = q.filter(dbmodels.Worker.is_available.is_(True)).filter(
+            ~_busy_worker_exists(dbmodels.Worker.id)
+        )
+    return q.all()
 
 
 def _resolve_matched_service(db: Session, intent: str) -> dbmodels.Service | None:
@@ -327,3 +338,45 @@ def find_nearby_workers_by_intent(
         build_worker_payload(worker, user, distance_km=distance_km)
         for worker, user, distance_km in nearby
     ]
+
+
+def find_nearby_excluded_by_intent(
+    db: Session,
+    intent: str,
+    user_lat: float | None,
+    user_lon: float | None,
+    radius_km: float | None = None,
+) -> list[dict]:
+    """Nearby specialists of the service who exist but can't be booked right now.
+
+    Used to explain WHY a search found nobody bookable: returns
+    [{"name", "distance_km", "reason": "busy"|"unavailable"}] sorted
+    nearest-first, strictly within the 5 km radius. "busy" = confirmed booking
+    (accepted/started/reached/ongoing); "unavailable" = availability toggle off.
+    Specialists without coordinates are skipped (we never guess distance).
+    """
+    if user_lat is None or user_lon is None:
+        return []
+    limit_km = radius_km if radius_km is not None else get_radius_km()
+    matched_service = _resolve_matched_service(db, intent)
+    if not matched_service:
+        return []
+
+    out: list[dict] = []
+    for worker, user in _available_worker_rows(db, matched_service, include_busy=True):
+        if worker.latitude is None or worker.longitude is None:
+            continue
+        d = calculate_distance(user_lat, user_lon, worker.latitude, worker.longitude)
+        if d > limit_km:
+            continue
+        if db.query(_busy_worker_exists(worker.id)).scalar():
+            reason = "busy"
+        elif not worker.is_available:
+            reason = "unavailable"
+        else:
+            continue  # bookable — belongs to the main result, not here
+        name = user.name or user.email.split("@")[0]
+        out.append({"name": name, "distance_km": round(d, 1), "reason": reason})
+
+    out.sort(key=lambda x: x["distance_km"])
+    return out

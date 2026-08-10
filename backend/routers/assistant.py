@@ -165,6 +165,21 @@ async def assistant_chat(
         if payload.latitude is not None and payload.longitude is not None
         else None
     )
+    if location is None:
+        # Deterministic fallback: use the customer's saved service address so the
+        # 5 km specialist search always has real coordinates.
+        addr = (
+            db.query(dbmodels.UserAddress)
+            .filter(
+                dbmodels.UserAddress.user_id == current_user.id,
+                dbmodels.UserAddress.latitude.isnot(None),
+                dbmodels.UserAddress.longitude.isnot(None),
+            )
+            .order_by(dbmodels.UserAddress.updated_at.desc())
+            .first()
+        )
+        if addr:
+            location = (addr.latitude, addr.longitude)
 
     async def event_generator():
         yield ev_start(query_id)

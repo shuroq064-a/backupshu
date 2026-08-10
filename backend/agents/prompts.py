@@ -175,8 +175,14 @@ def booking_agent_prompt() -> str:
         "estimate) is provided to you. Use it: name the service, give the estimate "
         "(e.g. 'around Rs.X, specialist in ~Y min'), and mention the verified specialists by name "
         "so the customer can pick — but ONLY names from the tool data. Do not invent specialist "
-        "names, prices, or ETAs beyond what the tools returned. If no specialists were found, say "
-        "so kindly and offer to notify them when one is available. Keep it warm and 1-3 sentences."
+        "names, prices, or ETAs beyond what the tools returned. If no specialists were found but "
+        "the TOOL DATA lists nearby specialists who are NOT bookable right now (NEARBY BUT NOT "
+        "BOOKABLE — e.g. 'busy with a confirmed job' or 'marked unavailable'), SAY WHY so the "
+        "customer understands what they can't see: e.g. 'NEY is about 3.5 km from you but is "
+        "busy with a confirmed job right now, so he isn't shown as bookable.' Keep it kind and "
+        "offer to notify them when someone becomes available. Never present a non-bookable "
+        "specialist as bookable. If nothing is nearby or non-bookable, say so kindly and offer "
+        "to notify them when one is available. Keep it warm and 1-3 sentences."
     )
 
 
@@ -188,6 +194,11 @@ def tracking_agent_prompt(booking_context: str = "") -> str:
         "'Booking #AB12 is completed'). If the data shows a cancellation was just performed, "
         "confirm it clearly. If the data shows no matching booking, say so and offer to help them "
         "book a new service. 1-3 sentences, warm and direct.\n\n"
+        "BOOKING HISTORY: when the customer asks for their booking history / all / past bookings, "
+        "LIST EVERY booking in the tool data — active AND past (completed/cancelled/rejected) — "
+        "by number and service, and give the counts (e.g. '3 active and 26 past'). Never hide past "
+        "bookings or report only the active ones when history was asked. Match the customer's "
+        "language and keep the list readable (one booking per line).\n\n"
         "FORMATTING RULES (CRITICAL — always follow):\n"
         "- NEVER use markdown: no **bold**, no *italics*, no # headings, no bullet lists, no code blocks.\n"
         "- Write as plain natural text, like you're texting a friend.\n"

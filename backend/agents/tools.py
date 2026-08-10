@@ -21,8 +21,8 @@ if __package__ and "." in __package__:
     from .. import dbmodels
     from ..services.llm.catalog import resolve_intent, build_booking_context
     from ..services.worker_matching import (
-        find_available_workers_by_intent,
         find_nearby_workers_by_intent,
+        find_nearby_excluded_by_intent,
     )
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -32,8 +32,8 @@ else:
     import dbmodels
     from services.llm.catalog import resolve_intent, build_booking_context
     from services.worker_matching import (
-        find_available_workers_by_intent,
         find_nearby_workers_by_intent,
+        find_nearby_excluded_by_intent,
     )
 
 
@@ -237,19 +237,20 @@ async def tool_search_specialists(
 ) -> dict:
     """Find verified, available, NOT busy specialists for a (free-text) service intent.
 
-    When `latitude`/`longitude` are provided, only specialists within the
-    configured radius (SPECIALIST_RADIUS_KM, default 5 km) of the customer's
-    location are returned, sorted nearest-first with `distanceKm` on each
-    payload. Without coordinates we return no specialists (strict — the
-    assistant must ask the customer for their location first).
+    STRICT 5 km rule: only specialists within the configured radius
+    (SPECIALIST_RADIUS_KM, default 5 km) of the customer's location are ever
+    returned — sorted nearest-first with `distanceKm` on each payload.
+    Specialists without their own coordinates, busy ones, and anyone beyond the
+    radius are excluded. Without customer coordinates we return no workers
+    (we never guess distance) and the assistant asks for the location first.
     """
     if latitude is None or longitude is None:
         return {
-            "ok": False,
-            "intent": None,
+            "ok": True,
+            "intent": resolve_intent(db, intent),
             "reply": "",
             "workers": [],
-            "summary": "I need your location to find nearby specialists. Please select your service location first.",
+            "summary": "Select your service location first so I can find specialists within 5 km.",
         }
     canonical = resolve_intent(db, intent)
     if not canonical:
@@ -278,31 +279,37 @@ async def tool_search_specialists(
         payload["experience_years"] = ws.experience_years if ws else None
         enriched.append(payload)
     summary = (
-        f"Found {len(enriched)} specialist(s) for '{canonical}'."
+        f"Found {len(enriched)} specialist(s) for '{canonical}' within 5 km."
         if enriched
-        else f"No available specialists for '{canonical}' right now."
+        else f"No available specialists within 5 km of your location right now."
+    )
+    nearby_unavailable = (
+        find_nearby_excluded_by_intent(db, canonical, latitude, longitude)
+        if not enriched
+        else []
     )
     return {
         "ok": True,
         "intent": canonical,
         "reply": "",
         "workers": enriched,
+        "nearby_unavailable": nearby_unavailable,
         "summary": summary,
     }
 
 
 async def tool_my_bookings(db, user) -> dict:
-    """Return the customer's active/upcoming bookings as a concise list."""
+    """Return the customer's FULL booking history: active ones first, then past
+    (completed/cancelled/rejected) — newest first, capped so the prompt stays small."""
     bookings = (
         db.query(dbmodels.Booking)
-        .filter(
-            dbmodels.Booking.client_id == user.id,
-            dbmodels.Booking.status.in_(ACTIVE_STATUSES),
-        )
+        .filter(dbmodels.Booking.client_id == user.id)
         .order_by(dbmodels.Booking.created_at.desc())
+        .limit(30)
         .all()
     )
     items = []
+    n_active = 0
     for b in bookings:
         specialist = "Not yet assigned"
         if b.worker_id:
@@ -311,6 +318,8 @@ async def tool_my_bookings(db, user) -> dict:
                 su = db.query(dbmodels.User).filter(dbmodels.User.id == worker.user_id).first()
                 if su:
                     specialist = su.name or su.email
+        if b.status in ACTIVE_STATUSES:
+            n_active += 1
         items.append(
             {
                 "booking_number": b.booking_number,
@@ -322,9 +331,10 @@ async def tool_my_bookings(db, user) -> dict:
                 "booking_id": b.id,
             }
         )
+    n_past = len(items) - n_active
     return {
         "ok": True,
-        "summary": f"You have {len(items)} active booking(s).",
+        "summary": f"You have {n_active} active booking(s) and {n_past} past booking(s).",
         "bookings": items,
     }
 
