@@ -83,6 +83,7 @@ ACTIVE_STATUSES = {"accepted", "started", "reached", "ongoing"}
 # Statuses that mean a CLIENT already has an open job (incl. still-waiting
 # requests) — blocks creating a second booking for another specialist.
 CLIENT_OPEN_STATUSES = {"upcoming", "accepted", "started", "reached", "ongoing"}
+CLIENT_COMMITTED_STATUSES = {"accepted", "started", "reached", "ongoing"}
 LIST_PAGE_LIMIT = 100
 
 STATUS_LABELS = {
@@ -654,27 +655,44 @@ def create_booking(
     except ValueError:
         raise HTTPException(status_code=422, detail="scheduled_date must be YYYY-MM-DD.")
 
-    # A client can hold only ONE open booking at a time (any service). They must
-    # wait for it to be completed or cancelled before requesting another
-    # specialist — otherwise the assistant could recommend and create a second
-    # specialist for a customer who is already mid-job.
-    existing = (
+    # A client can hold only ONE committed booking at a time (any service).
+    # "upcoming" bookings are unaccepted requests — creating a new one supersedes
+    # any older unaccepted request, so the customer is never blocked by a stale,
+    # invisible pending booking. Only bookings a specialist has actually
+    # committed to (accepted +) block a new request.
+    committed = (
         db.query(Booking)
         .filter(
             Booking.client_id == current_user.id,
-            Booking.status.in_(list(CLIENT_OPEN_STATUSES)),
+            Booking.status.in_(list(CLIENT_COMMITTED_STATUSES)),
         )
         .first()
     )
-    if existing:
+    if committed:
         raise HTTPException(
             status_code=409,
             detail=(
-                f"You already have an open booking (#{(existing.booking_number or '').upper()}, "
-                f"{existing.service_type}) that is {existing.status}. Please wait for it to be "
-                f"completed or cancel it before requesting another specialist."
+                f"You already have an active booking (#{(committed.booking_number or '').upper()}, "
+                f"{committed.service_type}) that is {committed.status}. Please wait for it to be "
+                f"completed or cancelled before requesting another specialist."
             ),
         )
+
+    # Supersede earlier unaccepted requests for this client (any service) so the
+    # latest request replaces the previous one instead of piling up.
+    stale = (
+        db.query(Booking)
+        .filter(
+            Booking.client_id == current_user.id,
+            Booking.status == "upcoming",
+        )
+        .all()
+    )
+    for old in stale:
+        old.status = "cancelled"
+        old.cancellation_reason = "Superseded — replaced by a newer request"
+        old.cancelled_by = "system"
+        old.updated_at = datetime.utcnow()
 
     # If a specific worker was given, validate them
     if payload.worker_id:

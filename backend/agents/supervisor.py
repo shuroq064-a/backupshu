@@ -336,14 +336,15 @@ async def _clarify_agent(message: str, history: list[dict], tool_data: str = "")
 
 async def _booking_agent(db, user, message: str, history: list[dict], tool_results: list, tool_data: str = "", location: tuple | None = None):
     """Acknowledge the request and surface verified specialists via a match event."""
-    # A customer with an open booking cannot request another specialist — the
-    # booking flow is one-at-a-time. Skip the match entirely so the UI never
-    # offers a "pick a specialist" list while a previous job is still open.
+    # A customer with a booking a specialist has COMMITTED to (accepted +)
+    # cannot request another specialist — the booking flow is one-at-a-time.
+    # Bookings still "upcoming" are unaccepted requests and are superseded by
+    # the new request, so they never block the match flow.
     open_booking = (
         db.query(dbmodels.Booking)
         .filter(
             dbmodels.Booking.client_id == user.id,
-            dbmodels.Booking.status.in_(["upcoming", "accepted", "started", "reached", "ongoing"]),
+            dbmodels.Booking.status.in_(["accepted", "started", "reached", "ongoing"]),
         )
         .order_by(dbmodels.Booking.created_at.desc())
         .first()

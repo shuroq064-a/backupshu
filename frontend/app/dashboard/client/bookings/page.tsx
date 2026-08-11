@@ -109,7 +109,7 @@ export default function ClientBookingsPage() {
     if (!chatBooking) return;
     const fresh = bookings.find(b => b.id === chatBooking.id);
     if (!fresh) return;
-    if (["accepted", "started", "reached", "ongoing"].includes(fresh.status)) {
+    if (["upcoming", "accepted", "started", "reached", "ongoing"].includes(fresh.status)) {
       if (fresh !== chatBooking) setChatBooking(fresh);
     } else {
       setChatBooking(null);
@@ -267,7 +267,7 @@ export default function ClientBookingsPage() {
   }
 
   // Filter lists based on tab choice
-  const activeBookings = bookings.filter(b => ["accepted", "started", "reached", "ongoing"].includes(b.status));
+  const activeBookings = bookings.filter(b => ["upcoming", "accepted", "started", "reached", "ongoing"].includes(b.status));
   const completedBookings = bookings.filter(b => ["completed", "cancelled", "rejected"].includes(b.status));
 
   // Spend metrics summary (sum of all completed bookings)

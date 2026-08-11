@@ -47,7 +47,7 @@ function getChatStorageKey(userId?: string | null): string {
 }
 const BOOKING_VISIBLE_STATUSES = new Set(["accepted", "started", "reached", "ongoing", "completed"]);
 const BOOKING_CLOSED_STATUSES = new Set(["rejected", "completed", "cancelled"]);
-const OPEN_BOOKING_STATUSES = new Set<BookingStatus>(["upcoming", "accepted", "started", "reached", "ongoing"]);
+const OPEN_BOOKING_STATUSES = new Set<BookingStatus>(["accepted", "started", "reached", "ongoing"]);
 
 export default function RedesignedClientChat() {
   const router = useRouter();
