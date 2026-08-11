@@ -36,11 +36,15 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const redirect = sanitizeRedirect(searchParams.get("redirect"));
   const nextAuthError = searchParams.get("error");
-  const { resolvedTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const particleColors = useMemo(
     () => (resolvedTheme === "dark" ? ["#ffffff"] : ["#181a2e"]),
     [resolvedTheme]
   );
+
+  useEffect(() => {
+    if (theme === "system") setTheme("light");
+  }, [theme, setTheme]);
 
   const { isLoading, error, user } = useAppSelector((s: RootState) => s.auth);
 
@@ -137,7 +141,7 @@ function AuthPageInner() {
       <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
         <Particles
           particleColors={particleColors}
-          particleCount={600}
+          particleCount={1000}
           particleSpread={10}
           speed={0.3}
           particleBaseSize={100}
@@ -148,14 +152,14 @@ function AuthPageInner() {
         />
       </div>
       <ThemeToggle />
-      <div className="relative z-10 m-auto w-full max-w-5xl overflow-hidden rounded-3xl shadow-2xl lg:grid lg:grid-cols-2">
+      <div className="relative z-10 m-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-outline-variant/70 shadow-2xl dark:border-white/25 lg:grid lg:grid-cols-2">
         {/* Vertical divider between panels */}
-        <div aria-hidden className="absolute inset-y-24 left-1/2 z-20 hidden w-px -translate-x-1/2 bg-outline-variant/70 lg:block" />
+        <div aria-hidden className="absolute inset-y-28 left-1/2 z-20 hidden w-px -translate-x-1/2 bg-outline-variant/70 lg:block" />
         {/* Left panel - Branding + Floating Paths */}
-        <div className="relative hidden h-[680px] flex-col bg-surface-container-lowest p-12 lg:flex">
+        <div className="relative hidden h-[760px] flex-col bg-surface-container-lowest p-12 lg:flex">
           <div className="absolute inset-0 z-10 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent" />
           <div className="z-10 flex items-center gap-2">
-            <Logo size="md" />
+            <Logo size="lg" />
           </div>
           <div className="z-10 mt-auto">
             <blockquote className="space-y-2">
@@ -170,7 +174,7 @@ function AuthPageInner() {
         </div>
 
         {/* Right panel - Form */}
-        <div className="relative flex min-h-[680px] flex-col justify-center bg-surface-container-lowest p-6 sm:p-12">
+        <div className="relative flex min-h-[760px] flex-col justify-center bg-surface-container-lowest p-6 sm:p-12">
         <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-30">
           <div className="absolute top-0 right-0 h-80 w-56 -translate-y-48 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.02)_50%,rgba(255,255,255,0.01)_80%)]" />
           <div className="absolute top-0 right-0 h-80 w-60 translate-x-2 -translate-y-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0.01)_80%,transparent_100%)]" />
@@ -184,7 +188,7 @@ function AuthPageInner() {
 
         <div className="mx-auto w-full max-w-sm space-y-4">
           <div className="flex items-center gap-2 lg:hidden">
-            <Logo size="md" />
+            <Logo size="lg" />
           </div>
 
           <div className="flex flex-col space-y-1">
