@@ -70,6 +70,16 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
   const specialistName = booking.specialist?.name || "Specialist";
 
+  // Live specialist position. booking.currentLatitude/currentLongitude are a
+  // stale snapshot (never refreshed by WS events), so track the latest position
+  // here — the Navigate button must use it as the Google Maps origin, otherwise
+  // Google picks the device location as the start and the routes don't match.
+  const [specPos, setSpecPos] = useState<{ latitude: number; longitude: number } | null>(() =>
+    booking.currentLatitude && booking.currentLongitude
+      ? { latitude: booking.currentLatitude, longitude: booking.currentLongitude }
+      : null
+  );
+
   useEffect(() => {
     if (gpsContextError) setGpsError(gpsContextError);
   }, [gpsContextError]);
@@ -386,6 +396,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
               const data = JSON.parse(e.data) as LocationUpdateEvent;
               if (data.type !== "LOCATION_UPDATE") return;
               if (data.etaMinutes != null) setEta(data.etaMinutes);
+              setSpecPos({ latitude: data.latitude, longitude: data.longitude });
               if (!leafletMap.current || !L || disposed) return;
 
               const map = leafletMap.current;
@@ -444,6 +455,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
     let cancelled = false;
     setIsWaiting(false);
+    setSpecPos({ latitude: gpsPosition.latitude, longitude: gpsPosition.longitude });
 
     if (!specialistMarkerRef.current) {
       import("leaflet").then((leaflet) => {
@@ -541,12 +553,15 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
            </motion.button>
 
            {/* GOOGLE MAPS NAVIGATE BUTTON */}
-           {isMapLoaded && (booking.customerLatitude && booking.customerLongitude) && (
+           {/* Specialist-only: routes from the specialist's LIVE position to the
+               customer. Explicit origin keeps Google Maps' route in sync with the
+               tracking map (no origin → Google uses the device location instead). */}
+           {isMapLoaded && role === "specialist" && specPos && (booking.customerLatitude && booking.customerLongitude) && (
              <motion.a
                initial={{ opacity: 0, scale: 0.5 }}
                animate={{ opacity: 1, scale: 1 }}
                transition={{ delay: 0.25 }}
-               href={`https://www.google.com/maps/dir/?api=1&destination=${booking.customerLatitude},${booking.customerLongitude}&travelmode=driving`}
+               href={`https://www.google.com/maps/dir/?api=1&origin=${specPos.latitude},${specPos.longitude}&destination=${booking.customerLatitude},${booking.customerLongitude}&travelmode=driving`}
                target="_blank"
                rel="noopener noreferrer"
                className="absolute top-4 right-4 z-[9999] flex items-center gap-2 h-10 px-4 rounded-full bg-[#4285F4] text-white shadow-lg transition-all hover:bg-[#3367D6] active:scale-95 sm:top-6 sm:right-6 sm:h-11 dark:bg-[#5C9FFF] dark:hover:bg-[#4285F4]"
