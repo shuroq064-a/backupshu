@@ -316,7 +316,7 @@ export default function ClientBookingsPage() {
             <button
               key={tab}
               onClick={() => handleTabChange(tab)}
-              className={`px-5 py-2 text-xs font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-5 py-2.5 text-xs font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === tab
                   ? "bg-surface-container-lowest text-primary shadow-sm border border-black/5"
                   : "text-on-surface-variant hover:text-primary"
@@ -333,7 +333,7 @@ export default function ClientBookingsPage() {
           <div className="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           {/* Left Column: Services list (col-span-8) */}
           <div className="lg:col-span-8 space-y-8">
             {/* Active Bookings (Only show when active tab is all or active) */}
@@ -491,11 +491,11 @@ function Pager({ current, totalPages, onPage }: {
   onPage: (page: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-center gap-2 pt-2">
+    <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
       <button
         onClick={() => onPage(Math.max(1, current - 1))}
         disabled={current === 1}
-        className="flex items-center justify-center w-9 h-9 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+        className="flex items-center justify-center w-10 h-10 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
         aria-label="Previous page"
       >
         <span className="material-symbols-outlined text-sm">chevron_left</span>
@@ -505,7 +505,7 @@ function Pager({ current, totalPages, onPage }: {
         <button
           key={p}
           onClick={() => onPage(p)}
-          className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`w-10 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             p === current
               ? "bg-primary text-white shadow-sm"
               : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
@@ -518,7 +518,7 @@ function Pager({ current, totalPages, onPage }: {
       <button
         onClick={() => onPage(Math.min(totalPages, current + 1))}
         disabled={current === totalPages}
-        className="flex items-center justify-center w-9 h-9 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+        className="flex items-center justify-center w-10 h-10 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
         aria-label="Next page"
       >
         <span className="material-symbols-outlined text-sm">chevron_right</span>
@@ -581,10 +581,10 @@ function ActiveBookingCard({ booking, onViewDetails, onChat, unread = 0 }: {
             <span className="material-symbols-outlined text-emerald-600 text-lg">shield</span>
             <p className="text-xs font-bold text-gray-900">Tell this code to your specialist</p>
           </div>
-          <div className="relative flex justify-center gap-2.5">
+          <div className="relative flex flex-wrap justify-center gap-2 sm:gap-2.5">
             {booking.otp.split("").map((digit, i) => (
-              <div key={i} className="w-12 h-12 rounded-xl bg-white border-2 border-emerald-300 flex items-center justify-center shadow-sm">
-                <span className="text-xl font-mono font-bold text-emerald-600 tabular-nums">{digit}</span>
+              <div key={i} className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white border-2 border-emerald-300 flex items-center justify-center shadow-sm">
+                <span className="text-lg sm:text-xl font-mono font-bold text-emerald-600 tabular-nums">{digit}</span>
               </div>
             ))}
           </div>
@@ -595,7 +595,7 @@ function ActiveBookingCard({ booking, onViewDetails, onChat, unread = 0 }: {
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
           Time: {booking.scheduledTime} · Date: {booking.scheduledDate}
         </span>
-        <div className="flex gap-2.5 shrink-0 items-center">
+        <div className="flex flex-wrap gap-2.5 shrink-0 items-center">
           {["started", "reached", "ongoing"].includes(booking.status) && (
             <LiveTrackingMap
               booking={booking}
@@ -604,7 +604,7 @@ function ActiveBookingCard({ booking, onViewDetails, onChat, unread = 0 }: {
             />
           )}
           {["accepted", "started", "reached", "ongoing"].includes(booking.status) && (
-            <button onClick={onChat} className="relative flex items-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer">
+            <button onClick={onChat} className="relative flex items-center gap-2 px-4 py-3 min-h-11 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer">
               <span className="material-symbols-outlined text-[18px]">chat</span>
               <span className="text-xs font-bold">Chat</span>
               {unread > 0 && (
@@ -614,7 +614,7 @@ function ActiveBookingCard({ booking, onViewDetails, onChat, unread = 0 }: {
               )}
             </button>
           )}
-          <button onClick={onViewDetails} className="px-4 py-3 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
+          <button onClick={onViewDetails} className="px-4 py-3 min-h-11 bg-primary text-white hover:bg-primary-container rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer">
             View Details
           </button>
         </div>
@@ -637,7 +637,7 @@ function HistoryBookingItem({ booking, onRebook, onClick }: {
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-primary/10 transition-all">
       <div onClick={onClick} className="flex justify-between items-start gap-4 cursor-pointer">
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3.5 min-w-0">
           <div className="p-3 bg-surface-container-low text-on-surface-variant rounded-xl border border-outline-variant/40 shrink-0">
             <span className="material-symbols-outlined text-2xl">{icon}</span>
           </div>
@@ -671,17 +671,17 @@ function HistoryBookingItem({ booking, onRebook, onClick }: {
       )}
 
       {/* CTA buttons */}
-      <div className="flex gap-2.5 mt-4 pt-4 border-t border-outline-variant/60">
+      <div className="flex flex-wrap gap-2.5 mt-4 pt-4 border-t border-outline-variant/60">
         <button
           onClick={onRebook}
-          className="px-4 py-2 bg-primary text-white hover:bg-primary-container text-xs font-bold rounded-xl transition-all cursor-pointer"
+          className="px-4 py-2 min-h-11 bg-primary text-white hover:bg-primary-container text-xs font-bold rounded-xl transition-all cursor-pointer"
         >
           Rebook
         </button>
         {booking.status === "completed" && !booking.customerRating && (
           <button
             onClick={onClick}
-            className="px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+            className="px-4 py-2 min-h-11 bg-amber-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
           >
             ⭐ Rate & Pay
           </button>
@@ -714,7 +714,7 @@ function HistoryRowItem({ booking, onRebook }: {
           <span className="text-xs font-bold text-primary shrink-0">₹{booking.amount}</span>
         </div>
         <div className="flex gap-1.5 mt-2">
-          <button onClick={onRebook} className="px-2.5 py-1 bg-primary text-white text-[9px] font-bold rounded-lg uppercase tracking-wider cursor-pointer">Rebook</button>
+          <button onClick={onRebook} className="px-3 py-2 min-h-11 bg-primary text-white text-[9px] font-bold rounded-lg uppercase tracking-wider cursor-pointer">Rebook</button>
         </div>
       </div>
     </div>

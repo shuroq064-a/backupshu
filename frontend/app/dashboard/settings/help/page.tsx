@@ -75,7 +75,7 @@ export default function HelpSupportPage() {
       <header className="mb-6">
         <div className="flex items-center gap-2">
           <BackButton label="" fallback="/dashboard/settings" className="px-1.5 py-1.5 shrink-0" />
-          <div>
+          <div className="min-w-0">
             <h2 className="text-3xl font-bold tracking-tight text-on-surface">
               Help &amp; Support
             </h2>
@@ -132,10 +132,10 @@ export default function HelpSupportPage() {
                   onClick={() => setOpen(isOpen ? null : i)}
                   className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
                 >
-                  <span className="font-label-md text-label-md text-on-surface">
+                  <span className="min-w-0 font-label-md text-label-md text-on-surface">
                     {faq.q}
                   </span>
-                  <span className="material-symbols-outlined text-on-surface-variant transition-transform duration-200">
+                  <span className="material-symbols-outlined shrink-0 text-on-surface-variant transition-transform duration-200">
                     {isOpen ? "expand_less" : "expand_more"}
                   </span>
                 </button>

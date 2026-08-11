@@ -112,7 +112,7 @@ export default function SpecialistSettingsPage() {
             </div>
             <button
               onClick={() => router.push("/dashboard/profile")}
-              className="ml-4 rounded-full p-2 text-primary transition-soft hover:bg-primary-container/10"
+              className="sm:ml-4 self-start sm:self-auto rounded-full p-2 text-primary transition-soft hover:bg-primary-container/10"
               aria-label="Edit profile"
             >
               <span className="material-symbols-outlined">edit</span>

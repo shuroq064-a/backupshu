@@ -466,7 +466,7 @@ export default function SpecialistOnboarding() {
               <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
                 Verification
               </h3>
-              <div className="flex flex-col items-center justify-center text-center border-2 border-dashed border-outline-variant rounded-2xl p-10 space-y-4 bg-primary-container/5">
+              <div className="flex flex-col items-center justify-center text-center border-2 border-dashed border-outline-variant rounded-2xl p-6 sm:p-10 space-y-4 bg-primary-container/5">
                 <div className="w-14 h-14 rounded-full bg-primary-container/30 flex items-center justify-center text-primary">
                   <span className="material-symbols-outlined text-3xl">verified_user</span>
                 </div>
@@ -557,7 +557,7 @@ export default function SpecialistOnboarding() {
               {step > 1 && (
                 <button
                   onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
-                  className="px-6 py-3 rounded-full border border-outline-variant text-on-surface-variant font-semibold hover:bg-surface-container-low transition-colors cursor-pointer"
+                  className="flex-1 md:flex-none justify-center px-6 py-3 rounded-full border border-outline-variant text-on-surface-variant font-semibold hover:bg-surface-container-low transition-colors cursor-pointer"
                 >
                   Back
                 </button>
@@ -565,7 +565,7 @@ export default function SpecialistOnboarding() {
               <button
                 onClick={handleSaveDraft}
                 disabled={savingDraft}
-                className="px-6 py-3 rounded-full border border-primary text-primary font-semibold hover:bg-primary-container/10 transition-colors disabled:opacity-50 cursor-pointer"
+                className="flex-1 md:flex-none justify-center px-6 py-3 rounded-full border border-primary text-primary font-semibold hover:bg-primary-container/10 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {savingDraft ? "Saving..." : "Save as draft"}
               </button>

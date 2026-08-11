@@ -127,9 +127,9 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-8 font-sans md:px-8">
-      <header className="mb-6 flex items-center justify-between">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-on-surface">My Profile</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">My Profile</h2>
           <p className="font-body-md text-body-md text-on-surface-variant">Manage your personal information</p>
         </div>
           <button
@@ -157,12 +157,12 @@ export default function ProfilePage() {
 
           {/* ── Profile header card ──────────────── */}
           <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
                 <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary-container to-primary text-3xl font-extrabold text-white">
                   {initials}
                 </div>
-                <div>
+                <div className="min-w-0">
                   {isEditing ? (
                     <input
                       type="text"
@@ -183,7 +183,7 @@ export default function ProfilePage() {
               <button
                 onClick={isEditing ? handleSave : () => setIsEditing(true)}
                 disabled={isSaving}
-                className="flex items-center gap-1.5 rounded-xl border border-outline-variant px-4 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-outline-variant px-4 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10 disabled:opacity-50 sm:w-auto"
               >
                 {isSaving ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
@@ -307,7 +307,7 @@ export default function ProfilePage() {
           {/* Overview / Stats */}
           <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
             <h3 className="mb-4 font-headline-md text-headline-md text-on-surface">Overview</h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {isSpecialistMode ? (
                 <>
                   <StatTile icon="event_note" label="Jobs" value="0" />

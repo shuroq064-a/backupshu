@@ -105,9 +105,9 @@ export function PaymentModal({ bookingId, bookingNumber, serviceType, amount, on
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] p-4 overflow-y-auto">
-      <div className="min-h-full flex items-center justify-center">
-        <div className="bg-surface-container-lowest rounded-3xl w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl my-8">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] p-0 sm:p-4 overflow-y-auto">
+      <div className="min-h-full flex items-end sm:items-center justify-center">
+        <div className="bg-surface-container-lowest rounded-none sm:rounded-3xl w-full max-w-sm h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto shadow-2xl my-0 sm:my-8">
 
           {/* Header */}
           <div className="bg-gradient-to-br from-primary to-primary-container px-6 py-6 text-center">

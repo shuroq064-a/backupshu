@@ -34,23 +34,27 @@ export function SettingsRow({
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center justify-between rounded-lg border border-outline-variant/50 bg-surface p-4 transition-soft hover:border-primary ${
+      className={`group flex items-center justify-between gap-4 rounded-lg border border-outline-variant/50 bg-surface p-4 transition-soft hover:border-primary ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
-      <div className="flex items-center gap-4">
-        <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="material-symbols-outlined shrink-0 text-on-surface-variant group-hover:text-primary">
           {icon}
         </span>
-        <div>
+        <div className="min-w-0">
           <p className="font-label-md text-label-md">{label}</p>
           {sub && (
             <p className={`text-xs text-on-surface-variant ${subClass}`}>{sub}</p>
           )}
         </div>
       </div>
-      {trailing ?? (
-        <span className="material-symbols-outlined text-outline">chevron_right</span>
+      {trailing ? (
+        <span className="shrink-0">{trailing}</span>
+      ) : (
+        <span className="material-symbols-outlined shrink-0 text-outline">
+          chevron_right
+        </span>
       )}
     </div>
   );
@@ -251,7 +255,7 @@ export function PasswordModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm animate-pop-in rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]"
+        className="max-h-[90dvh] w-full max-w-sm animate-pop-in overflow-y-auto rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]"
       >
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-primary-container/10 text-2xl text-primary">
           <span className="material-symbols-outlined">lock_reset</span>
@@ -373,7 +377,7 @@ export function DeleteModal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm animate-pop-in rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
+      <div className="max-h-[90dvh] w-full max-w-sm animate-pop-in overflow-y-auto rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
         {step === "ask" ? (
           <>
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-red-50 text-2xl text-red-500">
@@ -433,7 +437,7 @@ export function DeleteModal({
                 hint={otpSent ? "Code sent — check your inbox" : ""}
                 autoFocus
                 onComplete={handleComplete}
-                className="[&_input]:h-11 [&_input]:w-10"
+                className="[&>div>div]:w-9 [&_input]:h-11 [&_input]:w-9 sm:[&>div>div]:w-10 sm:[&_input]:w-10"
               />
             </div>
 
@@ -537,9 +541,9 @@ export function DangerZone({
 export function SettingsFooter() {
   return (
     <footer className="mt-12 opacity-50">
-      <div className="flex items-center justify-center gap-4 text-outline">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-outline">
         <span className="font-label-sm text-label-sm">Version 4.2.0-stable</span>
-        <span className="h-1 w-1 rounded-full bg-outline" />
+        <span className="hidden h-1 w-1 rounded-full bg-outline sm:block" />
         <span className="font-label-sm text-label-sm">© 2024 ShuroqX Platform</span>
       </div>
     </footer>

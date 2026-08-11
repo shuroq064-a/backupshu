@@ -186,16 +186,16 @@ export function ServiceLocationFlow() {
   if (!isLocationAvailable || !open) return null;
   const heading = step === "address" ? "Address details" : step === "map" ? "Choose service location" : step === "detecting" ? "Detecting your location" : "Allow location access?";
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[36px] bg-surface-container-lowest shadow-2xl border border-outline-variant">
-        <div className="flex items-start justify-between gap-4 px-8 py-6 pb-2">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-primary shadow-sm">
-              <span className="material-symbols-outlined text-[24px]">location_on</span>
+    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-900/40 p-0 sm:p-4 backdrop-blur-sm">
+      <div className="h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-t-[28px] sm:rounded-[36px] bg-surface-container-lowest shadow-2xl border border-outline-variant">
+        <div className="flex items-start justify-between gap-3 px-5 sm:px-8 py-5 sm:py-6 pb-2">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-container text-primary shadow-sm">
+              <span className="material-symbols-outlined text-[20px] sm:text-[24px]">location_on</span>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Service location</p>
-              <h2 className="mt-1 text-xl font-extrabold text-on-surface">{heading}</h2>
+              <h2 className="mt-1 text-lg sm:text-xl font-extrabold text-on-surface">{heading}</h2>
               <p className="mt-1 text-sm font-medium text-on-surface-variant">Choose the exact place where the specialist should meet you.</p>
             </div>
           </div>
@@ -208,7 +208,7 @@ export function ServiceLocationFlow() {
             </button>
           )}
         </div>
-        <div className="px-8 pb-8 pt-4">
+        <div className="px-5 sm:px-8 pb-6 sm:pb-8 pt-4">
           {step === "permission" && (
             <div className="space-y-4">
               <p className="text-sm font-medium text-on-surface-variant mb-6">You can always search the map and move the pin manually, even if location access is denied.</p>

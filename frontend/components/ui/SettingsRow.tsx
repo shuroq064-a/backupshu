@@ -69,8 +69,8 @@ export function SettingsRow({
         </div>
       )}
       {type === "value" && typeof value === "string" && (
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <span className="text-sm text-gray-400">{value}</span>
+        <div className="flex items-center gap-1 flex-shrink-0 max-w-[45%]">
+          <span className="text-sm text-gray-400 truncate">{value}</span>
           {onClick && <span className="text-gray-400 text-sm">›</span>}
         </div>
       )}

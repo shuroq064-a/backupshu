@@ -50,13 +50,13 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-screen bg-gray-950">
       <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-      <main className="flex-1 overflow-auto bg-gray-950">
+      <main className="flex-1 min-w-0 overflow-auto bg-gray-950">
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center gap-3 h-14 px-4 bg-gray-900 border-b border-gray-800 sticky top-0 z-30">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            className="p-2 -ml-2 rounded-lg text-gray-300 hover:bg-gray-800 transition-colors"
+            className="p-2.5 -ml-2 rounded-lg text-gray-300 hover:bg-gray-800 transition-colors"
             aria-label="Open menu"
           >
             <span className="text-xl">☰</span>

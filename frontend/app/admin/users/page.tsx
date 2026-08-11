@@ -13,7 +13,7 @@ export default function AdminUsersPage() {
   }, [dispatch]);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">All Users</h1>
         <p className="text-gray-400 text-sm mt-1">
@@ -28,9 +28,9 @@ export default function AdminUsersPage() {
       ) : users.length === 0 ? (
         <div className="text-center py-20 text-gray-500">No users found</div>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-x-auto">
           {/* Table header */}
-          <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-gray-800">
+          <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-gray-800 min-w-[680px]">
             {["Name", "Email", "Role", "Has Specialist Profile", "Joined"].map(
               (h) => (
                 <p key={h} className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -41,7 +41,7 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-gray-800 min-w-[680px]">
             {users.map((user) => (
               <div key={user.id} className="grid grid-cols-5 gap-4 px-5 py-4 hover:bg-gray-800/40 transition-colors">
                 <div className="flex items-center gap-2">

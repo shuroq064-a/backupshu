@@ -23,11 +23,11 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
       {/* ── Navbar ──────────────────────────── */}
-      <nav className="flex items-center justify-between px-8 py-5 max-w-7xl mx-auto">
-                  <div className="mb-8">
+      <nav className="flex items-center justify-between gap-3 px-4 sm:px-8 py-5 max-w-7xl mx-auto">
+                  <div className="mb-0 sm:mb-8">
                     <Logo size="md" />
                   </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/auth"
             className="text-sm font-medium text-gray-600 hover:text-violet-700 transition-colors"
@@ -36,7 +36,7 @@ export default function LandingPage() {
           </Link>
           <Link
             href="/auth"
-            className="px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-200"
+            className="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-200"
           >
             Get Started
           </Link>
@@ -44,41 +44,41 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-8 pt-16 pb-20 text-center">
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 pt-12 sm:pt-16 pb-16 sm:pb-20 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-100 border border-violet-200 rounded-full text-violet-700 text-sm font-medium mb-6">
           <span className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
           AI-Powered Service Marketplace
         </div>
 
-        <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6 max-w-3xl mx-auto">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6 max-w-3xl mx-auto">
           Find trusted specialists{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-purple-600">
             near you, instantly
           </span>
         </h1>
 
-        <p className="text-xl text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
+        <p className="text-base sm:text-xl text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
           Just describe your problem. Our AI connects you with verified local
           specialists in seconds.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
           <Link
             href="/auth"
-            className="px-8 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-2xl text-base font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-xl shadow-violet-300 hover:shadow-violet-400 hover:-translate-y-0.5"
+            className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-2xl text-base font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-xl shadow-violet-300 hover:shadow-violet-400 hover:-translate-y-0.5"
           >
             Find a Specialist →
           </Link>
           <Link
             href="/auth"
-            className="px-8 py-4 bg-surface-container-lowest text-violet-700 rounded-2xl text-base font-semibold border border-violet-200 hover:border-violet-400 hover:bg-violet-50 transition-all"
+            className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-surface-container-lowest text-violet-700 rounded-2xl text-base font-semibold border border-violet-200 hover:border-violet-400 hover:bg-violet-50 transition-all"
           >
             Offer Your Services
           </Link>
         </div>
 
         {/* Mock chat preview */}
-        <div className="mt-16 max-w-2xl mx-auto bg-surface-container-lowest rounded-3xl shadow-2xl shadow-violet-200 border border-violet-100 p-6 text-left">
+        <div className="mt-16 max-w-2xl mx-auto bg-surface-container-lowest rounded-3xl shadow-2xl shadow-violet-200 border border-violet-100 p-4 sm:p-6 text-left">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
               U
@@ -135,36 +135,36 @@ export default function LandingPage() {
       </section>
 
       {/* ── Stats ───────────────────────────── */}
-      <section className="bg-white/60 backdrop-blur py-12 border-y border-violet-100">
-        <div className="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+      <section className="bg-white/60 backdrop-blur py-10 sm:py-12 border-y border-violet-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8">
           {stats.map((s) => (
             <div key={s.label} className="text-center">
-              <p className="text-3xl font-bold text-violet-700">{s.value}</p>
-              <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-violet-700">{s.value}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── Services ────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-8 py-20">
-        <h2 className="text-3xl font-bold text-gray-900 text-center mb-3">
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 py-14 sm:py-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-3">
           Services we cover
         </h2>
-        <p className="text-gray-500 text-center mb-10">
+        <p className="text-sm sm:text-base text-gray-500 text-center mb-8 sm:mb-10">
           From home repairs to wellness — find a specialist for anything
         </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {services.map((s) => (
             <Link
               href="/auth"
               key={s.label}
-              className="flex flex-col items-center gap-3 p-6 bg-surface-container-lowest rounded-2xl border border-violet-100 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100 hover:-translate-y-1 transition-all group"
+              className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 bg-surface-container-lowest rounded-2xl border border-violet-100 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100 hover:-translate-y-1 transition-all group"
             >
-              <span className="text-4xl group-hover:scale-110 transition-transform">
+              <span className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform">
                 {s.icon}
               </span>
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-xs sm:text-sm font-semibold text-gray-700">
                 {s.label}
               </span>
             </Link>
@@ -173,12 +173,12 @@ export default function LandingPage() {
       </section>
 
       {/* ── How it works ────────────────────── */}
-      <section className="bg-white/60 backdrop-blur py-20 border-t border-violet-100">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+      <section className="bg-white/60 backdrop-blur py-14 sm:py-20 border-t border-violet-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-8 sm:mb-12">
             How it works
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
             {[
               {
                 step: "01",
@@ -217,23 +217,23 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer CTA ──────────────────────── */}
-      <section className="py-20 text-center px-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+      <section className="py-14 sm:py-20 text-center px-4 sm:px-8">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
           Ready to get started?
         </h2>
-        <p className="text-gray-500 mb-8">
+        <p className="text-sm sm:text-base text-gray-500 mb-8">
           Join thousands of clients and specialists on ShuroqX
         </p>
         <Link
           href="/auth"
-          className="inline-flex px-10 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-2xl text-base font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-xl shadow-violet-300 hover:-translate-y-0.5"
+          className="w-full sm:w-auto inline-flex justify-center px-8 sm:px-10 py-4 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-2xl text-base font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-xl shadow-violet-300 hover:-translate-y-0.5"
         >
           Create Free Account →
         </Link>
       </section>
 
       {/* ── Footer ──────────────────────────── */}
-      <footer className="border-t border-violet-100 py-8 px-8 text-center">
+      <footer className="border-t border-violet-100 py-8 px-4 sm:px-8 text-center">
         <p className="text-sm text-gray-400">
           © 2026 ShuroqX. All rights reserved.
         </p>

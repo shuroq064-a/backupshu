@@ -29,8 +29,8 @@ export default function AboutPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 font-sans md:px-8">
       {/* ── Header ─────────────────────────── */}
-      <header className="mb-6 flex items-center justify-between">
-        <div>
+      <header className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-3xl font-bold tracking-tight text-on-surface">
             About
           </h2>
@@ -40,7 +40,7 @@ export default function AboutPage() {
         </div>
         <Link
           href="/dashboard/settings"
-          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10"
+          className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10"
         >
           <span className="material-symbols-outlined text-sm">arrow_back</span>
           Settings

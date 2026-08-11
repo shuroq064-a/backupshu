@@ -51,7 +51,7 @@ export default function SpecialistDetailPage() {
   const isPending = s.verificationStatus === "pending";
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto">
       {/* Back */}
       <button
         onClick={() => router.back()}
@@ -69,7 +69,7 @@ export default function SpecialistDetailPage() {
           <div>
             <h2 className="text-xl font-bold text-white">{s.name}</h2>
             <p className="text-gray-400 text-sm">{s.email}</p>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <SkillBadges services={s.services} dark />
               <StatusPill status={s.verificationStatus} />
             </div>
@@ -94,7 +94,7 @@ export default function SpecialistDetailPage() {
         </div>
 
         {/* Details */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
           {[
             { label: "User ID", value: s.userId },
             { label: "Worker ID", value: s.id },

@@ -206,7 +206,7 @@ export function DraggableChatPopup({ header, children }: DraggableChatPopupProps
         transition: "none",
       }}
     >
-      <div className="w-[calc(100vw-2rem)] max-w-[420px] h-[560px] max-h-[85vh] flex flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_24px_80px_-12px_rgba(0,0,0,0.45),0_8px_24px_-8px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-black/[0.05]">
+      <div className="w-[calc(100vw-0.75rem)] max-w-[420px] h-[calc(100dvh-1.25rem)] sm:h-[560px] max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden rounded-3xl bg-surface-container-lowest shadow-[0_24px_80px_-12px_rgba(0,0,0,0.45),0_8px_24px_-8px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-black/[0.05]">
         <div
           onPointerDown={handleHeaderPointerDown}
           onPointerMove={handleHeaderPointerMove}

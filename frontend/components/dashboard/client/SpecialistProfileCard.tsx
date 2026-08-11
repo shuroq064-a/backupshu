@@ -74,7 +74,7 @@ export function SpecialistProfileCard({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: "spring", stiffness: 420, damping: 24, mass: 0.8 }}
-        className="w-full sm:max-w-sm bg-surface-container-lowest rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden relative"
+        className="w-full sm:max-w-sm bg-surface-container-lowest rounded-t-3xl sm:rounded-3xl shadow-2xl relative max-h-[100dvh] sm:max-h-[90vh] overflow-x-hidden overflow-y-auto sm:overflow-hidden"
       >
         <button
           onClick={onClose}

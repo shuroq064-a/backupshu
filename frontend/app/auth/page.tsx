@@ -132,7 +132,7 @@ function AuthPageInner() {
   const inputClass = "w-full rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-surface p-4">
+    <div className="relative min-h-screen flex bg-surface p-4 sm:p-6">
       {/* Particles background */}
       <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
         <Particles
@@ -148,7 +148,7 @@ function AuthPageInner() {
         />
       </div>
       <ThemeToggle />
-      <div className="relative z-10 w-full max-w-5xl overflow-hidden rounded-3xl shadow-2xl lg:grid lg:grid-cols-2">
+      <div className="relative z-10 m-auto w-full max-w-5xl overflow-hidden rounded-3xl shadow-2xl lg:grid lg:grid-cols-2">
         {/* Vertical divider between panels */}
         <div aria-hidden className="absolute inset-y-24 left-1/2 z-20 hidden w-px -translate-x-1/2 bg-outline-variant/70 lg:block" />
         {/* Left panel - Branding + Floating Paths */}
@@ -170,7 +170,7 @@ function AuthPageInner() {
         </div>
 
         {/* Right panel - Form */}
-        <div className="relative flex h-[680px] flex-col justify-center bg-surface-container-lowest p-12">
+        <div className="relative flex min-h-[680px] flex-col justify-center bg-surface-container-lowest p-6 sm:p-12">
         <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-30">
           <div className="absolute top-0 right-0 h-80 w-56 -translate-y-48 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.02)_50%,rgba(255,255,255,0.01)_80%)]" />
           <div className="absolute top-0 right-0 h-80 w-60 translate-x-2 -translate-y-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0.01)_80%,transparent_100%)]" />

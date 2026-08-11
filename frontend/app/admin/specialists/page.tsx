@@ -57,7 +57,7 @@ export default function AdminSpecialistsPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Specialist Requests</h1>
@@ -67,7 +67,7 @@ export default function AdminSpecialistsPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
         {tabMeta.map((t) => (
           <div key={t.key} className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -80,12 +80,12 @@ export default function AdminSpecialistsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-900 rounded-xl p-1 mb-5 w-fit border border-gray-800">
+      <div className="flex gap-1 bg-gray-900 rounded-xl p-1 mb-5 w-full sm:w-fit border border-gray-800">
         {tabMeta.map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === t.key
                 ? "bg-gray-800 text-white shadow"
                 : "text-gray-500 hover:text-gray-300"
@@ -179,7 +179,7 @@ function SpecialistCard({
   });
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-center gap-4 hover:border-gray-700 transition-colors">
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-gray-700 transition-colors">
       {/* Avatar */}
       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
         {initials}
@@ -207,11 +207,11 @@ function SpecialistCard({
 
       {/* Status badge or actions */}
       {status === "pending" ? (
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-2 w-full sm:w-auto sm:flex-shrink-0">
           <button
             onClick={onApprove}
             disabled={isActioning}
-            className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isActioning ? (
               <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -222,7 +222,7 @@ function SpecialistCard({
           <button
             onClick={onReject}
             disabled={isActioning}
-            className="flex items-center gap-1.5 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 text-red-400 border border-red-700/50 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-red-900/50 hover:bg-red-800/60 text-red-400 border border-red-700/50 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             ✕ Reject
           </button>

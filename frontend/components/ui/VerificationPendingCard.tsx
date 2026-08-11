@@ -20,7 +20,7 @@ export function VerificationPendingCard({
   if (centered) {
     return (
       <div className="flex flex-1 items-center justify-center py-24">
-        <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-10 py-9 text-center shadow-sm">
+        <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-6 sm:px-10 py-9 text-center shadow-sm">
           <span className="material-symbols-outlined text-4xl text-amber-500 font-fill">verified_user</span>
           <p className="text-lg font-extrabold text-amber-900">Verification Pending</p>
           <p className="text-xs leading-relaxed text-amber-800/90">

@@ -599,8 +599,8 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
 
           {/* Map card */}
           <motion.div
-            className="relative w-[calc(100vw-32px)] bg-[#DEDEDE] shadow-2xl sm:w-[720px] dark:bg-[#141414]"
-            style={{ borderRadius: 32, aspectRatio: "1 / 0.6", touchAction: "none", overflow: "hidden" }}
+            className="relative h-[100dvh] w-full bg-[#DEDEDE] shadow-2xl sm:h-auto sm:w-[720px] sm:aspect-[1/0.6] rounded-none sm:rounded-[32px] dark:bg-[#141414]"
+            style={{ touchAction: "none", overflow: "hidden" }}
             initial={{ scale: 0.85, y: 30 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
@@ -617,12 +617,12 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-4 left-1/2 -translate-x-1/2 z-[800] bg-white/95 backdrop-blur-sm px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2.5"
+                  className="absolute top-16 left-1/2 -translate-x-1/2 sm:top-4 z-[800] bg-white/95 backdrop-blur-sm px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2.5"
                 >
                   {gpsError ? (
                     <>
                       <span className="material-symbols-outlined text-[14px] text-red-500">location_off</span>
-                      <span className="text-[11px] font-semibold text-red-600 max-w-[200px] truncate">{gpsError}</span>
+                      <span className="text-[11px] font-semibold text-red-600 max-w-[55vw] sm:max-w-[200px] truncate">{gpsError}</span>
                       <button
                         onClick={() => {
                           setGpsError(null);
@@ -664,7 +664,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                  initial={{ opacity: 0, scale: 0.95 }}
                  animate={{ opacity: 1, scale: 1 }}
                  transition={{ delay: 0.2, type: "spring", bounce: 0, duration: 0.4 }}
-                 className="absolute top-3 left-3 z-[800] w-[220px] rounded-2xl overflow-hidden dark:border dark:border-white/10"
+                 className="absolute top-16 left-3 right-3 sm:top-3 sm:left-3 sm:right-auto sm:w-[220px] z-[800] rounded-2xl overflow-hidden dark:border dark:border-white/10"
                  style={{
                    boxShadow: "0 8px 32px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)",
                  }}

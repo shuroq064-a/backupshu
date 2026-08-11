@@ -376,8 +376,8 @@ export function LegacyLocationPermissionPrompt() {
   if (!isClientDashboard || !open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-on-surface/40 px-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant overflow-hidden">
+    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-on-surface/40 p-0 sm:p-4">
+      <div className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant overflow-y-auto max-h-[100dvh] sm:max-h-[90vh]">
         <div className="px-5 py-4 border-b border-outline-variant flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Location permission</p>
@@ -397,7 +397,7 @@ export function LegacyLocationPermissionPrompt() {
         </div>
 
         <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">
-          <div className="min-h-64 bg-primary/5 relative overflow-hidden border-b md:border-b-0 md:border-r border-outline-variant">
+          <div className="min-h-56 md:min-h-64 bg-primary/5 relative overflow-hidden border-b md:border-b-0 md:border-r border-outline-variant">
             <div className="absolute inset-0 opacity-60 bg-[linear-gradient(90deg,rgba(16,185,129,0.18)_1px,transparent_1px),linear-gradient(0deg,rgba(16,185,129,0.18)_1px,transparent_1px)] bg-[size:28px_28px]" />
             <div className="absolute inset-x-8 top-12 h-8 rounded-full bg-white/70 rotate-[-12deg]" />
             <div className="absolute inset-x-10 bottom-12 h-9 rounded-full bg-white/70 rotate-[16deg]" />

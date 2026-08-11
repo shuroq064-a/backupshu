@@ -13,6 +13,7 @@ export function Toaster() {
       richColors
       expand
       duration={4000}
+      mobileOffset="12px"
       toastOptions={{
         classNames: {
           toast:

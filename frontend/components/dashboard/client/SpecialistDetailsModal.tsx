@@ -81,7 +81,7 @@ export function SpecialistDetailsModal({ specialist, onClose }: SpecialistDetail
         initial={{ opacity: 0, scale: 0.82, y: 36 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 420, damping: 24, mass: 0.8 }}
-        className="bg-surface-container-lowest rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md shadow-2xl overflow-hidden max-h-[90vh] flex flex-col relative"
+        className="bg-surface-container-lowest rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md shadow-2xl overflow-hidden max-h-[100dvh] sm:max-h-[90vh] flex flex-col relative"
       >
 
         <button

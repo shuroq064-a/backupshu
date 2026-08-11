@@ -55,7 +55,7 @@ export default function TermsPage() {
       <header className="mb-6">
         <div className="flex items-center gap-2">
           <BackButton label="" fallback="/dashboard/settings" className="px-1.5 py-1.5 shrink-0" />
-          <div>
+          <div className="min-w-0">
             <h2 className="text-3xl font-bold tracking-tight text-on-surface">
               Terms of Service
             </h2>

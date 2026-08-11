@@ -535,18 +535,18 @@ export default function SpecialistDashboard() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2.5 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() => handleDecline(req.id)}
                       disabled={actionLoading === req.id}
-                      className="px-6 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl text-xs font-bold hover:bg-surface-container-low transition-colors cursor-pointer disabled:opacity-50"
+                      className="flex-1 sm:flex-none justify-center px-6 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl text-xs font-bold hover:bg-surface-container-low transition-colors cursor-pointer disabled:opacity-50"
                     >
                       Decline
                     </button>
                     <button
                       onClick={() => handleAccept(req.id)}
                       disabled={actionLoading === req.id}
-                      className="px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                      className="flex-1 sm:flex-none justify-center px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/90 transition-all shadow-md cursor-pointer disabled:opacity-50"
                     >
                       {actionLoading === req.id ? "Accepting..." : "Accept"}
                     </button>
@@ -557,7 +557,7 @@ export default function SpecialistDashboard() {
           )}
 
           {totalRequestPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
               <p className="text-xs text-on-surface-variant">
                 Showing {paginatedRequests.length} of {requests.length} requests
               </p>

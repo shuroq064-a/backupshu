@@ -79,7 +79,7 @@ export const ViewOnMap: React.FC<ViewOnMapProps> = ({
               <motion.div
                 key="map"
                 layoutId="map-container"
-                className="relative aspect-square w-[calc(100vw-64px)] overflow-hidden bg-[#DEDEDE] shadow-lg transition-colors duration-300 sm:w-[380px] dark:bg-[#141414]"
+                className="relative aspect-square w-[calc(100vw-48px)] overflow-hidden bg-[#DEDEDE] shadow-lg transition-colors duration-300 sm:w-[380px] dark:bg-[#141414]"
                 style={{ borderRadius: 32 }}
                 transition={springConfig}
               >

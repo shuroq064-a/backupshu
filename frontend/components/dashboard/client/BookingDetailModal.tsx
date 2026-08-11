@@ -175,14 +175,14 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onWheel={(e) => e.stopPropagation()}
-      className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
       style={{ overflow: "hidden", overscrollBehavior: "none" }}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.82, y: 36 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 420, damping: 24, mass: 0.8 }}
-        className="bg-surface-container-lowest rounded-3xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden shadow-[0_20px_60px_-10px_rgba(0,0,0,0.35),0_8px_20px_-6px_rgba(0,0,0,0.2)] ring-1 ring-inset ring-black/[0.05]"
+        className="bg-surface-container-lowest w-full max-w-lg flex flex-col h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[90vh] overflow-hidden rounded-none sm:rounded-3xl shadow-[0_20px_60px_-10px_rgba(0,0,0,0.35),0_8px_20px_-6px_rgba(0,0,0,0.2)] ring-1 ring-inset ring-black/[0.05]"
         onClick={(e) => e.stopPropagation()}
       >
 
@@ -491,16 +491,16 @@ export function BookingDetailModal({ booking, onClose }: BookingDetailModalProps
                     </div>
                   </div>
 
-                  <div className="relative flex justify-center gap-3 my-5">
+                  <div className="relative flex justify-center gap-2 sm:gap-3 my-4 sm:my-5">
                     {localOtp.split("").map((digit, i) => (
                       <motion.div
                         key={i}
                         initial={{ scale: 0.8, opacity: 0, y: 10 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.08, type: "spring", stiffness: 300, damping: 20 }}
-                        className="w-16 h-16 rounded-2xl bg-white border-2 border-emerald-300 flex items-center justify-center shadow-md shadow-emerald-500/10"
+                        className="w-11 h-11 sm:w-16 sm:h-16 rounded-2xl bg-white border-2 border-emerald-300 flex items-center justify-center shadow-md shadow-emerald-500/10"
                       >
-                        <span className="text-3xl font-mono font-bold text-emerald-600 tabular-nums">{digit}</span>
+                        <span className="text-2xl sm:text-3xl font-mono font-bold text-emerald-600 tabular-nums">{digit}</span>
                       </motion.div>
                     ))}
                   </div>

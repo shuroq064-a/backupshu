@@ -587,7 +587,7 @@ export default function RedesignedClientChat() {
           <button
             onClick={() => router.back()}
             aria-label="Back"
-            className="flex items-center rounded-lg px-1 py-1 text-on-surface-variant transition-soft hover:bg-surface-container-high"
+            className="flex items-center rounded-lg px-2 py-2 text-on-surface-variant transition-soft hover:bg-surface-container-high"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
@@ -599,7 +599,7 @@ export default function RedesignedClientChat() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 mr-20">
+        <div className="flex items-center gap-2 mr-0 sm:mr-20">
           {/* Service PIN info */}
           <div className="hidden sm:flex items-center gap-2 bg-surface-container pl-4 pr-1.5 py-1.5 rounded-full border border-outline-variant text-xs shadow-sm">
             <span className="text-primary font-bold">PIN:</span>
@@ -624,7 +624,7 @@ export default function RedesignedClientChat() {
           </div>
           {messages.length > 0 && (
             <button onClick={handleClearChat}
-              className="sm:hidden text-xs text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors font-medium">
+              className="sm:hidden text-xs text-red-500 hover:bg-red-50 px-2.5 py-2 rounded-lg transition-colors font-medium">
               Clear
             </button>
           )}
@@ -633,14 +633,14 @@ export default function RedesignedClientChat() {
 
       {/* Profile incomplete warning banner */}
       {isComplete === false && (
-        <div className="mx-6 mt-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 shadow-sm">
+        <div className="mx-4 sm:mx-6 mt-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 sm:px-5 py-3.5 shadow-sm">
           <span className="material-symbols-outlined text-lg text-amber-400">warning</span>
           <div className="flex-1">
             <p className="text-sm font-semibold text-amber-800">Profile configuration required</p>
             <p className="text-xs text-amber-700 mt-0.5">Add your missing details ({missingFields.join(" and ")}) to authorize booking requests.</p>
           </div>
           <button onClick={() => router.push("/dashboard/profile")}
-            className="px-4.5 py-2 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm shadow-amber-100">
+            className="px-3.5 sm:px-4.5 min-h-11 bg-amber-500 text-white rounded-xl text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm shadow-amber-100">
             Complete Profile
           </button>
         </div>
@@ -720,7 +720,7 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (s: string) => v
       <div className="flex flex-wrap gap-2 justify-center mt-3">
         {suggestions.map(({ label, prompt, icon }) => (
           <button key={prompt} onClick={() => onSuggestionClick(prompt)}
-            className="flex items-center gap-2 rounded-xl border border-outline-variant bg-surface-container-low px-3.5 py-2 text-xs font-semibold text-primary dark:text-white transition-all hover:bg-surface-container active:scale-95">
+            className="flex items-center gap-2 rounded-xl border border-outline-variant bg-surface-container-low px-3.5 py-2.5 text-xs font-semibold text-primary dark:text-white transition-all hover:bg-surface-container active:scale-95">
             <span className="material-symbols-outlined text-[17px]">{icon}</span>
             {label}
           </button>
@@ -758,7 +758,7 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
   return (
     <Message>
       <MessageAvatar fallback="SX" />
-      <MessageContent className="max-w-xl space-y-3">
+      <MessageContent className="min-w-0 max-w-xl space-y-3">
 
         {message.specialist && isAccepted && (
           <SpecialistCard
@@ -801,7 +801,7 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
                     key={sp.workerId}
                     disabled={Boolean(message.bookingPending)}
                     onClick={() => onChooseSpecialist(sp.workerId)}
-                    className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all active:scale-95 disabled:opacity-60 ${
+                    className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all active:scale-95 disabled:opacity-60 ${
                       selected
                         ? "border-primary bg-primary/10"
                         : "border-outline-variant bg-surface-container-lowest hover:bg-surface-container-low"
@@ -932,12 +932,12 @@ function SpecialistCard({ specialist, liveStatus, onNameClick, bookingId, onView
         {bookingId && (
           <button
             onClick={() => onViewJob(bookingId)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs font-semibold border border-outline-variant hover:bg-surface-container transition-all cursor-pointer"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 min-h-11 bg-surface-container-low text-on-surface rounded-xl text-xs font-semibold border border-outline-variant hover:bg-surface-container transition-all cursor-pointer"
           >
             <span className="material-symbols-outlined text-xs">description</span> View Job Details
           </button>
         )}
-        <button className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary-container transition-all cursor-pointer">
+        <button className="flex-1 flex items-center justify-center gap-1.5 py-2.5 min-h-11 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary-container transition-all cursor-pointer">
           <span className="material-symbols-outlined text-xs">explore</span> Track Live
         </button>
       </div>

@@ -372,7 +372,7 @@ export function Sidebar({
       )}
 
       <aside
-        className={`flex flex-col bg-surface-container-lowest border border-outline-variant h-[calc(100vh-3rem)] flex-shrink-0 overflow-hidden
+        className={`flex flex-col bg-surface-container-lowest border border-outline-variant md:h-[calc(100vh-3rem)] flex-shrink-0 overflow-hidden max-md:overflow-y-auto
           md:static md:my-6 md:ml-6 md:rounded-[28px] md:bg-surface-container-lowest/80 md:backdrop-blur md:transition-all md:duration-300 md:shadow-sm
           ${collapsed ? "md:w-[68px]" : "md:w-64"}
           max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:rounded-r-[28px] max-md:shadow-2xl max-md:transform max-md:transition-transform max-md:duration-300
@@ -400,7 +400,7 @@ export function Sidebar({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-primary/5 text-gray-500 hover:text-primary transition-colors group md:hidden"
+              className="p-2 rounded-lg hover:bg-primary/5 text-gray-500 hover:text-primary transition-colors group md:hidden"
               aria-label="Close menu"
             >
               <span className="material-symbols-outlined text-lg">close</span>

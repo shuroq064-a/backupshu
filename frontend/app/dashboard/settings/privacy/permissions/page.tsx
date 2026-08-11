@@ -77,8 +77,8 @@ export default function PermissionsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 font-sans md:px-8">
       {/* ── Header ─────────────────────────── */}
-      <header className="mb-6 flex items-center justify-between">
-        <div>
+      <header className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-3xl font-bold tracking-tight text-on-surface">
             Permissions
           </h2>
@@ -88,7 +88,7 @@ export default function PermissionsPage() {
         </div>
         <button
           onClick={() => router.push("/dashboard/settings/privacy")}
-          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10"
+          className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10"
         >
           <span className="material-symbols-outlined text-sm">arrow_back</span>
           Privacy
@@ -111,16 +111,18 @@ export default function PermissionsPage() {
             key={p.id}
             className="flex items-center justify-between gap-4 rounded-lg px-4 py-3.5 transition-soft hover:bg-surface-container-low"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-4">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-container/10 text-primary">
                 <span className="material-symbols-outlined">{p.icon}</span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="font-label-md text-label-md">{p.label}</p>
                 <p className="mt-0.5 text-xs text-on-surface-variant">{p.subtitle}</p>
               </div>
             </div>
-            <Toggle value={p.enabled} onChange={() => togglePermission(p.id)} />
+            <span className="shrink-0">
+              <Toggle value={p.enabled} onChange={() => togglePermission(p.id)} />
+            </span>
           </div>
         ))}
       </div>

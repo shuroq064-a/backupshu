@@ -272,31 +272,33 @@ export default function SpecialistEarningsPage() {
 
       <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant p-5 shadow-sm">
         <h2 className="text-base font-bold text-gray-900 mb-4">Daily Breakdown (This Week)</h2>
-        <div className="flex items-end gap-2 sm:gap-3 h-40">
-          {weeklyData.map((day, index) => {
-            const heightPct = Math.max(4, Math.round((day.amount / maxAmount) * 100));
-            const isToday = index === todayIndex;
-            const hasEarnings = day.amount > 0;
-            return (
-              <div key={day.day} className="flex-1 flex flex-col items-center gap-1.5">
-                <p className={`text-[11px] font-semibold ${hasEarnings ? "text-gray-700" : "text-gray-400"}`}>{formatCurrency(day.amount)}</p>
-                <div className="w-full flex items-end" style={{ height: "96px" }}>
-                  <div
-                    className={`w-full rounded-t-lg transition-all ${
-                      isToday
-                        ? "bg-gradient-to-t from-primary to-primary-container"
-                        : hasEarnings
-                        ? "bg-primary-container hover:bg-primary-fixed-dim"
-                        : "bg-surface-container-high"
-                    }`}
-                    style={{ height: `${heightPct}%` }}
-                    title={`${day.day}: ${formatCurrency(day.amount)}`}
-                  />
+        <div className="overflow-x-auto">
+          <div className="flex items-end gap-2 sm:gap-3 h-40 min-w-[440px]">
+            {weeklyData.map((day, index) => {
+              const heightPct = Math.max(4, Math.round((day.amount / maxAmount) * 100));
+              const isToday = index === todayIndex;
+              const hasEarnings = day.amount > 0;
+              return (
+                <div key={day.day} className="flex-1 flex flex-col items-center gap-1.5">
+                  <p className={`text-[11px] font-semibold ${hasEarnings ? "text-gray-700" : "text-gray-400"}`}>{formatCurrency(day.amount)}</p>
+                  <div className="w-full flex items-end" style={{ height: "96px" }}>
+                    <div
+                      className={`w-full rounded-t-lg transition-all ${
+                        isToday
+                          ? "bg-gradient-to-t from-primary to-primary-container"
+                          : hasEarnings
+                          ? "bg-primary-container hover:bg-primary-fixed-dim"
+                          : "bg-surface-container-high"
+                      }`}
+                      style={{ height: `${heightPct}%` }}
+                      title={`${day.day}: ${formatCurrency(day.amount)}`}
+                    />
+                  </div>
+                  <p className={`text-xs font-medium ${isToday ? "text-primary" : "text-gray-500"}`}>{day.day}</p>
                 </div>
-                <p className={`text-xs font-medium ${isToday ? "text-primary" : "text-gray-500"}`}>{day.day}</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 

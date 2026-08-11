@@ -199,11 +199,11 @@ export default function ServiceDiscoveryPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Describe the service you need (e.g. My sink is leaking)..."
-            className="w-full pl-14 pr-36 py-4 rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm text-on-surface placeholder-on-surface-variant/70 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            className="w-full pl-12 sm:pl-14 pr-32 sm:pr-36 py-4 rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm text-on-surface placeholder-on-surface-variant/70 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
           />
           <button
             type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:bg-primary-container hover:text-on-primary-container transition-all shadow-sm cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-5 sm:px-6 py-3 sm:py-2.5 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:bg-primary-container hover:text-on-primary-container transition-all shadow-sm cursor-pointer"
           >
             Search
           </button>
@@ -216,14 +216,14 @@ export default function ServiceDiscoveryPage() {
           <h3 className="text-2xl font-bold tracking-tight text-on-surface">Specialized Categories</h3>
           <button className="text-primary text-sm font-semibold hover:underline">View All</button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {CATEGORIES.map((cat) => (
             <div
               key={cat.id}
               onClick={() => handleCategoryClick(cat.query)}
-              className="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-primary hover:ring-2 hover:ring-primary/40 transition-all duration-300 cursor-pointer text-center group flex flex-col items-center justify-center"
+              className="bg-surface-container-lowest p-4 sm:p-6 rounded-2xl border border-outline-variant shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-primary hover:ring-2 hover:ring-primary/40 transition-all duration-300 cursor-pointer text-center group flex flex-col items-center justify-center"
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 ${cat.iconClass}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 sm:mb-4 transition-transform duration-300 group-hover:scale-110 ${cat.iconClass}`}>
                 <span className="material-symbols-outlined text-3xl">{cat.icon}</span>
               </div>
               <p className="font-semibold text-sm text-on-surface group-hover:text-primary transition-colors">{cat.name}</p>
@@ -259,7 +259,7 @@ export default function ServiceDiscoveryPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-8">
             {[1, 2, 3].map((n) => (
               <MotionDiv variants={itemVariants} key={n} className="bg-surface-container-lowest rounded-2xl border border-outline-variant shadow-sm h-80 animate-pulse" />
             ))}
@@ -303,7 +303,7 @@ export default function ServiceDiscoveryPage() {
             <p className="text-xs text-on-surface-variant/70 mt-1">Try changing your location or check back later.</p>
           </div>
         ) : (
-          <MotionDiv variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <MotionDiv variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-8">
             {displayedSpecialists.map((sp) => {
               const primaryService = sp.services?.[0]?.service_name || "General Service";
               const spGender = sp.gender === "female" ? "female" : "male";

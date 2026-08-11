@@ -60,7 +60,7 @@ export function AdminSidebar({ mobileOpen = false, onClose }: { mobileOpen?: boo
       <aside
         className={`flex flex-col bg-gray-950 border-r border-gray-800 transition-all duration-300
           ${collapsed ? "md:w-16" : "md:w-64"}
-          max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:shadow-2xl max-md:transform max-md:transition-transform
+          max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:shadow-2xl max-md:transform max-md:transition-transform max-md:overflow-y-auto
           ${mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"}`}
       >
         {/* Logo + Collapse */}

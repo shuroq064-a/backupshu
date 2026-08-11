@@ -38,7 +38,7 @@ export default function AdminSkillsPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Pending Skill Submissions</h1>
@@ -77,7 +77,7 @@ export default function AdminSkillsPage() {
           {pendingSkills.map((skill) => (
             <div
               key={`${skill.workerId}-${skill.serviceId}`}
-              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex items-center gap-4 hover:border-gray-700 transition-colors"
+              className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-gray-700 transition-colors"
             >
               {/* Avatar */}
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
@@ -108,18 +108,18 @@ export default function AdminSkillsPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2 w-full sm:w-auto sm:flex-shrink-0">
                 <button
                   onClick={() => handleApprove(skill)}
                   disabled={actionLoading === skill.workerId}
-                  className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium text-sm disabled:opacity-50 transition-colors"
+                  className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium text-sm disabled:opacity-50 transition-colors"
                 >
                   {actionLoading === skill.workerId ? "..." : "Approve"}
                 </button>
                 <button
                   onClick={() => setConfirmReject(skill)}
                   disabled={actionLoading === skill.workerId}
-                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-sm disabled:opacity-50 transition-colors"
+                  className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-sm disabled:opacity-50 transition-colors"
                 >
                   {actionLoading === skill.workerId ? "..." : "Reject"}
                 </button>

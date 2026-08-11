@@ -80,14 +80,14 @@ export default function PrivacyPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 font-sans md:px-8">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
+      <header className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-3xl font-bold tracking-tight text-on-surface">Privacy &amp; Security</h2>
           <p className="font-body-md text-body-md text-on-surface-variant">Control your account security and data</p>
         </div>
         <button
           onClick={() => router.push("/dashboard/settings")}
-          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10"
+          className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-soft hover:bg-primary-container/10"
         >
           <span className="material-symbols-outlined text-sm">arrow_back</span> Settings
         </button>
@@ -216,14 +216,14 @@ export default function PrivacyPage() {
 
       {/* ── Deactivate ────────────────────────── */}
       <div className="mt-4 rounded-xl border border-error/20 bg-error-container/20 p-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
             <p className="font-headline-md text-headline-md text-error">Deactivate Account</p>
             <p className="font-body-md text-body-md text-on-surface-variant">Permanently delete your account</p>
           </div>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="rounded-xl bg-error px-5 py-2 text-sm font-semibold text-on-error transition-soft hover:shadow-lg active:scale-95"
+            className="shrink-0 rounded-xl bg-error px-5 py-2 text-sm font-semibold text-on-error transition-soft hover:shadow-lg active:scale-95"
           >
             Delete
           </button>
@@ -233,7 +233,7 @@ export default function PrivacyPage() {
       {/* ── Delete Account Confirmation Modal ──── */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-sm animate-pop-in rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
+          <div className="max-h-[90dvh] w-full max-w-sm animate-pop-in overflow-y-auto rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-red-50 text-2xl text-red-500">
               <span className="material-symbols-outlined">delete_forever</span>
             </div>
@@ -289,20 +289,24 @@ function Row({
   return (
     <div
       onClick={onClick}
-      className={`group flex items-center justify-between rounded-lg border border-outline-variant/50 bg-surface p-4 transition-soft hover:border-primary ${
+      className={`group flex items-center justify-between gap-4 rounded-lg border border-outline-variant/50 bg-surface p-4 transition-soft hover:border-primary ${
         onClick ? "cursor-pointer" : ""
       }`}
     >
-      <div className="flex items-center gap-4">
-        <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="material-symbols-outlined shrink-0 text-on-surface-variant group-hover:text-primary">
           {icon}
         </span>
-        <div>
+        <div className="min-w-0">
           <p className="font-label-md text-label-md">{label}</p>
           <p className="text-xs text-on-surface-variant">{sub}</p>
         </div>
       </div>
-      {trailing ?? <span className="material-symbols-outlined text-outline">chevron_right</span>}
+      {trailing ? (
+        <span className="shrink-0">{trailing}</span>
+      ) : (
+        <span className="material-symbols-outlined shrink-0 text-outline">chevron_right</span>
+      )}
     </div>
   );
 }

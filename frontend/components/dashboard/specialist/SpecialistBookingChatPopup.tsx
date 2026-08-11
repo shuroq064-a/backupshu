@@ -55,14 +55,14 @@ export function SpecialistBookingChatPopup({
     <DraggableChatPopup
       header={
         <div
-          className="relative px-5 py-4 overflow-hidden"
+          className="relative px-4 sm:px-5 py-3.5 sm:py-4 overflow-hidden"
           style={{
             background:
               "linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 100%, #000 0%), color-mix(in srgb, var(--color-primary-container) 100%, #000 0%))",
           }}
         >
           <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-white/[0.07]" />
-          <div className="relative flex items-center gap-3">
+          <div className="relative flex items-center gap-2.5 sm:gap-3">
             <div className="w-11 h-11 rounded-full border-2 border-white/25 bg-white/10 flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-base">{clientName[0]?.toUpperCase() || "C"}</span>
             </div>
@@ -72,8 +72,8 @@ export function SpecialistBookingChatPopup({
                 {booking.serviceType} · {booking.bookingNumber}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wide bg-white/15 text-white`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <span className={`text-[9px] font-extrabold px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wide bg-white/15 text-white`}>
                 {statusMeta.label}
               </span>
               <button

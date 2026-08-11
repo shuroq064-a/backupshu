@@ -53,7 +53,7 @@ export default function UserSettingsPage() {
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="flex items-center gap-2">
             <BackButton label="" fallback="/dashboard" className="px-1.5 py-1.5 shrink-0" />
-            <div>
+            <div className="min-w-0">
               <h2 className="mb-2 text-3xl font-bold tracking-tight text-on-surface">
                 Account Settings
               </h2>
@@ -63,16 +63,16 @@ export default function UserSettingsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary-container to-primary text-xl font-extrabold text-white">
+          <div className="flex min-w-0 items-center gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary-container to-primary text-xl font-extrabold text-white">
               {initials}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-headline-md text-headline-md leading-none text-on-surface">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <h3 className="truncate font-headline-md text-headline-md leading-none text-on-surface">
                   {displayName}
                 </h3>
-                <span className="flex items-center gap-1 rounded-full bg-primary-fixed px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-primary-fixed">
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary-fixed px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-primary-fixed">
                   <span
                     className="material-symbols-outlined text-[12px]"
                     style={{ fontVariationSettings: "'FILL' 1" }}
@@ -82,13 +82,13 @@ export default function UserSettingsPage() {
                   Verified
                 </span>
               </div>
-              <p className="font-body-md text-body-md text-on-surface-variant">
+              <p className="break-words font-body-md text-body-md text-on-surface-variant">
                 {displayEmail}
               </p>
             </div>
             <button
               onClick={() => router.push("/dashboard/profile")}
-              className="ml-4 rounded-full p-2 text-primary transition-soft hover:bg-primary-container/10"
+              className="ml-4 shrink-0 rounded-full p-2 text-primary transition-soft hover:bg-primary-container/10"
               aria-label="Edit profile"
             >
               <span className="material-symbols-outlined">edit</span>

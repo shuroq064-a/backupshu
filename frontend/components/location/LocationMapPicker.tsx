@@ -349,7 +349,7 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative min-w-0 flex-1">
           <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
           <input
@@ -363,7 +363,7 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
         <button
           onClick={() => void search()}
           disabled={!query.trim() || isSearching}
-          className="shrink-0 rounded-2xl bg-primary px-6 text-sm font-bold text-on-primary shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 cursor-pointer"
+          className="shrink-0 w-full sm:w-auto rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-on-primary shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 cursor-pointer"
         >
           {isSearching ? "Searching…" : "Search"}
         </button>
@@ -406,9 +406,9 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
         </button>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-on-surface-variant">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 text-xs text-on-surface-variant">
         <span>Selected coordinates</span>
-        <span className="font-mono">{latitude.toFixed(5)}, {longitude.toFixed(5)}</span>
+        <span className="font-mono break-all">{latitude.toFixed(5)}, {longitude.toFixed(5)}</span>
       </div>
 
       {error && (
@@ -418,9 +418,9 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
         <p className="rounded-xl border border-outline-variant bg-surface-container-low px-3 py-2 text-xs font-medium text-on-surface-variant">{hint}</p>
       )}
 
-      <div className="flex justify-between items-center gap-3 pt-4">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-3 pt-4">
         {onBack ? (
-          <button onClick={onBack} className="rounded-xl bg-surface-container-high px-6 py-3 text-sm font-bold text-on-surface shadow-md hover:bg-surface-container-highest hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
+          <button onClick={onBack} className="w-full sm:w-auto rounded-xl bg-surface-container-high px-6 py-3 text-sm font-bold text-on-surface shadow-md hover:bg-surface-container-highest hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
             Back
           </button>
         ) : (
@@ -429,7 +429,7 @@ export function LocationMapPicker({ initialLocation, onConfirm, onBack, onSelect
         <button
           onClick={() => void confirm()}
           disabled={isConfirming}
-          className="rounded-2xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-60 cursor-pointer"
+          className="w-full sm:w-auto rounded-2xl bg-primary px-8 py-3 text-sm font-bold text-on-primary shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-60 cursor-pointer"
         >
           {isConfirming ? "Checking location…" : "Confirm location"}
         </button>

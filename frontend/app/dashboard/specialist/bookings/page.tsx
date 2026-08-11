@@ -399,7 +399,7 @@ export default function BookingsManagerPage() {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 font-sans text-on-surface">
+    <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 font-sans text-on-surface">
 
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/60 pb-5">
@@ -488,10 +488,10 @@ export default function BookingsManagerPage() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2.5 shrink-0 items-center md:ml-auto">
+                        <div className="flex flex-wrap gap-2.5 shrink-0 items-center w-full sm:w-auto md:ml-auto">
                           <button
                              onClick={() => { setChatJob(job); clearBooking(job.id); }}
-                             className="relative flex items-center justify-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer"
+                             className="relative flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-3 border border-outline-variant text-primary hover:bg-primary-container/30 rounded-xl transition-all cursor-pointer"
                              aria-label="Chat"
                            >
                              <span className="material-symbols-outlined text-[18px]">chat</span>
@@ -513,7 +513,7 @@ export default function BookingsManagerPage() {
                             <button
                               onClick={() => handleStatusUpdate(job.id, action.next)}
                               disabled={!!statusUpdating}
-                              className={`px-6 py-3 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 ${
+                              className={`flex-1 sm:flex-none px-6 py-3 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2 ${
                                 statusUpdating
                                   ? "opacity-50 cursor-not-allowed"
                                   : "active:scale-95 cursor-pointer"
@@ -608,11 +608,11 @@ export default function BookingsManagerPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2.5 shrink-0 md:ml-auto">
+                    <div className="flex gap-2.5 shrink-0 w-full sm:w-auto md:ml-auto">
                       <button
                         onClick={() => handleDecline(req.id)}
                         disabled={!!statusUpdating}
-                        className={`px-6 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl text-xs font-bold transition-colors ${
+                        className={`flex-1 sm:flex-none justify-center px-6 py-2.5 border border-outline-variant text-on-surface-variant rounded-xl text-xs font-bold transition-colors ${
                           statusUpdating ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-container-low cursor-pointer"
                         }`}
                       >
@@ -621,7 +621,7 @@ export default function BookingsManagerPage() {
                       <button
                         onClick={() => handleAccept(req.id)}
                         disabled={!!statusUpdating}
-                        className={`px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold transition-all shadow-md ${
+                        className={`flex-1 sm:flex-none justify-center px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold transition-all shadow-md ${
                           statusUpdating ? "opacity-50 cursor-not-allowed" : "hover:bg-primary/90 cursor-pointer"
                         }`}
                       >
