@@ -558,19 +558,20 @@ class UserQueryListResponse(BaseModel):
 
 
 class MatchedWorkerOut(BaseModel):
+    """Public-facing specialist match result.
+
+    Deliberately PII-free: no email, phone, address or precise location. Contact
+    details are only exposed AFTER a booking is created, to its participants.
+    """
     id: str
     userId: str
     name: Optional[str] = None
-    email: str
     avatar: Optional[str] = None
     services: list[WorkerServiceOut] = Field(default_factory=list)
     isAvailable: bool
     isVerified: bool
     verificationStatus: str
     rejectionReason: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    location: Optional[str] = None
     language: Optional[str] = None
     submittedAt: Optional[str] = None
     reviewedAt: Optional[str] = None
@@ -600,6 +601,11 @@ class MarketplaceSearchRequest(BaseModel):
 
 
 class MarketplaceSpecialistOut(BaseModel):
+    """Public marketplace listing — PII-free by design.
+
+    Workers' email/phone/address are never included here; a client only ever
+    gets contact details through an approved booking, to its participants.
+    """
     workerId: str
     name: str
     services: list[WorkerServiceOut] = Field(default_factory=list)
@@ -608,8 +614,6 @@ class MarketplaceSpecialistOut(BaseModel):
     etaMinutes: Optional[int] = None
     visitCharge: Optional[float] = None
     rating: Optional[float] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
     isAvailable: bool
     isVerified: bool
 

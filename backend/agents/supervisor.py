@@ -32,6 +32,7 @@ from .sse import (
 from . import prompts
 from .tools import (
     TOOLS,
+    STATUS_HUMAN,
     tool_search_specialists,
     tool_list_nearby_specialists,
     tool_my_bookings,
@@ -45,9 +46,11 @@ from .tools import (
 try:
     from ..services.llm.model_client import stream_chat, chat, LLMUnavailable
     from ..services.llm.catalog import build_booking_context
+    from .. import dbmodels
 except ImportError:  # running as a script / flat layout
     from services.llm.model_client import stream_chat, chat, LLMUnavailable
     from services.llm.catalog import build_booking_context
+    import dbmodels
 
 
 _PLAN_RE = re.compile(r"\{.*\}\s*$", re.DOTALL)
@@ -333,6 +336,29 @@ async def _clarify_agent(message: str, history: list[dict], tool_data: str = "")
 
 async def _booking_agent(db, user, message: str, history: list[dict], tool_results: list, tool_data: str = "", location: tuple | None = None):
     """Acknowledge the request and surface verified specialists via a match event."""
+    # A customer with an open booking cannot request another specialist — the
+    # booking flow is one-at-a-time. Skip the match entirely so the UI never
+    # offers a "pick a specialist" list while a previous job is still open.
+    open_booking = (
+        db.query(dbmodels.Booking)
+        .filter(
+            dbmodels.Booking.client_id == user.id,
+            dbmodels.Booking.status.in_(["upcoming", "accepted", "started", "reached", "ongoing"]),
+        )
+        .order_by(dbmodels.Booking.created_at.desc())
+        .first()
+    )
+    if open_booking:
+        yield ev_no_workers(
+            f"You already have an open booking (#{open_booking.booking_number}, "
+            f"{open_booking.service_type}) that is "
+            f"{STATUS_HUMAN.get(open_booking.status, open_booking.status)}. "
+            f"Please wait for it to be completed or cancelled before requesting "
+            f"another specialist.",
+            "",  # not a match attempt — no resolved intent
+        )
+        return
+
     # Prefer a tool result if the supervisor already searched; otherwise search now.
     intent = None
     workers = []

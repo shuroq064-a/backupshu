@@ -129,6 +129,13 @@ def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
         role === 'user'  -> /dashboard
     """
     rate_limit(request, "login", max_requests=5, window_seconds=60)
+    rate_limit(
+        request,
+        "login-account",
+        key_extra=payload.email,
+        max_requests=10,
+        window_seconds=900,
+    )
     user = db.query(User).filter(User.email == payload.email).first()
 
     if not user or not user.hashed_password:

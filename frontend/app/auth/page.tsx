@@ -1,24 +1,27 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import { loginUser, registerUser, clearError } from "@/store/slices/authSlice";
 import { Logo } from "@/components/ui";
 import { sanitizeRedirect } from "@/lib/security";
+import { AtSignIcon, ChevronLeftIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import dynamic from "next/dynamic";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useTheme } from "@/components/theme/ThemeProvider";
 
-
-// ─────────────────────────────────────────────
-//  Auth Page
-// ─────────────────────────────────────────────
+const Particles = dynamic(() => import("@/components/ui/Particles"), { ssr: false });
 
 export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
-          <div className="w-8 h-8 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+        <div className="min-h-screen flex items-center justify-center bg-surface">
+          <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
         </div>
       }
     >
@@ -33,6 +36,11 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const redirect = sanitizeRedirect(searchParams.get("redirect"));
   const nextAuthError = searchParams.get("error");
+  const { resolvedTheme } = useTheme();
+  const particleColors = useMemo(
+    () => (resolvedTheme === "dark" ? ["#ffffff"] : ["#181a2e"]),
+    [resolvedTheme]
+  );
 
   const { isLoading, error, user } = useAppSelector((s: RootState) => s.auth);
 
@@ -45,27 +53,20 @@ function AuthPageInner() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) router.replace(redirect);
   }, [user, router, redirect]);
 
-  // Clear errors on tab switch
   useEffect(() => {
     dispatch(clearError());
   }, [tab, dispatch]);
 
-  // ── Set session cookie so middleware can read it ──
-//   function setCookieFromToken(token: string) {
-//     document.cookie = `shuroqx_session=${encodeURIComponent(
-//       JSON.stringify({ token })
-//     )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-//   }
-    function setCookieFromToken(token: string, role: string) {
-        document.cookie = `shuroqx_session=${encodeURIComponent(
-            JSON.stringify({ token, user: { role } })
-        )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-    }
+  function setCookieFromToken(token: string, role: string) {
+    document.cookie = `shuroqx_session=${encodeURIComponent(
+      JSON.stringify({ token, user: { role } })
+    )}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
@@ -114,11 +115,7 @@ function AuthPageInner() {
           setCookieFromToken(token, "user");
           router.replace(redirect);
         } else {
-          setFormError(
-            typeof result.payload === "string"
-              ? result.payload
-              : "Unable to complete registration. Please try again."
-          );
+          setFormError(typeof result.payload === "string" ? result.payload : "Unable to complete registration. Please try again.");
         }
       }
     } finally {
@@ -127,297 +124,201 @@ function AuthPageInner() {
   }
 
   async function handleSocialLogin(provider: "google" | "facebook" | "apple") {
-    // NextAuth handles the OAuth flow; callback page bridges the session to shuroqx_session cookie
-    await signIn(provider, { callbackUrl: `/auth/callback?redirect=${encodeURIComponent(redirect)}` });
+    await signIn(provider, {
+      callbackUrl: `/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+    });
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 p-4">
-      <div className="w-full max-w-4xl bg-surface-container-lowest rounded-3xl shadow-2xl overflow-hidden flex min-h-[560px]">
+  const inputClass = "w-full rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary";
 
-        {/* ── Left panel — Form ─────────────────── */}
-        <div className="flex-1 flex flex-col justify-center px-10 py-12">
-          {/* Logo */}
-          <div className="mb-8">
+  return (
+    <div className="relative min-h-screen flex items-center justify-center bg-surface p-4">
+      {/* Particles background */}
+      <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
+        <Particles
+          particleColors={particleColors}
+          particleCount={600}
+          particleSpread={10}
+          speed={0.3}
+          particleBaseSize={100}
+          moveParticlesOnHover
+          alphaParticles={false}
+          disableRotation={false}
+          pixelRatio={1}
+        />
+      </div>
+      <ThemeToggle />
+      <div className="relative z-10 w-full max-w-5xl overflow-hidden rounded-3xl shadow-2xl lg:grid lg:grid-cols-2">
+        {/* Vertical divider between panels */}
+        <div aria-hidden className="absolute inset-y-24 left-1/2 z-20 hidden w-px -translate-x-1/2 bg-outline-variant/70 lg:block" />
+        {/* Left panel - Branding + Floating Paths */}
+        <div className="relative hidden h-[680px] flex-col bg-surface-container-lowest p-12 lg:flex">
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent" />
+          <div className="z-10 flex items-center gap-2">
+            <Logo size="md" />
+          </div>
+          <div className="z-10 mt-auto">
+            <blockquote className="space-y-2">
+              <p className="text-base text-on-surface">&ldquo;This platform has helped me save time and serve my clients faster than ever before.&rdquo;</p>
+              <footer className="font-mono text-sm font-semibold text-on-surface/60">~ ShuroQX User</footer>
+            </blockquote>
+          </div>
+          <div className="absolute inset-0">
+            <FloatingPaths position={1} />
+            <FloatingPaths position={-1} />
+          </div>
+        </div>
+
+        {/* Right panel - Form */}
+        <div className="relative flex h-[680px] flex-col justify-center bg-surface-container-lowest p-12">
+        <div aria-hidden className="absolute inset-0 isolate -z-10 opacity-30">
+          <div className="absolute top-0 right-0 h-80 w-56 -translate-y-48 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0.02)_50%,rgba(255,255,255,0.01)_80%)]" />
+          <div className="absolute top-0 right-0 h-80 w-60 translate-x-2 -translate-y-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0.01)_80%,transparent_100%)]" />
+          <div className="absolute top-0 right-0 h-80 w-60 -translate-y-48 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0.01)_80%,transparent_100%)]" />
+        </div>
+
+        <Link href="/" className="absolute top-7 left-5 flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-on-surface/60 transition-soft hover:text-on-surface">
+          <ChevronLeftIcon className="me-2 h-4 w-4" />
+          Home
+        </Link>
+
+        <div className="mx-auto w-full max-w-sm space-y-4">
+          <div className="flex items-center gap-2 lg:hidden">
             <Logo size="md" />
           </div>
 
-          {/* Heading */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">
-            {tab === "login" ? "Welcome Back!" : "Create Account"}
-          </h1>
-          <p className="text-gray-500 text-sm mb-6">
-            {tab === "login"
-              ? "Log in to your account"
-              : "Sign up to get started"}
-          </p>
-
-          {/* Tab Switch */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-            {(["login", "register"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-5 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  tab === t
-                    ? "bg-surface-container-lowest text-violet-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {t === "login" ? "Log In" : "Sign Up"}
-              </button>
-            ))}
+          <div className="flex flex-col space-y-1">
+            <h1 className="font-headline-md text-headline-md font-bold tracking-wide text-on-surface">
+              {tab === "login" ? "Welcome Back!" : "Create Account"}
+            </h1>
+            <p className="text-sm text-on-surface/60">
+              {tab === "login" ? "Log in to your ShuroQX account." : "Sign up to get started with ShuroQX."}
+            </p>
           </div>
 
-          {/* Error Banner */}
-          {(error || nextAuthError || formError) && (
-            <div className="mb-4 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-              {formError ||
-                error || (
-                nextAuthError === "OAuthAccountNotLinked"
-                  ? "This email is already linked to another login method. Please use your original sign-in method."
-                  : nextAuthError === "OAuthCreateAccount"
-                    ? "Could not create account. Please try again."
-                    : nextAuthError === "OAuthCallback"
-                      ? "Sign-in failed. Please ensure the backend server is running and try again."
-                      : nextAuthError === "default"
-                        ? "An error occurred during sign-in. Please try again."
-                        : `Sign-in error: ${nextAuthError}`
-              )}
-            </div>
-          )}
+          <div className="space-y-2">
+            <button type="button" onClick={() => handleSocialLogin("google")} className="flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 text-sm font-semibold text-on-surface transition-soft hover:bg-surface-container-lowest">
+              <GoogleIcon className="me-2 h-4 w-4" />
+              Continue with Google
+            </button>
+          </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <AuthSeparator />
+
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <p className="text-start text-xs text-on-surface/50">
+              Enter your email address to sign in or create an account
+            </p>
+
             {tab === "register" && (
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  👤
-                </span>
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-gray-50"
-                  required
-                />
+                <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} required />
               </div>
             )}
 
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                ✉️
-              </span>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-gray-50"
-                  required
-                />
+              <input type="email" placeholder="your.email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-xl border border-outline-variant bg-surface-container-low py-3 ps-9 pe-4 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
+              <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-on-surface/40">
+                <AtSignIcon className="h-4 w-4" />
+              </div>
             </div>
 
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                🔒
-              </span>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (passwordError) setPasswordError("");
-                  }}
-                  className={`w-full pl-11 pr-20 py-3 border ${
-                    passwordError ? "border-red-300 bg-red-50" : "border-gray-200 bg-gray-50"
-                  } rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400`}
-                  required
-                />
-              {tab === "register" && passwordError && (
-                <p className="mt-1.5 text-xs text-red-600">{passwordError}</p>
-              )}
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); if (passwordError) setPasswordError(""); }}
+                className={`w-full rounded-xl border bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary ${passwordError ? "border-red-400" : "border-outline-variant"}`}
+                required
+              />
+              {tab === "register" && passwordError && <p className="mt-1.5 text-xs text-red-400">{passwordError}</p>}
               {tab === "login" && (
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-violet-600 hover:text-violet-800 font-medium"
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:text-primary/80">
                   {showPassword ? "Hide" : "Forgot password?"}
                 </button>
               )}
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || submitting}
-              className="w-full py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-violet-200"
-            >
+            {(error || nextAuthError || formError) && (
+              <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                {formError || error || (nextAuthError === "OAuthAccountNotLinked" ? "This email is already linked to another login method." : nextAuthError === "OAuthCreateAccount" ? "Could not create account." : nextAuthError === "OAuthCallback" ? "Sign-in failed. Ensure backend is running." : `Sign-in error: ${nextAuthError}`)}
+              </div>
+            )}
+
+            <button type="submit" disabled={isLoading || submitting} className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-soft hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed">
               {isLoading || submitting ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Please wait…
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Please wait...
                 </span>
-              ) : tab === "login" ? (
-                "Log In"
-              ) : (
-                "Create Account"
-              )}
+              ) : tab === "login" ? "Log In" : "Create Account"}
             </button>
           </form>
 
-          {/* Switch tab link */}
-          <p className="text-center text-sm text-gray-500 mt-4">
+          <p className="text-center text-sm text-on-surface/50">
             {tab === "login" ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <button
-                  onClick={() => setTab("register")}
-                  className="text-violet-600 font-medium hover:underline"
-                >
-                  Sign Up
-                </button>
-              </>
+              <>Don&apos;t have an account? <button onClick={() => setTab("register")} className="font-medium text-primary hover:underline">Sign Up</button></>
             ) : (
-              <>
-                Already have an account?{" "}
-                <button
-                  onClick={() => setTab("login")}
-                  className="text-violet-600 font-medium hover:underline"
-                >
-                  Log In
-                </button>
-              </>
+              <>Already have an account? <button onClick={() => setTab("login")} className="font-medium text-primary hover:underline">Log In</button></>
             )}
           </p>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">or continue with</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          {/* Social Buttons */}
-          <div className="flex gap-3">
-            <SocialButton
-              icon={<GoogleIcon />}
-              onClick={() => handleSocialLogin("google")}
-              label="Google"
-            />
-            {/* <SocialButton
-              icon={<AppleIcon />}
-              onClick={() => handleSocialLogin("apple")}
-              label="Apple"
-            /> */}
-          </div>
+          <p className="mt-8 text-xs text-on-surface/60">
+            By clicking continue, you agree to our{" "}
+            <a href="#" className="underline underline-offset-4 hover:text-on-surface">Terms of Service</a>{" "}and{" "}
+            <a href="#" className="underline underline-offset-4 hover:text-on-surface">Privacy Policy</a>.
+          </p>
         </div>
-
-        {/* ── Right panel — Illustration ─────── */}
-        <div className="hidden md:flex flex-1 bg-gradient-to-br from-violet-400 via-purple-400 to-indigo-500 items-center justify-center relative overflow-hidden">
-          {/* Decorative blobs */}
-          <div className="absolute top-8 right-8 w-20 h-20 rounded-full bg-white/10 blur-xl" />
-          <div className="absolute bottom-12 left-8 w-32 h-32 rounded-full bg-pink-300/20 blur-2xl" />
-
-          {/* Robot + bags illustration (CSS art) */}
-          <div className="flex flex-col items-center gap-4 relative z-10">
-            {/* Robot head */}
-            <div className="w-28 h-28 rounded-3xl bg-white/20 backdrop-blur flex items-center justify-center shadow-2xl border border-white/30">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-b from-gray-100 to-gray-200 flex flex-col items-center justify-center gap-2 shadow-inner">
-                <div className="flex gap-3">
-                  <div className="w-5 h-5 rounded-full bg-blue-400 shadow-lg shadow-blue-400/60 animate-pulse" />
-                  <div className="w-5 h-5 rounded-full bg-blue-400 shadow-lg shadow-blue-400/60 animate-pulse" />
-                </div>
-                <div className="w-8 h-1.5 rounded-full bg-gray-400" />
-              </div>
-            </div>
-
-            {/* Shopping bags */}
-            <div className="flex gap-3">
-              {["from-pink-400 to-rose-500", "from-violet-400 to-purple-500", "from-amber-400 to-orange-500"].map(
-                (g, i) => (
-                  <div
-                    key={i}
-                    className={`w-10 h-12 rounded-xl bg-gradient-to-b ${g} shadow-lg flex flex-col items-center pt-2 gap-1`}
-                  >
-                    <div className="w-5 h-1 rounded-full bg-white/40" />
-                    <div className="w-6 h-1 rounded-full bg-white/20" />
-                  </div>
-                )
-              )}
-            </div>
-
-            {/* Floating badges */}
-            <div className="absolute -top-4 -left-8 bg-white/90 rounded-xl px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-lg">
-              💡 Smart Match
-            </div>
-            <div className="absolute -bottom-2 -right-6 bg-white/90 rounded-xl px-3 py-1.5 text-xs font-semibold text-green-700 shadow-lg">
-              ✓ Verified
-            </div>
-          </div>
-
-          {/* Brand text */}
-          <div className="absolute bottom-8 text-center">
-            <p className="text-white/80 text-sm font-medium">
-              Connect with trusted specialists
-            </p>
-            <p className="text-white/50 text-xs mt-1">
-              Plumbing • Electrical • AC Repair & more
-            </p>
-          </div>
-        </div>
+      </div>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────
-//  Social Button
-// ─────────────────────────────────────────────
+function FloatingPaths({ position }: { position: number }) {
+  const paths = Array.from({ length: 36 }, (_, i) => ({
+    id: i,
+    d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
+    color: `rgba(255,255,255,${0.05 + i * 0.015})`,
+    width: 0.5 + i * 0.03,
+  }));
 
-function SocialButton({
-  icon,
-  onClick,
-  label,
-}: {
-  icon: React.ReactNode;
-  onClick: () => void;
-  label: string;
-}) {
   return (
-    <button
-      onClick={onClick}
-      aria-label={`Continue with ${label}`}
-      className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm text-gray-700 font-medium"
-    >
-      {icon}
-    </button>
+    <div className="pointer-events-none absolute inset-0 z-20">
+      <svg className="h-full w-full text-on-surface" viewBox="0 0 696 316" fill="none">
+        <title>Background Paths</title>
+        {paths.map((path) => (
+          <motion.path
+            key={path.id}
+            d={path.d}
+            stroke="currentColor"
+            strokeWidth={path.width}
+            strokeOpacity={0.1 + path.id * 0.03}
+            initial={{ pathLength: 0.3, opacity: 0.6 }}
+            animate={{ pathLength: 1, opacity: [0.3, 0.6, 0.3], pathOffset: [0, 1, 0] }}
+            transition={{ duration: 20 + Math.random() * 10, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+          />
+        ))}
+      </svg>
+    </div>
   );
 }
 
-// ── SVG Icons ─────────────────────────────────
-
-function GoogleIcon() {
+function AuthSeparator() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24">
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-      />
+    <div className="flex w-full items-center justify-center">
+      <div className="h-px w-full bg-outline-variant" />
+      <span className="px-2 text-xs text-on-surface/40">OR</span>
+      <div className="h-px w-full bg-outline-variant" />
+    </div>
+  );
+}
+
+function GoogleIcon(props: React.ComponentProps<"svg">) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12.479,14.265v-3.279h11.049c0.108,0.571,0.164,1.247,0.164,1.979c0,2.46-0.672,5.502-2.84,7.669C18.744,22.829,16.051,24,12.483,24C5.869,24,0.308,18.613,0.308,12S5.869,0,12.483,0c3.659,0,6.265,1.436,8.223,3.307L18.392,5.62c-1.404-1.317-3.307-2.341-5.913-2.341C7.65,3.279,3.873,7.171,3.873,12s3.777,8.721,8.606,8.721c3.132,0,4.916-1.258,6.059-2.401c0.927-0.927,1.537-2.251,1.777-4.059L12.479,14.265z" />
     </svg>
   );
 }

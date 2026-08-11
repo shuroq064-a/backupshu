@@ -260,6 +260,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { setActiveMode, fetchSpecialistProfile, setLocation } from "@/store/slices/authSlice";
 import { SidebarToggleIcon } from "@/components/sidebar/SidebarToggleIcon";
@@ -379,12 +380,15 @@ export function Sidebar({
       >
         {/* Logo + Collapse */}
         <div className={`flex items-center py-6 ${collapsed ? "justify-center px-0" : "justify-between px-6"}`}>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-primary dark:text-white tracking-tight leading-tight">ShuroqX</h1>
-              <p className="text-[10px] text-gray-500 font-medium">Service Excellence</p>
-            </div>
-          )}
+          <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
+            <Image src="/logo.png" alt="ShuroqX" width={45} height={30} className="object-contain" priority />
+            {!collapsed && (
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-bold text-primary dark:text-white tracking-tight leading-tight">ShuroqX</h1>
+                <p className="text-[10px] text-gray-500 font-medium">Service Excellence</p>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-1 mt-0.5">
             <button
               onClick={() => setCollapsed(!collapsed)}

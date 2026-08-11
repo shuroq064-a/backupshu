@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -36,15 +37,15 @@ function applyTheme(resolved: "light" | "dark") {
 }
 
 function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const stored = localStorage.getItem(STORAGE_KEY);
   return stored === "light" || stored === "dark" || stored === "system"
     ? stored
-    : "system";
+    : "light";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
@@ -79,13 +80,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
-  const syncTheme = () => {
+  const syncTheme = useCallback(() => {
     const nextTheme = readStoredTheme();
     const resolved = nextTheme === "system" ? getSystemTheme() : nextTheme;
     setThemeState(nextTheme);
     setResolvedTheme(resolved);
     applyTheme(resolved);
-  };
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, toggleTheme, syncTheme }}>

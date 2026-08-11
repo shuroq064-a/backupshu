@@ -6,6 +6,7 @@ pydantic[email]
 passlib[bcrypt]
 bcrypt==4.0.1
 PyJWT
+cryptography
 python-dotenv
 alembic
 celery[redis]

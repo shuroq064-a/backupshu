@@ -184,7 +184,7 @@ export default function ServiceDiscoveryPage() {
               Find your service expert
             </h1>
             <p className="text-base text-on-surface-variant max-w-xl">
-              Describe what you need and we&apos;ll match you with a vetted specialist in your area â€” instantly.
+              Describe what you need and we&apos;ll match you with a vetted specialist in your area — instantly.
             </p>
           </div>
         </div>

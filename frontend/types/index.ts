@@ -258,6 +258,7 @@ export interface ChatMessage {
   awaitingChoice?: boolean; // user must pick an option
   candidates?: SpecialistResult[]; // matched specialists for this intent (user picks one)
   selectedWorkerId?: string | null; // the specialist the customer chose to book
+  blockedByOpenBooking?: boolean; // user has an open booking — no new specialist allowed
   agentTrace?: AgentTraceStep[];    // multi-agent working steps for this turn (UI only)
   agentLabel?: string;              // active agent display name (e.g. "Booking Agent")
   agentJob?: string;                // active agent task (e.g. "Finding a verified specialist")
@@ -401,7 +402,7 @@ export interface MatchedWorkerOut {
   id: string;
   userId: string;
   name?: string | null;
-  email: string;
+  email?: string | null;
   avatar?: string | null;
   services: WorkerService[];
   isAvailable: boolean;

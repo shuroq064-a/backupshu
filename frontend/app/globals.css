@@ -107,8 +107,8 @@
 :root {
   --color-brand: 13 148 136;
   --color-brand-light: 94 234 212;
-  --color-surface: 255 255 255;
-  --color-surface-2: 246 247 249;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f7f9;
   --chart-1: oklch(0.32 0 none);
   --chart-2: oklch(0.41 0 none);
   --chart-3: oklch(0.54 0 none);

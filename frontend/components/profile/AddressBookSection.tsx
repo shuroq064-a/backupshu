@@ -117,6 +117,10 @@ export function AddressBookSection() {
     if (required.some((value) => !value.trim())) {
       return "Complete all required address details.";
     }
+    const digits = form.contactNumber.replace(/\D/g, "");
+    if (digits.length !== 10) {
+      return "Phone number must be 10 digits.";
+    }
     if (form.addressLabel === "Other" && !form.customAddressLabel.trim()) {
       return "Enter a custom address label when Other is selected.";
     }
@@ -220,12 +224,33 @@ export function AddressBookSection() {
       {isFormOpen && (
         <div className="mt-4 rounded-xl border border-outline-variant bg-surface p-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-medium text-on-surface sm:col-span-2">Selected service location *<input value={form.address} onChange={(event) => update("address", event.target.value)} className={inputClass} required /></label>
-            <label className="text-sm font-medium text-on-surface">Receiver Name *<input value={form.receiverName} onChange={(event) => update("receiverName", event.target.value)} className={inputClass} required /></label>
-            <label className="text-sm font-medium text-on-surface">Contact Number *<input type="tel" value={form.contactNumber} onChange={(event) => update("contactNumber", event.target.value)} className={inputClass} required /></label>
-            <label className="text-sm font-medium text-on-surface">House No./Flat No. *<input value={form.houseFlat} onChange={(event) => update("houseFlat", event.target.value)} className={inputClass} required /></label>
-            <label className="text-sm font-medium text-on-surface">Block/Area *<input value={form.blockArea} onChange={(event) => update("blockArea", event.target.value)} className={inputClass} required /></label>
-            <label className="text-sm font-medium text-on-surface sm:col-span-2">Landmark <span className="font-normal text-on-surface-variant">(optional)</span><input value={form.landmark} onChange={(event) => update("landmark", event.target.value)} className={inputClass} /></label>
+            <label className="block text-sm font-medium text-on-surface sm:col-span-2">
+              <span>Selected service location <span className="text-red-500">*</span></span>
+              <input value={form.address} onChange={(event) => update("address", event.target.value)} className={inputClass} required />
+            </label>
+            <label className="block text-sm font-medium text-on-surface">
+              <span>Receiver Name <span className="text-red-500">*</span></span>
+              <input value={form.receiverName} onChange={(event) => update("receiverName", event.target.value)} className={inputClass} required />
+            </label>
+            <label className="block text-sm font-medium text-on-surface">
+              <span>Contact Number <span className="text-red-500">*</span></span>
+              <input type="tel" value={form.contactNumber} onChange={(event) => update("contactNumber", event.target.value)} className={inputClass} required />
+              {form.contactNumber.length > 0 && form.contactNumber.replace(/\D/g, "").length !== 10 && (
+                <span className="mt-1 block text-xs text-red-500">Phone number must be 10 digits.</span>
+              )}
+            </label>
+            <label className="block text-sm font-medium text-on-surface">
+              <span>House No./Flat No. <span className="text-red-500">*</span></span>
+              <input value={form.houseFlat} onChange={(event) => update("houseFlat", event.target.value)} className={inputClass} required />
+            </label>
+            <label className="block text-sm font-medium text-on-surface">
+              <span>Block/Area <span className="text-red-500">*</span></span>
+              <input value={form.blockArea} onChange={(event) => update("blockArea", event.target.value)} className={inputClass} required />
+            </label>
+            <label className="block text-sm font-medium text-on-surface sm:col-span-2">
+              <span>Landmark <span className="font-normal text-on-surface-variant">(optional)</span></span>
+              <input value={form.landmark} onChange={(event) => update("landmark", event.target.value)} className={inputClass} />
+            </label>
           </div>
 
           <fieldset className="mt-3">
@@ -238,7 +263,10 @@ export function AddressBookSection() {
           </fieldset>
 
           {form.addressLabel === "Other" && (
-            <label className="mt-3 block text-sm font-medium text-on-surface">Custom address label *<input value={form.customAddressLabel} onChange={(event) => update("customAddressLabel", event.target.value)} className={inputClass} required /></label>
+            <label className="mt-3 block text-sm font-medium text-on-surface">
+              <span>Custom address label <span className="text-red-500">*</span></span>
+              <input value={form.customAddressLabel} onChange={(event) => update("customAddressLabel", event.target.value)} className={inputClass} required />
+            </label>
           )}
 
           <label className="mt-3 flex items-center gap-2 text-sm font-medium text-on-surface">

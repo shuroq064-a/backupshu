@@ -123,12 +123,6 @@ export function SpecialistDetailsModal({ specialist, onClose }: SpecialistDetail
                   Available now for new bookings
                 </div>
               )}
-              {specialist.phone && (
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">mail</span>
-                  {specialist.phone}
-                </div>
-              )}
             </div>
 
             <hr className="border-outline-variant/40" />
@@ -163,13 +157,12 @@ export function SpecialistDetailsModal({ specialist, onClose }: SpecialistDetail
 
             {/* Footer Actions */}
             <div className="flex gap-3 pt-2">
-              <a
-                href={`tel:${specialist.phone}`}
+              <button
                 className="flex-1 px-5 py-3 bg-primary text-white rounded-xl text-sm font-bold hover:bg-primary-container hover:shadow-lg hover:shadow-primary/20 transition-all active:scale-95 text-center flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">call</span>
-                Call Now
-              </a>
+                Contact via Chat
+              </button>
               <button
                 className="flex-1 px-5 py-3 bg-surface-container-lowest text-gray-700 border border-outline-variant/50 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all active:scale-95 text-center flex items-center justify-center gap-2 cursor-pointer"
               >

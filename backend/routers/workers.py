@@ -424,10 +424,10 @@ def get_worker_bookings(
     if booking_status:
         query = query.filter(Booking.status == booking_status)
 
-    bookings = query.order_by(Booking.created_at.desc()).all()
+    bookings = query.order_by(Booking.created_at.desc()).limit(100).all()
 
-    from routers.bookings import _build_detail
-    return [_build_detail(booking, db) for booking in bookings]
+    from routers.bookings import _build_details
+    return _build_details(bookings, db)
 
 
 # ─────────────────────────────────────────────

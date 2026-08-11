@@ -35,6 +35,7 @@ import type {
   ServiceAddressDetails,
   User,
   BookingDetail,
+  BookingStatus,
   AssistantStreamEvent,
 } from "@/types";
 
@@ -46,6 +47,7 @@ function getChatStorageKey(userId?: string | null): string {
 }
 const BOOKING_VISIBLE_STATUSES = new Set(["accepted", "started", "reached", "ongoing", "completed"]);
 const BOOKING_CLOSED_STATUSES = new Set(["rejected", "completed", "cancelled"]);
+const OPEN_BOOKING_STATUSES = new Set<BookingStatus>(["upcoming", "accepted", "started", "reached", "ongoing"]);
 
 export default function RedesignedClientChat() {
   const router = useRouter();
@@ -59,6 +61,28 @@ export default function RedesignedClientChat() {
   const [hydrated, setHydrated] = useState(false);
   const [serviceLocation, setServiceLocation] = useState<ServiceLocation | null>(null);
   const [serviceAddressDetails, setServiceAddressDetails] = useState<ServiceAddressDetails | null>(null);
+
+  // ── Open-booking guard ───────────────────────────────────────────────────
+  // A customer with an open booking (upcoming/accepted/started/reached/ongoing)
+  // cannot request another specialist. Tracked here so the chat never offers a
+  // "pick a specialist" UI while a previous job is still open.
+  const hasOpenBookingRef = useRef(false);
+
+  const refreshOpenBooking = useCallback(() => {
+    if (!user?.id) return;
+    bookingApi
+      .getMyBookings(user.id)
+      .then((list) => {
+        const open = (list || []).some((b) => OPEN_BOOKING_STATUSES.has(b.status));
+        hasOpenBookingRef.current = open;
+      })
+      .catch(() => {});
+  }, [user?.id]);
+
+  // Refresh the open-booking flag whenever hydration completes or the user changes.
+  useEffect(() => {
+    if (hydrated) refreshOpenBooking();
+  }, [hydrated, refreshOpenBooking]);
 
   // Load persisted chat on mount / user change
   useEffect(() => {
@@ -250,13 +274,15 @@ export default function RedesignedClientChat() {
         if (BOOKING_CLOSED_STATUSES.has(data.status)) {
           ws.close();
           wsRefs.current.delete(bookingId);
+          // The customer's open slot may now be free — re-check the guard.
+          refreshOpenBooking();
         }
       } catch {}
     };
 
     ws.onclose = () => wsRefs.current.delete(bookingId);
     wsRefs.current.set(bookingId, ws);
-  }, [showToast]);
+  }, [showToast, refreshOpenBooking]);
 
   // Track bookings we've already wired up so re-renders (which happen on every
   // streamed token and status update) don't re-fire the GET / re-subscribe loop.
@@ -277,11 +303,9 @@ export default function RedesignedClientChat() {
   function mapWorkerToSpecialist(worker: MatchedWorkerOut): SpecialistResult {
     return {
       workerId: worker.id,
-      name: worker.name?.trim() || worker.email.split("@")[0],
+      name: worker.name?.trim() || "Specialist",
       services: worker.services || [],
       avatar: worker.avatar || undefined,
-      phone: worker.phone || undefined,
-      email: worker.email,
       isAvailable: worker.isAvailable,
       isVerified: worker.isVerified,
       price: worker.price ?? undefined,
@@ -338,6 +362,7 @@ export default function RedesignedClientChat() {
         ...(workerId ? { worker_id: workerId } : {}),
       });
       bookingId = booking.id;
+      hasOpenBookingRef.current = true;
       watchBooking(bookingId, assistantMsgId);
     } catch (err) {
       console.error("Booking creation failed:", err);
@@ -364,6 +389,10 @@ export default function RedesignedClientChat() {
   // Customer picks which matched specialist to book (avoids the "wrong specialist"
   // problem where a broadcast is grabbed by whoever accepts first).
   function handleChooseSpecialist(workerId: string, assistantMsgId: string) {
+    if (hasOpenBookingRef.current) {
+      showToast("You already have an open booking. Complete or cancel it before requesting another specialist.", "error");
+      return;
+    }
     updateMessage(assistantMsgId, (prev) => ({
       ...prev,
       selectedWorkerId: workerId,
@@ -444,14 +473,28 @@ export default function RedesignedClientChat() {
           // grabbed by whoever accepts first.
           prevIntentRef.current = event.intent;
           prevNoteRef.current = text;
-          const candidates = (event.workers || []).map(mapWorkerToSpecialist);
-          updateMessage(assistantMsgId, {
-            content: event.reply,
-            streaming: false,
-            intent: event.intent,
-            candidates,
-            awaitingChoice: true,
-          });
+          if (hasOpenBookingRef.current) {
+            // A customer with an open booking cannot request another specialist.
+            updateMessage(assistantMsgId, {
+              content:
+                event.reply +
+                "\n\nYou already have an open booking, so I can't request another specialist right now. Please wait for it to be completed or cancel it from your bookings first.",
+              streaming: false,
+              intent: event.intent,
+              candidates: [],
+              awaitingChoice: false,
+              blockedByOpenBooking: true,
+            });
+          } else {
+            const candidates = (event.workers || []).map(mapWorkerToSpecialist);
+            updateMessage(assistantMsgId, {
+              content: event.reply,
+              streaming: false,
+              intent: event.intent,
+              candidates,
+              awaitingChoice: true,
+            });
+          }
         } else if (event.type === "no_workers") {
           updateMessage(assistantMsgId, {
             content: event.reply,
@@ -736,6 +779,15 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
             )}
           </div>
         )}
+        {message.blockedByOpenBooking && (
+          <div className="flex items-start gap-2.5 rounded-2xl bg-amber-50 border border-amber-200 px-3.5 py-3 text-xs text-amber-800">
+            <span className="material-symbols-outlined text-base mt-0.5">info</span>
+            <p>
+              You already have an open booking, so you can&apos;t request another specialist
+              right now. Track it or cancel it from your bookings first.
+            </p>
+          </div>
+        )}
         {candidates.length > 0 && (
           <div className="pt-1">
             <p className="text-xs font-semibold text-on-surface-variant mb-2">
@@ -862,12 +914,6 @@ function SpecialistCard({ specialist, liveStatus, onNameClick, bookingId, onView
         </div>
       </button>
 
-      {specialist.phone && (
-        <p className="text-xs text-on-surface-variant mb-3.5 flex items-center gap-1.5 px-1">
-          <span className="material-symbols-outlined text-sm text-outline">call</span> {specialist.phone}
-        </p>
-      )}
-
       {/* Live status strip */}
       {liveInfo && (
         <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 mb-4 border text-xs font-semibold ${liveInfo.color}`}>
@@ -894,12 +940,6 @@ function SpecialistCard({ specialist, liveStatus, onNameClick, bookingId, onView
         <button className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary-container transition-all cursor-pointer">
           <span className="material-symbols-outlined text-xs">explore</span> Track Live
         </button>
-        {specialist.phone && (
-          <a href={`tel:${specialist.phone}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-secondary text-white rounded-xl text-xs font-semibold hover:bg-opacity-95 transition-all">
-            <span className="material-symbols-outlined text-xs">call</span> Call
-          </a>
-        )}
       </div>
     </div>
   );

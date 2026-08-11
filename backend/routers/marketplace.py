@@ -67,7 +67,7 @@ def _to_marketplace_specialist(
     worker: models.MatchedWorkerOut,
     db: Session,
 ) -> models.MarketplaceSpecialistOut:
-    display_name = (worker.name or "").strip() or worker.email.split("@")[0] or "Specialist"
+    display_name = (worker.name or "").strip() or "Specialist"
 
     avg_rating, _review_count = _worker_rating(worker.id, db)
 
@@ -76,8 +76,6 @@ def _to_marketplace_specialist(
         name=display_name,
         services=worker.services,
         avatar=worker.avatar,
-        phone=worker.phone,
-        email=worker.email,
         isAvailable=worker.isAvailable,
         isVerified=worker.isVerified,
         rating=avg_rating or None,

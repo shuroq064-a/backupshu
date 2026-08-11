@@ -58,6 +58,11 @@ export default function ProfilePage() {
 
   // ── Save profile ───────────────────────────
   async function handleSave() {
+    const digits = (form.phone || "").replace(/\D/g, "");
+    if (digits.length > 0 && digits.length !== 10) {
+      setError("Phone number must be 10 digits.");
+      return;
+    }
     setIsSaving(true);
     setError(null);
     try {
@@ -201,13 +206,18 @@ export default function ProfilePage() {
                 empty={!profile?.phone}
                 editContent={
                   isEditing ? (
-                    <input
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="+91 98765 43210"
-                      className="w-full border-b border-primary bg-transparent text-sm text-on-surface focus:outline-none"
-                    />
+                    <>
+                      <input
+                        type="tel"
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        placeholder="98765 43210"
+                        className="w-full border-b border-primary bg-transparent text-sm text-on-surface focus:outline-none"
+                      />
+                      {(form.phone || "").replace(/\D/g, "").length > 0 && (form.phone || "").replace(/\D/g, "").length !== 10 && (
+                        <p className="mt-1 text-xs text-red-500">Phone number must be 10 digits.</p>
+                      )}
+                    </>
                   ) : undefined
                 }
               />

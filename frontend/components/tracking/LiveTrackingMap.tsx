@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { X } from "lucide-react";
+import { X, Navigation } from "lucide-react";
 import { FaMapLocationDot } from "react-icons/fa6";
 import type { BookingDetail, LocationUpdateEvent } from "@/types";
 import { WS_BASE_URL } from "@/lib/config";
@@ -338,9 +338,9 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
         18
       );
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
-      }).addTo(map);
+      L.tileLayer("https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+         maxZoom: 20, attribution: "&copy; OpenStreetMap, &copy; CARTO",
+       }).addTo(map);
 
       L.control.zoom({ position: "topright" }).addTo(map);
 
@@ -529,16 +529,33 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
           exit={{ opacity: 0 }}
           onClick={(e) => { if (e.target === e.currentTarget) toggleOpen(); }}
         >
-          {/* CLOSE BUTTON */}
-          <motion.button
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.15 }}
-            onClick={toggleOpen}
-            className="absolute top-4 left-4 z-[9999] flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#85848B] shadow-lg transition-all hover:bg-gray-50 active:scale-90 sm:top-6 sm:left-6 sm:h-11 sm:w-11 dark:bg-[#2A2A2D] dark:text-white dark:hover:bg-[#3A3A3D]"
-          >
-            <X className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={3} />
-          </motion.button>
+           {/* CLOSE BUTTON */}
+           <motion.button
+             initial={{ opacity: 0, scale: 0.5 }}
+             animate={{ opacity: 1, scale: 1 }}
+             transition={{ delay: 0.15 }}
+             onClick={toggleOpen}
+             className="absolute top-4 left-4 z-[9999] flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#85848B] shadow-lg transition-all hover:bg-gray-50 active:scale-90 sm:top-6 sm:left-6 sm:h-11 sm:w-11 dark:bg-[#2A2A2D] dark:text-white dark:hover:bg-[#3A3A3D]"
+           >
+             <X className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={3} />
+           </motion.button>
+
+           {/* GOOGLE MAPS NAVIGATE BUTTON */}
+           {isMapLoaded && (booking.customerLatitude && booking.customerLongitude) && (
+             <motion.a
+               initial={{ opacity: 0, scale: 0.5 }}
+               animate={{ opacity: 1, scale: 1 }}
+               transition={{ delay: 0.25 }}
+               href={`https://www.google.com/maps/dir/?api=1&destination=${booking.customerLatitude},${booking.customerLongitude}&travelmode=driving`}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="absolute top-4 right-4 z-[9999] flex items-center gap-2 h-10 px-4 rounded-full bg-[#4285F4] text-white shadow-lg transition-all hover:bg-[#3367D6] active:scale-95 sm:top-6 sm:right-6 sm:h-11 dark:bg-[#5C9FFF] dark:hover:bg-[#4285F4]"
+               title="Open in Google Maps"
+             >
+               <Navigation className="h-4 w-4 sm:h-5 sm:w-5" />
+               <span className="text-xs font-semibold hidden sm:inline">Navigate</span>
+             </motion.a>
+           )}
 
           {/* Map card */}
           <motion.div
@@ -601,43 +618,75 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
               )}
             </AnimatePresence>
 
-            {/* Bottom info pill */}
-            {isMapLoaded && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="absolute bottom-3 left-3 right-3 z-[800] bg-white/90 backdrop-blur-sm rounded-2xl px-3 py-2.5 shadow-md flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm">🚲</span>
-                    <span className="text-[10px] text-gray-600 font-semibold">
-                      {role === "client" ? specialistName : "You"}
-                    </span>
-                  </div>
-                  <div className="w-px h-3 bg-gray-200" />
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500" />
-                    <span className="text-[10px] text-gray-600 font-semibold">
-                      {role === "client" ? "You" : booking.clientName || "Client"}
-                    </span>
-                  </div>
-                  {distance && (
-                    <>
-                      <div className="w-px h-3 bg-gray-200" />
-                      <span className="text-[10px] text-gray-500 font-medium">{distance}</span>
-                    </>
-                  )}
-                </div>
-                {eta != null && (
-                  <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
-                    <span className="material-symbols-outlined text-primary text-[11px]">schedule</span>
-                    <span className="text-[10px] font-bold text-primary">{eta}m</span>
-                  </div>
-                )}
-              </motion.div>
-            )}
+             {/* Apple Design — Materials & depth (§12 from apple-design skill) */}
+             {isMapLoaded && (
+               <motion.div
+                 initial={{ opacity: 0, scale: 0.95 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 transition={{ delay: 0.2, type: "spring", bounce: 0, duration: 0.4 }}
+                 className="absolute top-3 left-3 z-[800] w-[220px] rounded-2xl overflow-hidden dark:border dark:border-white/10"
+                 style={{
+                   boxShadow: "0 8px 32px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)",
+                 }}
+               >
+                 {/* Light mode: Apple vibrancy rgba(255,255,255,0.6) + blur(20px) saturate(180%) */}
+                 <div
+                   className="absolute inset-0 dark:hidden"
+                   style={{ background: "rgba(255, 255, 255, 0.6)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}
+                 />
+                 {/* Dark mode: solid dark surface with subtle gradient */}
+                 <div
+                   className="absolute inset-0 hidden dark:block"
+                   style={{ background: "linear-gradient(180deg, rgba(44,44,46,0.85) 0%, rgba(28,28,30,0.9) 100%)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}
+                 />
+                 {/* Bright top edge — light catching the material */}
+                 <div className="absolute top-0 left-0 right-0 h-px bg-white/60 dark:bg-white/20" />
+                 {/* Content */}
+                 <div className="relative">
+                   {/* Row 1: Specialist */}
+                   <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2">
+                     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(16, 185, 129, 0.12)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)" }}>
+                       <span className="text-base">🚲</span>
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <p className="text-[12px] font-semibold text-gray-900 dark:text-white leading-tight truncate" style={{ letterSpacing: "-0.01em" }}>
+                         {role === "client" ? specialistName : "You"}
+                       </p>
+                       <p className="text-[10px] text-gray-600 dark:text-gray-400 font-medium tracking-wide uppercase">Specialist</p>
+                     </div>
+                   </div>
+                   {/* Divider — hairline */}
+                   <div className="mx-3.5 h-px bg-gray-900/8 dark:bg-white/10" />
+                   {/* Row 2: Customer */}
+                   <div className="flex items-center gap-2.5 px-3.5 pt-2 pb-3">
+                     <div className="w-9 h-9 rounded-xl flex items-center justify-center dark:bg-red-500/20" style={{ background: "rgba(239, 68, 68, 0.1)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)" }}>
+                       <span className="material-symbols-outlined text-[16px] text-red-500 dark:text-red-400">person</span>
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <p className="text-[12px] font-semibold text-gray-900 dark:text-white leading-tight truncate" style={{ letterSpacing: "-0.01em" }}>
+                         {role === "client" ? "You" : booking.clientName || "Client"}
+                       </p>
+                       <p className="text-[10px] text-gray-600 dark:text-gray-400 font-medium tracking-wide uppercase">Customer</p>
+                     </div>
+                   </div>
+                   {/* Stats bar */}
+                   <div className="flex items-center gap-2 px-3.5 pb-3 pt-1">
+                     {distance && (
+                       <div className="flex-1 text-center rounded-lg py-1.5 dark:bg-white/10" style={{ background: "rgba(0,0,0,0.04)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4)" }}>
+                         <p className="text-[12px] font-bold text-gray-900 dark:text-white">{distance}</p>
+                         <p className="text-[7px] text-gray-500 dark:text-gray-400 uppercase tracking-[0.1em] font-semibold">dist</p>
+                       </div>
+                     )}
+                     {eta != null && (
+                       <div className="flex-1 text-center rounded-lg py-1.5 dark:bg-blue-500/25" style={{ background: "rgba(59, 130, 246, 0.1)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }}>
+                         <p className="text-[12px] font-bold text-blue-600 dark:text-blue-300">{eta} min</p>
+                         <p className="text-[7px] text-blue-500/60 dark:text-blue-400/70 uppercase tracking-[0.1em] font-semibold">ETA</p>
+                       </div>
+                     )}
+                   </div>
+                 </div>
+               </motion.div>
+             )}
           </motion.div>
         </motion.div>
       )}

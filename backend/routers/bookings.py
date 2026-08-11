@@ -21,7 +21,6 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
-import jwt
 import uuid, json, os, sys, random, string
 
 if __package__ and "." in __package__:
@@ -33,7 +32,7 @@ if __package__ and "." in __package__:
         BookingReviewSubmit, BookingReviewOut,
         BookingLocationUpdate, BookingAddressConfirm,
     )
-    from ..auth_utils import ALGORITHM, SECRET_KEY, get_current_user
+    from ..auth_utils import get_current_user
     from ..services.rate_limiter import rate_limit
     from ..services.worker_services import build_worker_services
     from ..services.worker_matching import service_matches_intent
@@ -51,7 +50,7 @@ else:
         BookingReviewSubmit, BookingReviewOut,
         BookingLocationUpdate, BookingAddressConfirm,
     )
-    from auth_utils import ALGORITHM, SECRET_KEY, get_current_user
+    from auth_utils import get_current_user
     from services.rate_limiter import rate_limit
     from services.worker_services import build_worker_services
     from services.worker_matching import service_matches_intent
@@ -80,6 +79,11 @@ TRANSITIONS = {
 
 # Statuses that mean a specialist is busy (can't accept another)
 ACTIVE_STATUSES = {"accepted", "started", "reached", "ongoing"}
+
+# Statuses that mean a CLIENT already has an open job (incl. still-waiting
+# requests) — blocks creating a second booking for another specialist.
+CLIENT_OPEN_STATUSES = {"upcoming", "accepted", "started", "reached", "ongoing"}
+LIST_PAGE_LIMIT = 100
 
 STATUS_LABELS = {
     "started":   "On the Way",
@@ -382,8 +386,9 @@ def _ws_authenticate_specialist(worker_id: str, websocket: WebSocket, token: Opt
 
 def _ws_user_id_from_token(token: str) -> Optional[str]:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.PyJWTError:
+        from auth_utils import decode_access_token
+        payload = decode_access_token(token)
+    except Exception:
         return None
 
     user_id = payload.get("sub")
@@ -412,22 +417,55 @@ def _worker_rating(worker_id: str, db: Session):
     return (round(float(result[0]), 1) if result[0] else 0.0), (result[1] or 0)
 
 
-# ── Helper — build full BookingDetailOut ──────────────────────────────────────
+def _worker_ratings_map(worker_ids: set, db: Session) -> dict:
+    """AVG + COUNT of customer ratings per worker — ONE query for many workers
+    (the per-booking alternative is an N+1 aggregate round-trip each)."""
+    if not worker_ids:
+        return {}
+    rows = (
+        db.query(
+            Booking.worker_id,
+            func.avg(Booking.customer_rating),
+            func.count(Booking.customer_rating),
+        )
+        .filter(
+            Booking.worker_id.in_(worker_ids),
+            Booking.customer_rating.isnot(None),
+        )
+        .group_by(Booking.worker_id)
+        .all()
+    )
+    return {
+        wid: (round(float(avg), 1) if avg else 0.0, cnt or 0)
+        for wid, avg, cnt in rows
+    }
 
-def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
-    worker = (
-        db.query(Worker)
-        .options(joinedload(Worker.services).joinedload(WorkerService.service))
-        .filter(Worker.id == booking.worker_id)
-        .first()
-    ) if booking.worker_id else None
 
-    worker_user = db.query(User).filter(User.id == worker.user_id).first() if worker else None
-    client_user = db.query(User).filter(User.id == booking.client_id).first()
+def _payment_status_for(booking: Booking, latest_payment: Optional[Payment]) -> str:
+    is_paid = booking.is_paid if hasattr(booking, "is_paid") else False
+    if is_paid:
+        return "captured"
+    return latest_payment.status if latest_payment else "none"
+
+
+def _is_paid(booking: Booking) -> bool:
+    return booking.is_paid if hasattr(booking, "is_paid") else False
+
+
+# ── Helper — build full BookingDetailOut from pre-loaded data ─────────────────
+
+def _build_one(
+    booking: Booking,
+    worker: Optional[Worker],
+    worker_user: Optional[User],
+    client_user: Optional[User],
+    rating: tuple,
+    latest_payment: Optional[Payment],
+) -> BookingDetailOut:
+    avg_rating, review_count = rating
 
     specialist = None
     if worker and worker_user:
-        avg_rating, review_count = _worker_rating(worker.id, db)
         specialist = SpecialistInfoOut(
             name=worker_user.name or worker_user.email.split("@")[0],
             avatar=getattr(worker_user, "avatar", None),
@@ -446,21 +484,6 @@ def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
             total=booking.total_amount or booking.visit_charge or 100,
             paymentMethod=booking.payment_method,
         )
-
-    # Payment status
-    is_paid = booking.is_paid if hasattr(booking, "is_paid") else False
-    payment_status = "none"
-    if is_paid:
-        payment_status = "captured"
-    else:
-        latest_payment = (
-            db.query(Payment)
-            .filter(Payment.booking_id == booking.id)
-            .order_by(Payment.created_at.desc())
-            .first()
-        )
-        if latest_payment:
-            payment_status = latest_payment.status
 
     return BookingDetailOut(
         id=booking.id,
@@ -498,11 +521,99 @@ def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
         cancellationReason=booking.cancellation_reason,
         cancelledBy=booking.cancelled_by,
         workerId=booking.worker_id,
-        isPaid=is_paid,
-        paymentStatus=payment_status,
+        isPaid=_is_paid(booking),
+        paymentStatus=_payment_status_for(booking, latest_payment),
         otp=booking.otp_code if booking.status == "reached" else None,
         otpExpiresAt=booking.otp_expires_at if booking.status == "reached" else None,
     )
+
+
+# ── Helper — build full BookingDetailOut for a single booking ─────────────────
+
+def _build_detail(booking: Booking, db: Session) -> BookingDetailOut:
+    worker = (
+        db.query(Worker)
+        .options(joinedload(Worker.services).joinedload(WorkerService.service))
+        .filter(Worker.id == booking.worker_id)
+        .first()
+    ) if booking.worker_id else None
+
+    worker_user = db.query(User).filter(User.id == worker.user_id).first() if worker else None
+    client_user = db.query(User).filter(User.id == booking.client_id).first()
+
+    rating = _worker_rating(worker.id, db) if worker else (0.0, 0)
+
+    latest_payment = None
+    if not _is_paid(booking):
+        latest_payment = (
+            db.query(Payment)
+            .filter(Payment.booking_id == booking.id)
+            .order_by(Payment.created_at.desc())
+            .first()
+        )
+
+    return _build_one(booking, worker, worker_user, client_user, rating, latest_payment)
+
+
+# ── Helper — build details for MANY bookings with bulk queries ────────────────
+
+def _build_details(bookings: list, db: Session) -> list[BookingDetailOut]:
+    """Build BookingDetailOut for many bookings with a handful of bulk queries
+    instead of ~5 round-trips per row (worker + user + user + rating + payment).
+
+    This is the single biggest win for the bookings list endpoints (client
+    bookings / specialist bookings / incoming requests) — previously every row
+    caused individual queries against a remote database.
+    """
+    bookings = list(bookings)
+    if not bookings:
+        return []
+
+    ids = [b.id for b in bookings]
+    worker_ids = {b.worker_id for b in bookings if b.worker_id}
+    client_ids = {b.client_id for b in bookings}
+
+    workers: dict = {}
+    if worker_ids:
+        workers = {
+            w.id: w
+            for w in db.query(Worker)
+            .options(joinedload(Worker.services).joinedload(WorkerService.service))
+            .filter(Worker.id.in_(worker_ids))
+            .all()
+        }
+
+    user_ids = set(client_ids) | {w.user_id for w in workers.values() if w.user_id}
+    users: dict = {}
+    if user_ids:
+        users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+
+    ratings = _worker_ratings_map(worker_ids, db)
+
+    payments: dict = {}
+    if ids:
+        rows = (
+            db.query(Payment)
+            .filter(Payment.booking_id.in_(ids))
+            .order_by(Payment.created_at.desc())
+            .all()
+        )
+        for p in rows:
+            payments.setdefault(p.booking_id, p)
+
+    return [
+        _build_one(
+            booking=b,
+            worker=workers.get(b.worker_id),
+            worker_user=(
+                users.get(workers[b.worker_id].user_id) if b.worker_id in workers else None
+            ),
+            client_user=users.get(b.client_id),
+            rating=ratings.get(b.worker_id, (0.0, 0)),
+            latest_payment=payments.get(b.id),
+        )
+        for b in bookings
+    ]
 
 
 # ─────────────────────────────────────────────
@@ -543,15 +654,15 @@ def create_booking(
     except ValueError:
         raise HTTPException(status_code=422, detail="scheduled_date must be YYYY-MM-DD.")
 
-    # Prevent duplicate active bookings for the SAME client + service type. A client
-    # should only ever have one open request per service; otherwise the assistant ends
-    # up reporting several "still waiting for acceptance" bookings for the same job.
+    # A client can hold only ONE open booking at a time (any service). They must
+    # wait for it to be completed or cancelled before requesting another
+    # specialist — otherwise the assistant could recommend and create a second
+    # specialist for a customer who is already mid-job.
     existing = (
         db.query(Booking)
         .filter(
             Booking.client_id == current_user.id,
-            Booking.service_type == payload.service_type,
-            Booking.status.in_(list(ACTIVE_STATUSES)),
+            Booking.status.in_(list(CLIENT_OPEN_STATUSES)),
         )
         .first()
     )
@@ -559,9 +670,9 @@ def create_booking(
         raise HTTPException(
             status_code=409,
             detail=(
-                f"You already have an active {payload.service_type} booking "
-                f"(#{(existing.booking_number or '').upper()}). Please wait for it to be "
-                f"completed or cancel it before requesting another."
+                f"You already have an open booking (#{(existing.booking_number or '').upper()}, "
+                f"{existing.service_type}) that is {existing.status}. Please wait for it to be "
+                f"completed or cancel it before requesting another specialist."
             ),
         )
 
@@ -1130,7 +1241,7 @@ def get_worker_requests(
     # The open broadcast pool (unassigned bookings matched by skill) is only shown
     # when the specialist is listed available.
     if not worker.is_available:
-        return [_build_detail(b, db) for b in assigned]
+        return _build_details(assigned, db)
 
     # Get specialist's verified service names and match with the same alias
     # rules used by marketplace/intent search.
@@ -1141,7 +1252,7 @@ def get_worker_requests(
     ]
 
     if not my_services:
-        return [_build_detail(b, db) for b in assigned]
+        return _build_details(assigned, db)
 
     # Fetch all upcoming unassigned bookings
     unassigned = (
@@ -1166,7 +1277,7 @@ def get_worker_requests(
             seen.add(b.id)
             all_requests.append(b)
 
-    return [_build_detail(b, db) for b in all_requests]
+    return _build_details(all_requests, db)
 
 
 # ─────────────────────────────────────────────
@@ -1186,8 +1297,8 @@ def get_user_bookings(
     q = db.query(Booking).filter(Booking.client_id == user_id)
     if status:
         q = q.filter(Booking.status == status)
-    bookings = q.order_by(Booking.created_at.desc()).all()
-    return [_build_detail(b, db) for b in bookings]
+    bookings = q.order_by(Booking.created_at.desc()).limit(LIST_PAGE_LIMIT).all()
+    return _build_details(bookings, db)
 
 
 # ─────────────────────────────────────────────

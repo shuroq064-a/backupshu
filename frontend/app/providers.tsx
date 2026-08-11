@@ -40,6 +40,8 @@ function RouteThemeGuard() {
       return;
     }
 
+    if (pathname.startsWith("/auth")) return;
+
     document.documentElement.classList.remove("dark");
     document.documentElement.style.colorScheme = "light";
   }, [pathname, syncTheme]);

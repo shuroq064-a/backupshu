@@ -17,14 +17,13 @@ import os
 import sys
 import uuid
 import json
-import jwt
 
 from pydantic import BaseModel, Field
 
 if __package__ and "." in __package__:
     from ..database import get_db, SessionLocal
     from ..dbmodels import Booking, Message, User, Worker
-    from ..auth_utils import get_current_user, SECRET_KEY, ALGORITHM
+    from ..auth_utils import get_current_user
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
     if BACKEND_DIR not in sys.path:
@@ -32,7 +31,7 @@ else:
 
     from database import get_db, SessionLocal
     from dbmodels import Booking, Message, User, Worker
-    from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
+    from auth_utils import get_current_user
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 
@@ -91,8 +90,9 @@ def _ws_token(websocket: WebSocket, token: Optional[str]) -> Optional[str]:
 
 def _ws_user_id(token: str) -> Optional[str]:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.PyJWTError:
+        from auth_utils import decode_access_token
+        payload = decode_access_token(token)
+    except Exception:
         return None
     user_id = payload.get("sub")
     return user_id if isinstance(user_id, str) and user_id else None

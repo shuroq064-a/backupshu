@@ -32,7 +32,19 @@ if __package__:
 else:
     from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat, payments
 
-app = FastAPI(title="ShuroqX API", version="1.0.0")
+# ── App environment: docs are only exposed in development ────────────────────
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production").strip().lower()
+_ENABLE_API_DOCS = ENVIRONMENT == "development"
+
+app = FastAPI(
+    title="ShuroqX API",
+    version="1.0.0",
+    # Do not expose the full API surface (/docs, /redoc, /openapi.json) in
+    # production — it makes enumeration and fingerprinting trivial.
+    docs_url="/docs" if _ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if _ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if _ENABLE_API_DOCS else None,
+)
 
 
 def get_cors_origins() -> list[str]:
@@ -70,6 +82,49 @@ def is_origin_allowed(origin: str, allowed: list[str]) -> bool:
     return False
 
 
+def _request_is_https(request: Request) -> bool:
+    """True when the request reached us over TLS (direct or via trusted proxy)."""
+    if request.url.scheme == "https":
+        return True
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").lower()
+    return forwarded_proto == "https"
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Defense-in-depth response headers applied to EVERY response.
+
+    - X-Content-Type-Options: nosniff          → no MIME sniffing
+    - X-Frame-Options: DENY                    → no embedding (clickjacking)
+    - Content-Security-Policy                  → frame-ancestors 'none' for an
+                                                 API; default-src 'none' since the
+                                                 API never serves inline content
+    - Referrer-Policy: no-referrer             → no referrer leakage
+    - Permissions-Policy: ()                   → no browser feature access
+    - X-XSS-Protection: 0                      → legacy filter disabled (it had
+                                                 bypasses; modern browsers use CSP)
+    - Strict-Transport-Security (HTTPS only)   → HSTS once we're certain the
+                                                 connection was over TLS
+    """
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logger.exception("Unhandled exception in route handler")
+        response = Response(status_code=500, content="Internal Server Error")
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    response.headers["X-XSS-Protection"] = "0"
+    if _request_is_https(request):
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 @app.middleware("http")
 async def cors_middleware(request: Request, call_next):
     """CORS middleware with explicit origin allowlist.
@@ -79,6 +134,7 @@ async def cors_middleware(request: Request, call_next):
     without CORS headers (browsers don't enforce CORS on WS).
     """
     origin = request.headers.get("origin")
+    allowed = is_origin_allowed(origin, get_cors_origins()) if origin else False
 
     if request.scope.get("type") == "websocket":
         return await call_next(request)
@@ -92,13 +148,17 @@ async def cors_middleware(request: Request, call_next):
             logger.exception("Unhandled exception in route handler")
             response = Response(status_code=500, content="Internal Server Error")
 
-    if origin and is_origin_allowed(origin, get_cors_origins()):
+    # CORS headers are attached ONLY when the origin is explicitly allowed.
+    # Disallowed origins (including preflight) get no CORS headers at all, so
+    # browsers block the cross-origin request.
+    if allowed:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        response.headers["Vary"] = "Origin"
 
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
-    response.headers["Vary"] = "Origin"
     return response
 
 @app.get("/")

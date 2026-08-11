@@ -62,7 +62,7 @@ export function SpecialistProfileCard({
   const rating = specialist.rating != null ? specialist.rating.toFixed(1) : "New";
   const distance = specialist.distanceKm != null ? `${specialist.distanceKm} km` : "—";
   const eta = specialist.etaMinutes != null ? `${specialist.etaMinutes} min` : "—";
-  const contact = specialist.email || specialist.phone || "Contact via chat";
+  const contact = "Contact via chat";
 
   return (
     <div

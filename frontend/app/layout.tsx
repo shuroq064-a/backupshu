@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/Toaster";
+import { DevAgentation } from "@/components/DevAgentation";
 import "./globals.css";
 import "./material-symbols.css";
 
@@ -38,7 +39,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('shuroqx-theme')||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();",
+              "(function(){try{var t=localStorage.getItem('shuroqx-theme')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();",
           }}
         />
       </head>
@@ -48,6 +49,7 @@ export default function RootLayout({
       >
         <Providers>{children}</Providers>
         <Toaster />
+        <DevAgentation />
       </body>
     </html>
   );
