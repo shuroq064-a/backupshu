@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Navigation } from "lucide-react";
 import { FaMapLocationDot } from "react-icons/fa6";
 import type { BookingDetail, LocationUpdateEvent } from "@/types";
-import { WS_BASE_URL } from "@/lib/config";
+import { WS_BASE_URL, API_BASE_URL } from "@/lib/config";
 import { getToken } from "@/lib/auth";
 import { useGpsTracking } from "./GpsTrackingContext";
 
@@ -165,25 +165,48 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
   const followNavigation = useCallback((map: any, specLat: number, specLng: number) => {
     const bearing = getBearingFromRoute(specLat, specLng);
     lastBearingRef.current = bearing;
-    map.setView([specLat, specLng], map.getZoom(), { animate: true, duration: 0.6 });
+    try {
+      map.setView([specLat, specLng], map.getZoom(), { animate: true, duration: 0.6 });
+    } catch {}
     if (map.setBearing) map.setBearing(-bearing);
     const mapHeight = mapRef.current?.clientHeight ?? 500;
-    map.panBy([0, mapHeight * 0.3], { animate: true, duration: 0.3 });
+    try {
+      // panBy animates the map's pane; it can throw (or crash on the next
+      // animation frame) if a drag/animation is already in flight — e.g. right
+      // after dragstart. Guard it so a stale in-flight pan can't break the map.
+      map.panBy([0, mapHeight * 0.3], { animate: true, duration: 0.3 });
+    } catch {}
   }, [getBearingFromRoute]);
 
+  // Straight-line fallback route — used when the driving route service is
+  // unreachable so the map always has a visible start→destination line.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fetchRouteFromOSRM = useCallback(async (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
+  const drawStraightLine = useCallback((L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
+    const steps = 24;
+    const coords: [number, number][] = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      coords.push([sLat + (cLat - sLat) * t, sLng + (cLng - sLng) * t]);
+    }
+    drawRoute(L, map, coords);
+    setDistance(haversineMeters(sLat, sLng, cLat, cLng) >= 1000
+      ? `${(haversineMeters(sLat, sLng, cLat, cLng) / 1000).toFixed(1)} km`
+      : `${Math.round(haversineMeters(sLat, sLng, cLat, cLng))} m`);
+  }, [drawRoute]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fetchRoute = useCallback(async (L: any, map: any, sLat: number, sLng: number, cLat: number, cLng: number) => {
     if (routeFetchInFlightRef.current) return;
     routeFetchInFlightRef.current = true;
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${cLng},${cLat}?overview=full&geometries=geojson`;
+    const url = `${API_BASE_URL}/routes/driving?origin_lat=${sLat}&origin_lng=${sLng}&destination_lat=${cLat}&destination_lng=${cLng}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let data: any = null;
     try {
       const res = await fetch(url);
       data = await res.json();
     } catch {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1500));
       try {
         const res2 = await fetch(url);
         data = await res2.json();
@@ -193,14 +216,12 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
     routeFetchInFlightRef.current = false;
     if (!leafletMap.current) return;
 
-    if (data?.code === "Ok" && data.routes?.length) {
-      const route = data.routes[0];
-      const rawCoords = route.geometry?.coordinates;
-      if (!rawCoords?.length) return;
-      const coords: [number, number][] = rawCoords.map((c: [number, number]) => [c[1], c[0]]);
-      if (coords.length < 2) return;
-      setDistance(route.distance >= 1000 ? `${(route.distance / 1000).toFixed(1)} km` : `${Math.round(route.distance)} m`);
-      if (!booking.etaMinutes && route.duration) setEta(Math.ceil(route.duration / 60));
+    if (data?.coordinates?.length >= 2) {
+      const coords: [number, number][] = data.coordinates.map((c: [number, number]) => [c[0], c[1]]);
+      setDistance(data.distance_meters >= 1000
+        ? `${(data.distance_meters / 1000).toFixed(1)} km`
+        : `${Math.round(data.distance_meters)} m`);
+      if (!booking.etaMinutes && data.eta_minutes) setEta(data.eta_minutes);
       drawRoute(L, map, coords);
       if (Date.now() - routeOpenTimeRef.current < FITBOUNDS_GRACE_MS) {
         const bounds = L.latLngBounds([sLat, sLng], [cLat, cLng]);
@@ -208,9 +229,13 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       } else if (followModeRef.current) {
         followNavigation(map, sLat, sLng);
       }
+    } else if (!routeCoordsRef.current.length) {
+      // No driving route available — fall back to a straight line so the map
+      // still shows the start→destination path and distance.
+      drawStraightLine(L, map, sLat, sLng, cLat, cLng);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawRoute, followNavigation]);
+  }, [drawRoute, drawStraightLine, followNavigation]);
 
   const throttledFetchRoute = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,9 +249,9 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       }
       lastFetchPosRef.current = { lat: sLat, lng: sLng };
       lastFetchTimeRef.current = now;
-      fetchRouteFromOSRM(L, map, sLat, sLng, cLat, cLng);
+      fetchRoute(L, map, sLat, sLng, cLat, cLng);
     },
-    [fetchRouteFromOSRM]
+    [fetchRoute]
   );
 
   const recenter = useCallback(() => {
@@ -366,7 +391,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
       }
 
       if (cLat && cLng && sLat && sLng) {
-        fetchRouteFromOSRM(L, map, sLat, sLng, cLat, cLng);
+        fetchRoute(L, map, sLat, sLng, cLat, cLng);
       } else if (sLat && sLng) {
         map.setView([sLat, sLng], 18);
       } else if (cLat && cLng) {
@@ -407,7 +432,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
                   .bindPopup(role === "client" ? specialistName : "Your location");
                 setIsWaiting(false);
                 const destLat = booking.customerLatitude, destLng = booking.customerLongitude;
-                if (destLat && destLng) fetchRouteFromOSRM(L, map, data.latitude, data.longitude, destLat, destLng);
+                if (destLat && destLng) fetchRoute(L, map, data.latitude, data.longitude, destLat, destLng);
               } else {
                 (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([data.latitude, data.longitude]);
                 if (followModeRef.current) followNavigation(map, data.latitude, data.longitude);
@@ -468,7 +493,7 @@ export default function LiveTrackingMap({ booking, onClose, role }: LiveTracking
           .bindPopup("Your location");
         if (followModeRef.current) followNavigation(map, gpsPosition.latitude, gpsPosition.longitude);
         const cLat = booking.customerLatitude, cLng = booking.customerLongitude;
-        if (cLat && cLng) fetchRouteFromOSRM(LocalL, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
+        if (cLat && cLng) fetchRoute(LocalL, map, gpsPosition.latitude, gpsPosition.longitude, cLat, cLng);
       }).catch(() => {});
     } else {
       (specialistMarkerRef.current as { setLatLng: (ll: [number, number]) => void }).setLatLng([gpsPosition.latitude, gpsPosition.longitude]);

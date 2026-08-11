@@ -171,3 +171,98 @@ def get_eta_minutes(
         },
     )
     return result
+
+
+def decode_polyline(polyline: str) -> list[tuple[float, float]]:
+    """Decode a Google-encoded polyline into [(lat, lng), ...] pairs."""
+    coords: list[tuple[float, float]] = []
+    index = 0
+    lat = 0
+    lng = 0
+
+    while index < len(polyline):
+        result = 0
+        shift = 0
+        while True:
+            byte_value = ord(polyline[index]) - 63
+            index += 1
+            result |= (byte_value & 0x1F) << shift
+            shift += 5
+            if byte_value < 0x20:
+                break
+        dlat = ~(result >> 1) if result & 1 else result >> 1
+        lat += dlat
+
+        result = 0
+        shift = 0
+        while True:
+            byte_value = ord(polyline[index]) - 63
+            index += 1
+            result |= (byte_value & 0x1F) << shift
+            shift += 5
+            if byte_value < 0x20:
+                break
+        dlng = ~(result >> 1) if result & 1 else result >> 1
+        lng += dlng
+
+        coords.append((lat / 1e5, lng / 1e5))
+
+    return coords
+
+
+def get_route_polyline(
+    origin_lat: float,
+    origin_lng: float,
+    destination_lat: float,
+    destination_lng: float,
+) -> dict[str, Any]:
+    """Return a driving route polyline (lat/lng pairs) plus totals between two points.
+
+    Used by the live tracking map — replaces the unreliable public OSRM router
+    with the Ola Maps directions API (same provider that computes ETA/distance).
+    """
+    data = _call_ola_maps(
+        "POST",
+        "/routing/v1/directions",
+        {
+            "origin": f"{origin_lat},{origin_lng}",
+            "destination": f"{destination_lat},{destination_lng}",
+            "mode": "driving",
+            "alternatives": "false",
+            "steps": "false",
+            "overview": "full",
+            "language": "en",
+            "traffic_metadata": "false",
+            "route_preference": "fastest",
+        },
+    )
+
+    routes = data.get("routes")
+    if not isinstance(routes, list) or not routes:
+        raise OlaMapsServiceError("Ola Maps route response did not include routes")
+
+    first_route = routes[0]
+    if not isinstance(first_route, dict):
+        raise OlaMapsServiceError("Ola Maps route response was malformed")
+
+    overview = first_route.get("overview_polyline")
+    if isinstance(overview, dict):
+        encoded = overview.get("points")
+    elif isinstance(overview, str):
+        encoded = overview
+    else:
+        encoded = None
+    if not isinstance(encoded, str) or not encoded:
+        raise OlaMapsServiceError("Ola Maps route response missing polyline")
+
+    coordinates = decode_polyline(encoded)
+    if len(coordinates) < 2:
+        raise OlaMapsServiceError("Ola Maps route polyline was empty")
+
+    distance_meters, duration_seconds = _extract_route_totals(data)
+    return {
+        "coordinates": coordinates,
+        "distance_meters": distance_meters,
+        "duration_seconds": duration_seconds,
+        "eta_minutes": _eta_minutes(duration_seconds),
+    }

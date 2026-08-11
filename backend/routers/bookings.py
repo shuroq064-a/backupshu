@@ -12,7 +12,7 @@ Routes:
     WS     /ws/bookings/{id}               → live status push (Task 01)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, BackgroundTasks, Query
 import re
 import asyncio
 from fastapi.concurrency import run_in_threadpool
@@ -36,7 +36,7 @@ if __package__ and "." in __package__:
     from ..services.rate_limiter import rate_limit
     from ..services.worker_services import build_worker_services
     from ..services.worker_matching import service_matches_intent
-    from ..services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes
+    from ..services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes, get_route_polyline
     from ..services.ola_maps.geocoding_service import geocode_address
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -54,7 +54,7 @@ else:
     from services.rate_limiter import rate_limit
     from services.worker_services import build_worker_services
     from services.worker_matching import service_matches_intent
-    from services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes
+    from services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes, get_route_polyline
     from services.ola_maps.geocoding_service import geocode_address
 
 router = APIRouter(tags=["Bookings"])
@@ -1296,6 +1296,27 @@ def get_worker_requests(
             all_requests.append(b)
 
     return _build_details(all_requests, db)
+
+
+# ─────────────────────────────────────────────
+#  GET /routes/driving — driving route polyline
+#  Used by the live tracking map. Replaces the
+#  unreliable public OSRM router with Ola Maps.
+# ─────────────────────────────────────────────
+
+@router.get("/routes/driving")
+def get_driving_route(
+    origin_lat: float = Query(..., ge=-90, le=90),
+    origin_lng: float = Query(..., ge=-180, le=180),
+    destination_lat: float = Query(..., ge=-90, le=90),
+    destination_lng: float = Query(..., ge=-180, le=180),
+):
+    try:
+        return get_route_polyline(
+            origin_lat, origin_lng, destination_lat, destination_lng
+        )
+    except OlaMapsServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 # ─────────────────────────────────────────────
