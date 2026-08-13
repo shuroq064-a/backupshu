@@ -100,7 +100,7 @@ const ChartTooltipInner = memo(function ChartTooltipInner({
   showCrosshair = true,
   showDots = true,
   dotVariant = "dot",
-  dotSize = 6,
+  dotSize = 5,
   dotRadiusFraction,
   dotScale = 1,
   dotStrokeWidth,

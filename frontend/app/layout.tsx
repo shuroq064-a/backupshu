@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/Toaster";
+import { DevAgentation } from "@/components/DevAgentation";
 import "./globals.css";
 import "./material-symbols.css";
 
@@ -48,6 +49,7 @@ export default function RootLayout({
       >
         <Providers>{children}</Providers>
         <Toaster />
+        <DevAgentation />
       </body>
     </html>
   );

@@ -135,6 +135,11 @@
   --chart-scale-04: oklch(0.68 0.02 106);
   --chart-scale-05: oklch(0.55 0.025 106);
   --chart-scale-pattern-color: oklch(0.96 0.005 106);
+  --legend: oklch(1 0 0);
+  --legend-foreground: oklch(0.141 0.005 285.823);
+  --legend-muted: oklch(0.967 0.001 286.375);
+  --legend-muted-foreground: oklch(0.552 0.016 285.938);
+  --legend-track: oklch(0.92 0.004 286.32);
 }
 
 /* â”€â”€ Dark theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -331,6 +336,11 @@
   --chart-tooltip-background: oklch(0.21 0.006 285 / 0.8);
   --chart-tooltip-foreground: oklch(0.985 0 0);
   --chart-tooltip-muted: oklch(0.65 0.01 260);
+  --legend: oklch(0.21 0.006 285.885);
+  --legend-foreground: oklch(0.985 0 0);
+  --legend-muted: oklch(0.274 0.006 286.033);
+  --legend-muted-foreground: oklch(0.705 0.015 286.067);
+  --legend-track: oklch(0.274 0.006 286.033);
 }
 
 /* â”€â”€ Base â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -639,6 +649,33 @@ button:hover .icon-menu {
   50% { transform: scale(1.15); }
 }
 
+/* ── Stitch "Specialist - Earnings Dashboard" utilities ── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+}
+.shadow-soft {
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.dark .glass-card {
+  background: rgba(14, 17, 22, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 /* ── Loader (prompt-kit) ── */
 @keyframes loader-shimmer {
   0% { background-position: 200% center; }
@@ -727,4 +764,9 @@ button:hover .icon-menu {
   --color-chart-scale-04: var(----chart-scale-04);
   --color-chart-scale-05: var(----chart-scale-05);
   --color-chart-scale-pattern-color: var(----chart-scale-pattern-color);
+  --color-legend-track: var(----legend-track);
+  --color-legend-muted-foreground: var(----legend-muted-foreground);
+  --color-legend-muted: var(----legend-muted);
+  --color-legend-foreground: var(----legend-foreground);
+  --color-legend: var(----legend);
 }

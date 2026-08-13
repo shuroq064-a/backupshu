@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@bklitui/ui/charts": [
+        "./components/charts/index.ts"
       ]
     }
   },
