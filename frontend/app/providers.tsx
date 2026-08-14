@@ -34,8 +34,9 @@ function RouteThemeGuard() {
   useEffect(() => {
     const isAppRoute =
       pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+    const isOnboarding = pathname.startsWith("/onboarding");
 
-    if (isAppRoute) {
+    if (isAppRoute || isOnboarding) {
       syncTheme();
       return;
     }
@@ -52,7 +53,9 @@ function RouteThemeGuard() {
 function ThemeToggleSlot() {
   const pathname = usePathname();
   const isAppRoute =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/onboarding");
 
   if (!isAppRoute) return null;
   return <ThemeToggle />;

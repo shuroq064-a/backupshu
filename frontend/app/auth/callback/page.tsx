@@ -2,12 +2,11 @@
 
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { persistSession } from "@/lib/auth";
 import { useAppDispatch } from "@/store";
 import { hydrateAuth } from "@/store/slices/authSlice";
-import { sanitizeRedirect } from "@/lib/security";
 
 export default function AuthCallbackPage() {
   return (
@@ -26,8 +25,6 @@ export default function AuthCallbackPage() {
 function AuthCallbackInner() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = sanitizeRedirect(searchParams.get("redirect"));
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -69,8 +66,10 @@ function AuthCallbackInner() {
     // Re-hydrate Redux so dashboard sees the user immediately
     dispatch(hydrateAuth());
 
-    router.replace(redirect);
-  }, [session, status, router, redirect]);
+    // New OAuth signups land on the premium profile setup wizard; the
+    // onboarding page redirects users who already completed it to the dashboard.
+    router.replace("/onboarding");
+  }, [session, status, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">

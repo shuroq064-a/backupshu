@@ -218,6 +218,10 @@ export interface UserProfile {
   language: string;
   avatar?: string;
   role: string;
+  age?: number;
+  gender?: string;
+  profession?: string;
+  onboardingCompleted?: boolean;
   createdAt?: string;
 }
 
@@ -227,6 +231,10 @@ export interface UpdateProfilePayload {
   address?: string;
   location?: string;
   language?: string;
+  age?: number;
+  gender?: string;
+  profession?: string;
+  onboarding_completed?: boolean;
 }
 
 export interface ChangePasswordPayload {

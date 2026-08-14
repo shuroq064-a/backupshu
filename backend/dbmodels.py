@@ -26,6 +26,10 @@ class User(Base):
     location_permission_granted = Column(String, nullable=True)  # "allow", "deny", "while_using_site", or None
     location_permission_granted_at = Column(DateTime, nullable=True)
     token_version = Column(Integer, default=0, nullable=False)
+    age = Column(Integer, nullable=True)
+    gender = Column(String, nullable=True)
+    profession = Column(String, nullable=True)
+    onboarding_completed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     specialist_profile = relationship("Worker", back_populates="user", cascade="all, delete-orphan")

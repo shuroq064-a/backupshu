@@ -186,6 +186,10 @@ def get_my_profile(
         language=current_user.language or "english",
         avatar=current_user.avatar,
         role=current_user.role,
+        age=current_user.age,
+        gender=current_user.gender,
+        profession=current_user.profession,
+        onboardingCompleted=current_user.onboarding_completed,
         createdAt=current_user.created_at.isoformat() if current_user.created_at else None,
     )
 
@@ -235,6 +239,33 @@ def update_my_profile(
         current_user.location = payload.location
         changed = True
 
+    if payload.age is not None:
+        if payload.age < 13 or payload.age > 120:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Age must be between 13 and 120.",
+            )
+        current_user.age = payload.age
+        changed = True
+
+    if payload.gender is not None:
+        allowed_genders = ["female", "male", "non-binary", "prefer-not"]
+        if payload.gender not in allowed_genders:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Gender must be one of: {', '.join(allowed_genders)}",
+            )
+        current_user.gender = payload.gender
+        changed = True
+
+    if payload.profession is not None:
+        current_user.profession = payload.profession
+        changed = True
+
+    if payload.onboarding_completed is not None:
+        current_user.onboarding_completed = payload.onboarding_completed
+        changed = True
+
     if changed:
         db.commit()
         db.refresh(current_user)
@@ -253,6 +284,10 @@ def update_my_profile(
         location=current_user.location,
         avatar=current_user.avatar,
         role=current_user.role,
+        age=current_user.age,
+        gender=current_user.gender,
+        profession=current_user.profession,
+        onboardingCompleted=current_user.onboarding_completed,
         createdAt=current_user.created_at.isoformat() if current_user.created_at else None,
     )
 

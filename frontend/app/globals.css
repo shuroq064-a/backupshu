@@ -64,9 +64,17 @@
   --color-popover-foreground: var(--color-on-surface);
   --color-accent: var(--color-surface-container-high);
   --color-accent-foreground: var(--color-on-surface);
-  --color-input: var(--color-outline-variant);
+--color-input: var(--color-outline-variant);
 
   --font-sans: "Inter", sans-serif;
+
+  /* Midnight/Mint — premium onboarding theme */
+  --color-midnight: #051424;
+  --color-midnight-light: #0d1c2d;
+  --color-mint: #2dd4bf;
+  --color-mint-dark: #14b8a6;
+  --color-on-midnight: #f8fafc;
+  --color-on-midnight-variant: #94a3b8;
 
   /* Typography scale (Tailwind v4 reads font sizes from @theme) */
   --text-display-xl: 60px;
@@ -735,6 +743,148 @@ button:hover .icon-menu {
   --destructive-foreground: var(--color-on-error, #ffffff);
   --success: var(--color-primary, #22c55e);
   --radius: 1rem;
+}
+
+/* Midnight/Mint scope — used by the Premium Profile Setup onboarding page.
+   Overrides the token CSS vars for every descendant, so shared components
+   (AnimatedStepper, inputs, buttons) render in the dark navy + mint theme
+   regardless of the app's light/dark mode. */
+.onboarding-midnight {
+  --color-primary: #2dd4bf;
+  --color-primary-container: #134e4a;
+  --color-on-primary: #051424;
+  --color-on-primary-container: #99f6e4;
+  --color-primary-fixed: #99f6e4;
+  --color-primary-fixed-dim: #2dd4bf;
+  --color-on-primary-fixed: #051424;
+  --color-on-primary-fixed-variant: #134e4a;
+  --color-secondary: #f97316;
+  --color-secondary-container: #431407;
+  --color-on-secondary: #051424;
+  --color-on-secondary-container: #fdba74;
+  --color-secondary-fixed: #fdba74;
+  --color-secondary-fixed-dim: #f97316;
+  --color-on-secondary-fixed: #051424;
+  --color-on-secondary-fixed-variant: #7c2d12;
+  --color-tertiary: #94a3b8;
+  --color-tertiary-container: #1e293b;
+  --color-on-tertiary: #051424;
+  --color-on-tertiary-container: #cbd5e1;
+  --color-tertiary-fixed: #cbd5e1;
+  --color-tertiary-fixed-dim: #94a3b8;
+  --color-on-tertiary-fixed: #051424;
+  --color-on-tertiary-fixed-variant: #334155;
+  --color-background: #051424;
+  --color-on-background: #f8fafc;
+  --color-surface: #051424;
+  --color-on-surface: #f8fafc;
+  --color-on-surface-variant: #94a3b8;
+  --color-surface-variant: #0d1c2d;
+  --color-surface-bright: #0d1c2d;
+  --color-surface-dim: #051424;
+  --color-surface-container: #0d1c2d;
+  --color-surface-container-lowest: #051424;
+  --color-surface-container-low: #0a1a2b;
+  --color-surface-container-high: #12263a;
+  --color-surface-container-highest: #1a3049;
+  --color-outline: #64748b;
+  --color-outline-variant: #1e293b;
+  --color-foreground: #f8fafc;
+  --color-border: #1e293b;
+  --color-primary-foreground: #051424;
+  --color-muted: #12263a;
+  --color-muted-foreground: #94a3b8;
+  --color-ring: #2dd4bf;
+  --color-error: #f87171;
+  --color-error-container: #7f1d1d;
+  --color-on-error: #051424;
+  --color-on-error-container: #fecaca;
+  --color-card: #0d1c2d;
+  --color-card-foreground: #f8fafc;
+  --color-popover: #0d1c2d;
+  --color-popover-foreground: #f8fafc;
+  --color-accent: #12263a;
+  --color-accent-foreground: #f8fafc;
+  --color-input: #1e293b;
+  --card: #0d1c2d;
+  --border: #1e293b;
+  --foreground: #f8fafc;
+  --background: #051424;
+  --muted-foreground: #94a3b8;
+}
+
+/* Light variant of the onboarding scope — navy text + mint accents on a
+   light surface, so the page supports a light mode (driven by the app theme).
+   Mirrors the token overrides from .onboarding-midnight with light values. */
+.onboarding-light {
+  --color-primary: #0d9488;
+  --color-primary-container: #ccfbf1;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #00473f;
+  --color-primary-fixed: #ccfbf1;
+  --color-primary-fixed-dim: #6ee7d8;
+  --color-on-primary-fixed: #00473f;
+  --color-on-primary-fixed-variant: #00695f;
+  --color-secondary: #ea580c;
+  --color-secondary-container: #ffddc7;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #5a1d00;
+  --color-secondary-fixed: #ffddc7;
+  --color-secondary-fixed-dim: #fdba74;
+  --color-on-secondary-fixed: #5a1d00;
+  --color-on-secondary-fixed-variant: #8a3a00;
+  --color-tertiary: #475569;
+  --color-tertiary-container: #e2e8f0;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #1e293b;
+  --color-tertiary-fixed: #e2e8f0;
+  --color-tertiary-fixed-dim: #cbd5e1;
+  --color-on-tertiary-fixed: #1e293b;
+  --color-on-tertiary-fixed-variant: #334155;
+  --color-background: #f8fafc;
+  --color-on-background: #0f172a;
+  --color-surface: #f8fafc;
+  --color-on-surface: #0f172a;
+  --color-on-surface-variant: #475569;
+  --color-surface-variant: #e2e8f0;
+  --color-surface-bright: #f8fafc;
+  --color-surface-dim: #eef2f6;
+  --color-surface-container: #e2e8f0;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eef2f6;
+  --color-surface-container-high: #dbe3ec;
+  --color-surface-container-highest: #d2dbe6;
+  --color-outline: #cbd5e1;
+  --color-outline-variant: #cbd5e1;
+  --color-foreground: #0f172a;
+  --color-border: #cbd5e1;
+  --color-primary-foreground: #ffffff;
+  --color-muted: #e2e8f0;
+  --color-muted-foreground: #475569;
+  --color-ring: #0d9488;
+  --color-error: #dc2626;
+  --color-error-container: #fecaca;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #7f1d1d;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
+  --color-accent: #e2e8f0;
+  --color-accent-foreground: #0f172a;
+  --color-input: #cbd5e1;
+  --card: #ffffff;
+  --border: #cbd5e1;
+  --foreground: #0f172a;
+  --background: #f8fafc;
+  --muted-foreground: #475569;
+  /* Midnight-named tokens reused by the onboarding page markup */
+  --color-midnight: #f1f5f9;
+  --color-on-midnight: #0f172a;
+  --color-midnight-light: #e2e8f0;
+  --color-on-midnight-variant: #475569;
+  --color-mint: #0d9488;
+  --color-mint-dark: #0f766e;
 }
 
 @theme inline {

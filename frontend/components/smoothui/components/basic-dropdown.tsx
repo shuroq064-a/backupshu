@@ -15,21 +15,37 @@ export interface BasicDropdownProps {
   items: DropdownItem[];
   label: string;
   onChange?: (item: DropdownItem) => void;
+  value?: DropdownItem | null;
+  size?: "sm" | "md" | "lg";
 }
 export default function BasicDropdown({
   label,
   items,
   onChange,
   className = "",
+  value = null,
+  size = "sm",
 }: BasicDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<DropdownItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<DropdownItem | null>(value);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const shouldReduceMotion = useReducedMotion();
+
+  const buttonSize =
+    size === "lg"
+      ? "min-h-[52px] px-4 py-3.5 text-base"
+      : size === "md"
+        ? "min-h-[44px] px-4 py-3 text-sm"
+        : "min-h-[32px] px-3 py-1.5 text-xs";
+  const itemSize =
+    size === "lg" ? "text-base min-h-[40px]" : size === "md" ? "text-sm min-h-[36px]" : "text-xs min-h-[32px]";
+  useEffect(() => {
+    setSelectedItem(value);
+  }, [value]);
   const handleItemSelect = (item: DropdownItem) => {
     setSelectedItem(item);
     setIsOpen(false);
@@ -211,7 +227,7 @@ export default function BasicDropdown({
                 >
                   <button
                     aria-label={item.label}
-                    className={`flex min-h-[32px] w-full items-center px-3 py-1.5 text-left text-xs transition-colors hover:bg-surface-container-low focus-visible:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                    className={`flex w-full items-center px-3 py-1.5 text-left transition-colors hover:bg-surface-container-low focus-visible:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${itemSize} ${
                       selectedItem?.id === item.id
                         ? "font-medium text-primary"
                         : "text-on-surface-variant"
@@ -270,7 +286,7 @@ export default function BasicDropdown({
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           aria-label={selectedItem ? `${label}: ${selectedItem.label}` : label}
-          className="flex min-h-[32px] w-full items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface-container px-3 py-1.5 text-left text-xs text-on-surface transition-colors hover:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className={`flex w-full items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface-container text-left text-on-surface transition-colors hover:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${buttonSize}`}
           id="dropdown-button"
           onClick={handleToggle}
           ref={buttonRef}

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 //
 //  /auth        → guest only
 //  /dashboard/* → authenticated users only (role: "user")
+//  /onboarding  → authenticated users only (role: "user")
 //  /admin/*     → authenticated admins only (role: "admin")
 // ─────────────────────────────────────────────
 
@@ -57,6 +58,19 @@ export function middleware(request: NextRequest) {
     if (!isAdmin) {
       // Regular user sneaking into /admin → back to dashboard
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // ── /onboarding — users only ───────────────
+  if (pathname.startsWith("/onboarding")) {
+    if (!isAuthenticated) {
+      const url = new URL("/auth", request.url);
+      url.searchParams.set("redirect", "/onboarding");
+      return NextResponse.redirect(url);
+    }
+    if (isAdmin) {
+      return NextResponse.redirect(new URL("/admin/specialists", request.url));
     }
     return NextResponse.next();
   }

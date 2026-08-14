@@ -59,7 +59,14 @@ function AuthPageInner() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user) router.replace(redirect);
+    if (user) {
+      // A fresh registration must land on the premium profile setup wizard
+      // (set right before navigation), not on the default dashboard redirect.
+      const justRegistered =
+        sessionStorage.getItem("shuroqx_just_registered") === "1";
+      sessionStorage.removeItem("shuroqx_just_registered");
+      router.replace(justRegistered ? "/onboarding" : redirect);
+    }
   }, [user, router, redirect]);
 
   useEffect(() => {
@@ -118,7 +125,8 @@ function AuthPageInner() {
         if (registerUser.fulfilled.match(result)) {
           const token = result.payload.access_token || result.payload.token || "";
           setCookieFromToken(token, "user");
-          router.replace(redirect);
+          sessionStorage.setItem("shuroqx_just_registered", "1");
+          router.replace("/onboarding");
         } else {
           setFormError(typeof result.payload === "string" ? result.payload : "Unable to complete registration. Please try again.");
         }
@@ -282,7 +290,7 @@ function AuthPageInner() {
 }
 
 function FloatingPaths({ position }: { position: number }) {
-  const paths = Array.from({ length: 15 }, (_, i) => ({
+  const paths = Array.from({ length: 36 }, (_, i) => ({
     id: i,
     d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
     color: `rgba(255,255,255,${0.05 + i * 0.015})`,
@@ -299,10 +307,10 @@ function FloatingPaths({ position }: { position: number }) {
             d={path.d}
             stroke="currentColor"
             strokeWidth={path.width}
-            strokeOpacity={0.3 + path.id * 0.04}
-            initial={{ pathLength: 0.4, opacity: 0.6 }}
-            animate={{ pathLength: [0.4, 1], opacity: [0.5, 0.9, 0.5] }}
-            transition={{ duration: 14 + Math.random() * 6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+            strokeOpacity={0.1 + path.id * 0.03}
+            initial={{ pathLength: 0.3, opacity: 0.6 }}
+            animate={{ pathLength: 1, opacity: [0.3, 0.6, 0.3], pathOffset: [0, 1, 0] }}
+            transition={{ duration: 20 + Math.random() * 10, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
           />
         ))}
       </svg>

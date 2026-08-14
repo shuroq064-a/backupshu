@@ -14,7 +14,11 @@ export interface User {
   phone?: string;
   address?: string;
   role: "user" | "admin";
-  location?: string; 
+  location?: string;
+  age?: number;
+  gender?: string;
+  profession?: string;
+  onboardingCompleted?: boolean;
   createdAt?: string;
 }
 

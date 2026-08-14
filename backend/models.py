@@ -97,6 +97,10 @@ class UserProfileOut(BaseModel):
     location: Optional[str] = None
     avatar: Optional[str] = None
     role: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    profession: Optional[str] = None
+    onboardingCompleted: Optional[bool] = None
     createdAt: Optional[str] = None
 
     class Config:
@@ -111,6 +115,10 @@ class UpdateProfileRequest(BaseModel):
     address: Optional[str] = None
     language: Optional[str] = None
     location: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    profession: Optional[str] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class ChangePasswordRequest(BaseModel):
