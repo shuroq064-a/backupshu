@@ -1,0 +1,3 @@
+# Force Unix line endings for shell scripts so Docker `CMD ["sh", "./start.sh"]`
+# does not fail with "set: Illegal option -" on the Linux container.
+*.sh text eol=lf
