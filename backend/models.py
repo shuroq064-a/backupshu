@@ -28,6 +28,14 @@ class UserRegister(BaseModel):
             raise ValueError("Password must contain at least one digit")
         return v
 
+    @field_validator("email")
+    @classmethod
+    def email_must_be_allowed_domain(cls, v: EmailStr) -> EmailStr:
+        domain = str(v).split("@")[-1].lower()
+        if domain not in {"gmail.com", "outlook.com"}:
+            raise ValueError("Only Gmail or Outlook email addresses are allowed.")
+        return v
+
 
 class UserLogin(BaseModel):
     """POST /users/login"""
@@ -108,16 +116,21 @@ class UserProfileOut(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
-    """PUT /users/me - all fields optional, only update what's sent"""
+    """PUT /users/me - all fields optional, only update what's sent.
+    Deliberately a strict subset of User: email, role, hashed_password and
+    other privileged columns are NOT present, so a client cannot escalate
+    privileges or hijack identity via mass-assignment."""
 
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    language: Optional[str] = None
-    location: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    profession: Optional[str] = None
+    model_config = {"extra": "ignore"}
+
+    name: Optional[str] = Field(default=None, max_length=120)
+    phone: Optional[str] = Field(default=None, max_length=30)
+    address: Optional[str] = Field(default=None, max_length=500)
+    language: Optional[str] = Field(default=None, max_length=20)
+    location: Optional[str] = Field(default=None, max_length=200)
+    age: Optional[int] = Field(default=None, ge=0, le=150)
+    gender: Optional[str] = Field(default=None, max_length=30)
+    profession: Optional[str] = Field(default=None, max_length=200)
     onboarding_completed: Optional[bool] = None
 
 

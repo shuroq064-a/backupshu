@@ -16,6 +16,13 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 
 const Particles = dynamic(() => import("@/components/ui/Particles"), { ssr: false });
 
+const ALLOWED_EMAIL_DOMAINS = ["gmail.com", "outlook.com"];
+
+function isAllowedEmail(email: string): boolean {
+  const domain = email.split("@").pop()?.toLowerCase() ?? "";
+  return ALLOWED_EMAIL_DOMAINS.includes(domain);
+}
+
 export default function AuthPage() {
   return (
     <Suspense
@@ -49,7 +56,9 @@ function AuthPageInner() {
 
   const { isLoading, error, user } = useAppSelector((s: RootState) => s.auth);
 
-  const [tab, setTab] = useState<"login" | "register">("login");
+  const initialTab =
+    searchParams.get("mode") === "register" ? "register" : "login";
+  const [tab, setTab] = useState<"login" | "register">(initialTab);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -105,6 +114,12 @@ function AuthPageInner() {
       }
     } else if (!email.trim() || !password.trim()) {
       setFormError("Please enter your email and password.");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isAllowedEmail(normalizedEmail)) {
+      setFormError("Only Gmail or Outlook accounts (@gmail.com or @outlook.com) can be used.");
       return;
     }
 
@@ -290,7 +305,7 @@ function AuthPageInner() {
 }
 
 function FloatingPaths({ position }: { position: number }) {
-  const paths = Array.from({ length: 36 }, (_, i) => ({
+  const paths = Array.from({ length: 15 }, (_, i) => ({
     id: i,
     d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
     color: `rgba(255,255,255,${0.05 + i * 0.015})`,
@@ -307,10 +322,10 @@ function FloatingPaths({ position }: { position: number }) {
             d={path.d}
             stroke="currentColor"
             strokeWidth={path.width}
-            strokeOpacity={0.1 + path.id * 0.03}
-            initial={{ pathLength: 0.3, opacity: 0.6 }}
-            animate={{ pathLength: 1, opacity: [0.3, 0.6, 0.3], pathOffset: [0, 1, 0] }}
-            transition={{ duration: 20 + Math.random() * 10, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+            strokeOpacity={0.3 + path.id * 0.04}
+            initial={{ pathLength: 0.4, opacity: 0.6 }}
+            animate={{ pathLength: [0.4, 1], opacity: [0.5, 0.9, 0.5] }}
+            transition={{ duration: 14 + Math.random() * 6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
           />
         ))}
       </svg>

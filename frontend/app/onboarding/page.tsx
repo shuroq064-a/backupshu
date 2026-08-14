@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { userApi } from "@/lib/api";
+import { clearSession } from "@/lib/auth";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { patchUser } from "@/store/slices/authSlice";
 import { useToast } from "@/components/ui/Toast";
@@ -62,6 +63,8 @@ function OnboardingInner() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [submitting, setSubmitting] = useState(false);
+  const stepRef = useRef(step);
+  stepRef.current = step;
 
   const [form, setForm] = useState({
     name: "",
@@ -120,6 +123,25 @@ function OnboardingInner() {
       router.replace("/dashboard");
     }
   }, [user, token, isLoading, router]);
+
+  // ── Browser back button walks through the wizard, then exits to sign-up ──
+  useEffect(() => {
+    const onPopState = () => {
+      if (stepRef.current > 1) {
+        // Stay inside the wizard: re-arm history so the next Back goes further.
+        window.history.pushState({ onboarding: true }, "");
+        setStep((s) => ((s > 1 ? s - 1 : s) as 1 | 2 | 3));
+      } else {
+        // Leaving from the first step → return to the sign-up screen.
+        clearSession();
+        document.cookie = "shuroqx_session=; path=/; max-age=0";
+        router.replace("/auth?redirect=/onboarding&mode=register");
+      }
+    };
+    window.history.pushState({ onboarding: true }, "");
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [router]);
 
   // ── Theme scope on <body> so the page (and portaled dropdowns) render in
   //    dark (midnight) or light based on the app theme ───────────────────
