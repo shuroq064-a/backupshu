@@ -131,7 +131,26 @@ class UpdateProfileRequest(BaseModel):
     age: Optional[int] = Field(default=None, ge=0, le=150)
     gender: Optional[str] = Field(default=None, max_length=30)
     profession: Optional[str] = Field(default=None, max_length=200)
-    onboarding_completed: Optional[bool] = None
+
+    @field_validator("name", "address", "profession")
+    @classmethod
+    def _non_blank_strings(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Required")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def _phone_format(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not re.fullmatch(r"\+?[0-9]{7,15}", v):
+            raise ValueError("Phone must be 7-15 digits, optionally starting with +")
+        return v
 
 
 class ChangePasswordRequest(BaseModel):

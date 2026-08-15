@@ -165,6 +165,20 @@ def _apply_address_payload(address: UserAddress, payload: UserAddressCreate | Us
     address.custom_address_label = payload.custom_address_label
 
 
+def _is_onboarded(user: "User") -> bool:
+    """Onboarding counts as complete only when every field the onboarding
+    flow collects is actually present on the record."""
+    return bool(
+        user.name
+        and user.phone
+        and user.address
+        and user.gender
+        and user.age is not None
+        and user.profession
+        and user.language
+    )
+
+
 # ─────────────────────────────────────────────
 #  GET /users/me
 #  Frontend: userApi.getProfile()
@@ -203,9 +217,11 @@ def get_my_profile(
 @router.put("/me", response_model=UserProfileOut)
 def update_my_profile(
     payload: UpdateProfileRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limit(request, "update-profile", max_requests=20, window_seconds=60)
     """
     Update profile fields.
     Only updates fields that are explicitly sent (partial update).
@@ -226,7 +242,7 @@ def update_my_profile(
         changed = True
 
     if payload.language is not None:
-        allowed_languages = ["english", "hindi", "telugu"]
+        allowed_languages = ["english", "hindi", "telugu", "urdu"]
         if payload.language not in allowed_languages:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -262,8 +278,12 @@ def update_my_profile(
         current_user.profession = payload.profession
         changed = True
 
-    if payload.onboarding_completed is not None:
-        current_user.onboarding_completed = payload.onboarding_completed
+    # onboarding_completed is DERIVED from required profile fields, never
+    # client-supplied — otherwise any user could mark onboarding done without
+    # actually completing it.
+    derived = _is_onboarded(current_user)
+    if current_user.onboarding_completed != derived:
+        current_user.onboarding_completed = derived
         changed = True
 
     if changed:
