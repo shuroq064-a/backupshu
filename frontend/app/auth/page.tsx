@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useAppDispatch, useAppSelector, type RootState } from "@/store";
@@ -66,6 +66,15 @@ function AuthPageInner() {
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [activeField, setActiveField] = useState<string | null>(null);
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startTyping = () => {
+    setTyping(true);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => setTyping(false), 700);
+  };
 
   useEffect(() => {
     if (user) {
@@ -240,12 +249,12 @@ function AuthPageInner() {
 
             {tab === "register" && (
               <div className="relative">
-                <input type="text" placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} required />
+                <input type="text" placeholder="Full Name" value={name} onChange={(e) => { setName(e.target.value); startTyping(); }} onFocus={() => setActiveField("name")} onBlur={() => setActiveField(null)} className={inputClass} required />
               </div>
             )}
 
             <div className="relative">
-              <input type="email" placeholder="your.email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-xl border border-outline-variant bg-surface-container-low py-3 ps-9 pe-4 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
+              <input type="email" placeholder="your.email@example.com" value={email} onChange={(e) => { setEmail(e.target.value); startTyping(); }} onFocus={() => setActiveField("email")} onBlur={() => setActiveField(null)} className="w-full rounded-xl border border-outline-variant bg-surface-container-low py-3 ps-9 pe-4 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required />
               <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-on-surface/40">
                 <AtSignIcon className="h-4 w-4" />
               </div>
@@ -256,7 +265,9 @@ function AuthPageInner() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); if (passwordError) setPasswordError(""); }}
+                onChange={(e) => { setPassword(e.target.value); if (passwordError) setPasswordError(""); startTyping(); }}
+                onFocus={() => setActiveField("password")}
+                onBlur={() => setActiveField(null)}
                 className={`w-full rounded-xl border bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary ${passwordError ? "border-red-400" : "border-outline-variant"}`}
                 required
               />
@@ -304,13 +315,28 @@ function AuthPageInner() {
   );
 }
 
+const FLOATING_PATHS_ANIMATE = {
+  pathLength: [0.4, 1],
+  opacity: [0.5, 0.9, 0.5],
+};
+
+const FLOATING_PATHS_TRANSITION = {
+  duration: 16,
+  repeat: Number.POSITIVE_INFINITY,
+  ease: "easeInOut" as const,
+};
+
 function FloatingPaths({ position }: { position: number }) {
-  const paths = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
-    color: `rgba(255,255,255,${0.05 + i * 0.015})`,
-    width: 0.5 + i * 0.03,
-  }));
+  const paths = useMemo(
+    () =>
+      Array.from({ length: 15 }, (_, i) => ({
+        id: i,
+        d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${152 - i * 5 * position} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
+        color: `rgba(255,255,255,${0.05 + i * 0.015})`,
+        width: 0.5 + i * 0.03,
+      })),
+    [position]
+  );
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
@@ -324,8 +350,8 @@ function FloatingPaths({ position }: { position: number }) {
             strokeWidth={path.width}
             strokeOpacity={0.3 + path.id * 0.04}
             initial={{ pathLength: 0.4, opacity: 0.6 }}
-            animate={{ pathLength: [0.4, 1], opacity: [0.5, 0.9, 0.5] }}
-            transition={{ duration: 14 + Math.random() * 6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+            animate={FLOATING_PATHS_ANIMATE}
+            transition={FLOATING_PATHS_TRANSITION}
           />
         ))}
       </svg>
