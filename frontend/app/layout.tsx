@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/Toaster";
 import { DevAgentation } from "@/components/DevAgentation";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./globals.css";
 import "./material-symbols.css";
 
@@ -47,9 +48,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <Providers>{children}</Providers>
-        <Toaster />
-        <DevAgentation />
+        <ErrorBoundary>
+          <Providers>{children}</Providers>
+          <Toaster />
+          <DevAgentation />
+        </ErrorBoundary>
       </body>
     </html>
   );

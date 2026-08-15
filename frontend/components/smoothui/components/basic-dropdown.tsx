@@ -17,6 +17,7 @@ export interface BasicDropdownProps {
   onChange?: (item: DropdownItem) => void;
   value?: DropdownItem | null;
   size?: "sm" | "md" | "lg";
+  variant?: "default" | "white";
 }
 export default function BasicDropdown({
   label,
@@ -25,6 +26,7 @@ export default function BasicDropdown({
   className = "",
   value = null,
   size = "sm",
+  variant = "default",
 }: BasicDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<DropdownItem | null>(value);
@@ -43,6 +45,17 @@ export default function BasicDropdown({
         : "min-h-[32px] px-3 py-1.5 text-xs";
   const itemSize =
     size === "lg" ? "text-base min-h-[40px]" : size === "md" ? "text-sm min-h-[36px]" : "text-xs min-h-[32px]";
+  const isWhite = variant === "white";
+  const triggerBg = isWhite
+    ? "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+    : "border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-low";
+  const menuBg = isWhite
+    ? "border-slate-200 bg-white shadow-lg"
+    : "border-outline-variant bg-surface-container shadow-lg";
+  const itemBase = isWhite
+    ? "text-slate-500 hover:bg-slate-50 focus-visible:bg-slate-50"
+    : "text-on-surface-variant hover:bg-surface-container-low focus-visible:bg-surface-container-low";
+  const itemFocused = isWhite ? "bg-slate-50" : "bg-surface-container-low";
   useEffect(() => {
     setSelectedItem(value);
   }, [value]);
@@ -162,7 +175,7 @@ export default function BasicDropdown({
                 ? { opacity: 1 }
                 : { opacity: 1, y: 0, scaleY: 1 }
             }
-            className="fixed z-50 origin-top rounded-lg border border-outline-variant bg-surface-container shadow-lg"
+            className={`fixed z-50 origin-top rounded-lg ${menuBg}`}
             exit={
               shouldReduceMotion
                 ? { opacity: 0, transition: { duration: 0 } }
@@ -227,11 +240,11 @@ export default function BasicDropdown({
                 >
                   <button
                     aria-label={item.label}
-                    className={`flex w-full items-center px-3 py-1.5 text-left transition-colors hover:bg-surface-container-low focus-visible:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${itemSize} ${
+                    className={`flex w-full items-center px-3 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${itemSize} ${itemBase} ${
                       selectedItem?.id === item.id
                         ? "font-medium text-primary"
-                        : "text-on-surface-variant"
-                    } ${index === focusedIndex ? "bg-surface-container-low" : ""}`}
+                        : ""
+                    } ${index === focusedIndex ? itemFocused : ""}`}
                     onClick={() => handleItemSelect(item)}
                     onMouseEnter={() => setFocusedIndex(index)}
                     type="button"
@@ -286,7 +299,7 @@ export default function BasicDropdown({
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           aria-label={selectedItem ? `${label}: ${selectedItem.label}` : label}
-          className={`flex w-full items-center justify-between gap-2 rounded-lg border border-outline-variant bg-surface-container text-left text-on-surface transition-colors hover:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${buttonSize}`}
+          className={`flex w-full items-center justify-between gap-2 rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${triggerBg} ${buttonSize}`}
           id="dropdown-button"
           onClick={handleToggle}
           ref={buttonRef}

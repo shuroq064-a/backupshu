@@ -918,5 +918,6 @@ button:hover .icon-menu {
   --color-legend-muted-foreground: var(----legend-muted-foreground);
   --color-legend-muted: var(----legend-muted);
   --color-legend-foreground: var(----legend-foreground);
-  --color-legend: var(----legend);
+--color-legend: var(----legend);
 }
+
