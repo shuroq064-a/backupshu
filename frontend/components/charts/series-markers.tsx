@@ -22,6 +22,8 @@ export interface SeriesMarkersProps extends SeriesPointMarkerStyle {
   fill?: string;
   /** Whether to animate markers with clip reveal. Default: true */
   animate?: boolean;
+  /** Skip markers where the point value is 0 (e.g. days with no earnings). Default: false */
+  skipZero?: boolean;
 }
 
 interface PointAt {
@@ -51,6 +53,7 @@ export function SeriesMarkers({
   outlineColor,
   radius = 5,
   animate = true,
+  skipZero = false,
   fadeOnHover = true,
   inactiveOpacity = 0.5,
   inactiveBlur = 2,
@@ -114,6 +117,10 @@ export function SeriesMarkers({
   const points = useMemo<PointAt[]>(
     () =>
       data.flatMap((d, index) => {
+        const value = d[dataKey];
+        if (skipZero && typeof value === "number" && value === 0) {
+          return [];
+        }
         const cy = getY(d);
         if (cy === null) {
           return [];
@@ -130,6 +137,7 @@ export function SeriesMarkers({
     [
       data,
       getY,
+      skipZero,
       xScale,
       xAccessor,
       innerWidth,
