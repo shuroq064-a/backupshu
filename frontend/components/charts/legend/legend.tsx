@@ -26,6 +26,8 @@ export interface LegendProps {
   titleClassName?: string;
   /** Container class name */
   className?: string;
+  /** Layout direction. `"column"` stacks items; `"row"` wraps them inline. Default: "column". */
+  layout?: "column" | "row";
   /** Children - should contain a single LegendItem that will be mapped for each item */
   children: ReactElement;
 }
@@ -37,6 +39,7 @@ export function Legend({
   title,
   titleClassName = "text-sm font-semibold",
   className = "",
+  layout = "column",
   children,
 }: LegendProps) {
   const [internalHoveredIndex, setInternalHoveredIndex] = useState<
@@ -64,7 +67,7 @@ export function Legend({
 
   return (
     <LegendProvider value={contextValue}>
-      <div className={cn("legend-container flex flex-col gap-2", className)}>
+      <div className={cn("legend-container flex gap-2", layout === "row" ? "flex-row flex-wrap" : "flex-col", className)}>
         {title && (
           <h3 className={cn("mb-1 text-legend-foreground", titleClassName)}>
             {title}

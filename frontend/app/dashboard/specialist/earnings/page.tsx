@@ -143,6 +143,19 @@ function paymentStatusDot(status?: string) {
   }
 }
 
+/** True when the viewport is at or below `breakpoint` px (mobile-first). */
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export default function SpecialistEarningsPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -162,6 +175,8 @@ export default function SpecialistEarningsPage() {
   const [txPage, setTxPage] = useState(1);
 
   const TX_PER_PAGE = 5;
+  const isMobile = useIsMobile();
+  const [hoveredSlice, setHoveredSlice] = useState<number | null>(null);
 
   const workerId = profile?.id;
 
@@ -486,7 +501,7 @@ export default function SpecialistEarningsPage() {
               {/* Main Column: Chart and Transactions */}
               <div className="flex-[2] flex flex-col gap-6">
                 {/* Earnings Chart Card */}
-                <div className="bg-surface-container-lowest border border-outline-variant p-6 sm:p-8 rounded-xl shadow-soft min-h-[400px] flex flex-col overflow-hidden">
+                  <div className="bg-surface-container-lowest border border-outline-variant p-6 sm:p-8 rounded-xl shadow-soft h-[520px] sm:h-[560px] flex flex-col overflow-hidden">
                   <div className="flex justify-between items-center mb-8 flex-wrap gap-3">
                     <div>
                       <h4 className="font-label-md text-label-md text-on-surface">Earnings Trend</h4>
@@ -531,7 +546,8 @@ export default function SpecialistEarningsPage() {
                       </p>
                     </div>
                   ) : chartMode === "line" ? (
-                    <div className="flex-1 relative w-full h-[360px]">
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="w-full max-w-[720px] h-full">
                       <LineChart data={chartData} className="w-full h-full" margin={CHART_MARGIN}>
                         <Grid highlightRowValues={[0]} horizontal />
                         <Line dataKey="pnl" stroke="transparent" strokeWidth={0} showHighlight={false} />
@@ -540,8 +556,10 @@ export default function SpecialistEarningsPage() {
                           positiveColor="#10b981"
                           negativeColor="#ef4444"
                         />
-                        <SeriesMarkers dataKey="pnl" fill="#10b981" radius={2} strokeWidth={2} skipZero />
-                        <XAxis />
+                        {!isMobile && (
+                          <SeriesMarkers dataKey="pnl" fill="#10b981" radius={2} strokeWidth={2} skipZero />
+                        )}
+                        <XAxis numTicks={isMobile ? 3 : 5} />
                         <ChartTooltip
                           indicatorColor={(point) =>
                             Number(point.pnl ?? 0) >= 0 ? "#10b981" : "#ef4444"
@@ -558,15 +576,24 @@ export default function SpecialistEarningsPage() {
                           }}
                         />
                       </LineChart>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <PieChart data={pieData} innerRadius={70} size={240}>
+                      <div className="w-full flex items-center justify-center h-[240px] sm:h-[280px]">
+                      <PieChart
+                        data={pieData}
+                        innerRadius={isMobile ? 56 : 70}
+                        size={isMobile ? 200 : 240}
+                        hoveredIndex={hoveredSlice}
+                        onHoverChange={setHoveredSlice}
+                      >
                         {pieData.map((item, index) => (
                           <PieSlice key={item.label} index={index} showGlow={false} />
                         ))}
                         <PieCenter defaultLabel="Total" prefix="₹" />
                       </PieChart>
+                      </div>
                       <p className="mt-3 text-sm text-on-surface-variant flex items-center gap-1.5">
                         {pieTotal > 0 && pieTrend !== 0 ? (
                           <>
@@ -583,17 +610,18 @@ export default function SpecialistEarningsPage() {
                         )}
                       </p>
                       <Legend
+                        layout="row"
+                        hoveredIndex={hoveredSlice}
+                        onHoverChange={setHoveredSlice}
                         items={pieData.map(d => ({ label: d.label, value: d.value, color: d.color ?? "var(--chart-1)" }))}
-                        className="mt-4 w-full max-w-sm"
+                        className="mt-4 w-full gap-x-3 gap-y-2 max-h-[120px] overflow-y-auto"
                       >
-                        <LegendItem className="flex items-center justify-between gap-3 w-full">
-                          <span className="flex items-center gap-2.5 min-w-0">
-                            <LegendMarker />
-                            <LegendLabel className="truncate" />
-                          </span>
+                        <LegendItem className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface-container">
+                          <LegendMarker />
+                          <LegendLabel className="truncate" />
                           <LegendValue
                             formatValue={(value) => formatCurrency(value)}
-                            className="text-sm tabular-nums font-semibold"
+                            className="text-xs tabular-nums font-semibold"
                           />
                         </LegendItem>
                       </Legend>
