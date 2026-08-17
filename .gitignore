@@ -7,6 +7,9 @@
 # Project context file (kept locally, not in repo)
 PROJECT CONTEXT FILE.md
 
+# Deployment runbook (kept locally only; never commit/push/deploy)
+GCP_DEPLOYMENT.md
+
 # Local tooling / agent files
 .commandcode/
 .zcode/
