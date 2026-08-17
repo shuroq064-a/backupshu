@@ -380,7 +380,7 @@ export default function ServiceDiscoveryPage() {
                       </div>
                       <div className="flex-1 pl-2">
                         <p className="text-on-surface-variant uppercase tracking-widest text-[9px] font-bold">Response Time</p>
-                        <p className="font-bold text-on-surface mt-0.5">{sp.etaMinutes != null ? `~${sp.etaMinutes} mins` : "< 15 mins"}</p>
+                        <p className="font-bold text-on-surface mt-0.5">{sp.etaMinutes != null ? `~${sp.etaMinutes} mins` : "ETA on request"}</p>
                       </div>
                     </div>
 

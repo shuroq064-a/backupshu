@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -15,12 +15,14 @@ if __package__ and "." in __package__:
     from .. import dbmodels, models
     from ..auth_utils import get_current_user
     from ..database import get_db
+    from ..services.rate_limiter import rate_limit
     from ..services.nlp_service import predict_pipeline
     from ..services.ola_maps.geocoding_service import geocode_address
     from ..services.worker_matching import (
         find_available_workers_by_intent,
         find_nearby_workers_by_intent,
     )
+    from ..services.eta_service import compute_worker_etas
     from sqlalchemy import func
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -31,12 +33,14 @@ else:
     import models
     from auth_utils import get_current_user
     from database import get_db
+    from services.rate_limiter import rate_limit
     from services.nlp_service import predict_pipeline
     from services.ola_maps.geocoding_service import geocode_address
     from services.worker_matching import (
         find_available_workers_by_intent,
         find_nearby_workers_by_intent,
     )
+    from services.eta_service import compute_worker_etas
     from sqlalchemy import func
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
@@ -66,6 +70,7 @@ def _worker_rating(worker_id: str, db: Session):
 def _to_marketplace_specialist(
     worker: models.MatchedWorkerOut,
     db: Session,
+    eta_minutes: int | None = None,
 ) -> models.MarketplaceSpecialistOut:
     display_name = (worker.name or "").strip() or "Specialist"
 
@@ -80,15 +85,21 @@ def _to_marketplace_specialist(
         isVerified=worker.isVerified,
         rating=avg_rating or None,
         distanceKm=worker.distanceKm,
+        etaMinutes=eta_minutes,
     )
 
 
 @router.post("/search", response_model=list[models.MarketplaceSpecialistOut])
 def search_specialists(
     payload: models.MarketplaceSearchRequest,
+    request: Request,
     db: Session = Depends(get_db),
     _current_user: dbmodels.User = Depends(get_current_user),
 ):
+    # Each search can fire an Ola Maps ETA call — bound it so a single account
+    # can't run up the provider bill by spamming coordinate-shifted searches.
+    rate_limit(request, "marketplace-search", max_requests=40, window_seconds=60)
+
     query = payload.query.strip()
     if not query:
         raise HTTPException(
@@ -114,4 +125,20 @@ def search_specialists(
     else:
         workers = find_available_workers_by_intent(db, intent)
 
-    return [_to_marketplace_specialist(worker, db) for worker in workers]
+    eta_map: dict[str, int] = {}
+    if workers and latitude is not None and longitude is not None:
+        worker_rows = {
+            row.id: row
+            for row in db.query(dbmodels.Worker)
+            .filter(dbmodels.Worker.id.in_([w.id for w in workers]))
+            .all()
+        }
+        coord_tuples = [
+            (worker_id, row.latitude, row.longitude)
+            for worker_id, row in worker_rows.items()
+            if row.latitude is not None and row.longitude is not None
+        ]
+        if coord_tuples:
+            eta_map = compute_worker_etas(latitude, longitude, coord_tuples)
+
+    return [_to_marketplace_specialist(worker, db, eta_map.get(worker.id)) for worker in workers]

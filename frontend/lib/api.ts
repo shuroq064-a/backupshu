@@ -1,5 +1,5 @@
 import { getToken, clearSession } from "./auth";
-import { API_BASE_URL } from "./config";
+import { API_BASE_URL, STREAM_BASE_URL } from "./config";
 
 // ─────────────────────────────────────────────
 //  Base Config
@@ -386,7 +386,7 @@ export async function streamAssistantChat(
     body.longitude = location.longitude;
   }
 
-  const res = await fetch(`${BASE_URL}/assistant/chat`, {
+  const res = await fetch(`${STREAM_BASE_URL}/assistant/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify(body),

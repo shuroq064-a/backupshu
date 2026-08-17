@@ -28,7 +28,7 @@ import sys
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -37,6 +37,7 @@ if __package__ and "." in __package__:
     from .. import models, dbmodels
     from ..auth_utils import get_current_user
     from ..services.llm.model_client import LLMUnavailable
+    from ..services.rate_limiter import rate_limit
     from ..agents import run_agents
     from ..agents.sse import ev_start, ev_error, ev_done
 else:
@@ -47,6 +48,7 @@ else:
     import models, dbmodels
     from auth_utils import get_current_user
     from services.llm.model_client import LLMUnavailable
+    from services.rate_limiter import rate_limit
     from agents import run_agents
     from agents.sse import ev_start, ev_error, ev_done
 
@@ -132,9 +134,14 @@ def _build_history(payload: models.AssistantChatRequest) -> list[dict]:
 @router.post("/chat")
 async def assistant_chat(
     payload: models.AssistantChatRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dbmodels.User = Depends(get_current_user),
 ):
+    # Each message streams a paid LLM call and may fire Ola Maps requests —
+    # bound it so a single account can't run up the provider bill.
+    rate_limit(request, "assistant-chat", max_requests=30, window_seconds=60)
+
     message = (payload.message or "").strip()
     if not message:
         raise HTTPException(

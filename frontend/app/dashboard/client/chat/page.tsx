@@ -311,6 +311,7 @@ export default function RedesignedClientChat() {
       price: worker.price ?? undefined,
       experienceYears: worker.experienceYears ?? undefined,
       distanceKm: worker.distanceKm ?? undefined,
+      etaMinutes: worker.etaMinutes ?? undefined,
     };
   }
 
@@ -818,6 +819,9 @@ function BotBubble({ message, isAccepted, liveStatus, onSpecialistClick, onViewJ
                       <p className="text-sm font-semibold text-on-surface truncate">{sp.name}</p>
                       <div className="mt-0.5"><SkillBadges services={sp.services} /></div>
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-on-surface-variant">
+                        {sp.etaMinutes != null && (
+                          <span className="font-semibold">~{sp.etaMinutes} min away</span>
+                        )}
                         {sp.price != null && (
                           <span className="font-semibold text-primary">₹{sp.price} onwards</span>
                         )}

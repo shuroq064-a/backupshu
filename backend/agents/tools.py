@@ -12,6 +12,7 @@ model decides *what* to do, the code executes it deterministically and safely.
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import os
 from typing import Any
@@ -24,6 +25,7 @@ if __package__ and "." in __package__:
         find_nearby_workers_by_intent,
         find_nearby_excluded_by_intent,
     )
+    from ..services.eta_service import compute_worker_etas
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     if BACKEND_DIR not in sys.path:
@@ -35,6 +37,7 @@ else:
         find_nearby_workers_by_intent,
         find_nearby_excluded_by_intent,
     )
+    from services.eta_service import compute_worker_etas
 
 
 ACTIVE_STATUSES = {"upcoming", "accepted", "started", "reached", "ongoing"}
@@ -65,18 +68,6 @@ SERVICE_BASE_PRICE = {
     "painting": 2500,
     "gardener": 350,
     "massage": 999,
-}
-
-# Rough ETA ranges (minutes) by service — the agent uses the average as a guide.
-SERVICE_ETA_MINUTES = {
-    "plumbing": (30, 75),
-    "electrical": (30, 60),
-    "ac_repair": (45, 90),
-    "carpenter": (45, 120),
-    "cleaning": (60, 150),
-    "painting": (120, 300),
-    "gardener": (45, 120),
-    "massage": (30, 90),
 }
 
 
@@ -120,8 +111,6 @@ async def tool_estimate_cost(db, intent: str) -> dict:
         }
     avg = _catalog_avg_price(db, canonical)
     base = SERVICE_BASE_PRICE.get(canonical, 500)
-    low, high = SERVICE_ETA_MINUTES.get(canonical, (45, 120))
-    eta_avg = (low + high) // 2
     price_text = (
         f"around ₹{int(avg)}" if avg is not None else f"starting from ₹{base}"
     )
@@ -131,12 +120,9 @@ async def tool_estimate_cost(db, intent: str) -> dict:
         "estimated_price": avg if avg is not None else base,
         "price_low": base,
         "price_high": int(base * 2.5),
-        "eta_minutes": eta_avg,
-        "eta_low": low,
-        "eta_high": high,
         "summary": (
-            f"For {canonical}: ~{price_text}, specialist usually arrives in "
-            f"{eta_avg} min (about {low}-{high} min)."
+            f"For {canonical}: {price_text}. "
+            "I can check live arrival times once your location is set."
         ),
     }
 
@@ -278,6 +264,30 @@ async def tool_search_specialists(
         payload["price"] = ws.price_override if ws else None
         payload["experience_years"] = ws.experience_years if ws else None
         enriched.append(payload)
+
+    # Real per-specialist driving ETA from the customer's location (Ola Maps,
+    # distance-based fallback). One network call for all workers, run off the
+    # event loop so it never blocks other chat streams.
+    if enriched:
+        worker_rows = {
+            row.id: row
+            for row in db.query(dbmodels.Worker)
+            .filter(dbmodels.Worker.id.in_([p["id"] for p in enriched]))
+            .all()
+        }
+        coord_tuples = [
+            (worker_id, row.latitude, row.longitude)
+            for worker_id, row in worker_rows.items()
+            if row.latitude is not None and row.longitude is not None
+        ]
+        if coord_tuples:
+            eta_map = await asyncio.to_thread(
+                compute_worker_etas, latitude, longitude, coord_tuples
+            )
+            for payload in enriched:
+                eta = eta_map.get(payload["id"])
+                if eta is not None:
+                    payload["etaMinutes"] = eta
     summary = (
         f"Found {len(enriched)} specialist(s) for '{canonical}' within 5 km."
         if enriched

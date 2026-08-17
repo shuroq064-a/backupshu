@@ -30,3 +30,14 @@ export const API_BASE_URL = publicUrl(
 );
 
 export const WS_BASE_URL = websocketUrl(rawWsBaseUrl, API_BASE_URL);
+
+// Streaming (SSE) base URL. The Next.js dev rewrite proxy (/api/backend) buffers
+// response bodies, which collapses token-by-token SSE into one final flush. For
+// the assistant chat stream we bypass the proxy and hit the backend directly.
+// CORS (backend CORS_ORIGINS) and the dev CSP (connect-src http://localhost:8001)
+// already permit this. Override with NEXT_PUBLIC_STREAM_URL if needed.
+const rawStreamUrl = process.env.NEXT_PUBLIC_STREAM_URL;
+export const STREAM_BASE_URL = (
+  rawStreamUrl ||
+  (API_BASE_URL.includes("/api/backend") ? "http://localhost:8001" : API_BASE_URL)
+).replace(/\/+$/, "");

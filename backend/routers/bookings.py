@@ -38,6 +38,7 @@ if __package__ and "." in __package__:
     from ..services.worker_matching import service_matches_intent
     from ..services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes, get_route_polyline
     from ..services.ola_maps.geocoding_service import geocode_address
+    from ..services.eta_service import compute_worker_etas
 else:
     BACKEND_DIR = os.path.dirname(os.path.dirname(__file__))
     if BACKEND_DIR not in sys.path:
@@ -56,6 +57,7 @@ else:
     from services.worker_matching import service_matches_intent
     from services.ola_maps.eta_service import OlaMapsServiceError, get_eta_minutes, get_route_polyline
     from services.ola_maps.geocoding_service import geocode_address
+    from services.eta_service import compute_worker_etas
 
 router = APIRouter(tags=["Bookings"])
 
@@ -728,6 +730,21 @@ def create_booking(
             # a more precise location update.
             destination = None
 
+    # Initial ETA: real driving time from the chosen specialist's stored
+    # location to the customer, when both coordinates are known. Best-effort —
+    # booking creation never fails because ETA lookup did.
+    initial_eta = None
+    if payload.worker_id and destination and worker is not None:
+        if worker.latitude is not None and worker.longitude is not None:
+            try:
+                initial_eta = compute_worker_etas(
+                    destination["latitude"],
+                    destination["longitude"],
+                    [(worker.id, worker.latitude, worker.longitude)],
+                ).get(worker.id)
+            except Exception:
+                initial_eta = None
+
     booking = Booking(
         id=str(uuid.uuid4()),
         booking_number=f"#{short_id}",
@@ -745,6 +762,7 @@ def create_booking(
         customer_latitude=destination["latitude"] if destination else None,
         customer_longitude=destination["longitude"] if destination else None,
         customer_location_updated_at=datetime.utcnow() if has_supplied_coordinates else None,
+        eta_minutes=initial_eta,
         notes=payload.notes,
         scheduled_date=payload.scheduled_date,
         scheduled_time=payload.scheduled_time,
@@ -1097,10 +1115,15 @@ def submit_review(
 async def update_booking_location(
     booking_id: str,
     payload: BookingLocationUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Only the assigned specialist can update location for their booking."""
+
+    # Each ping can fire an Ola Maps ETA call — bound it so the provider bill
+    # can't be driven up by a misbehaving client. 60/min = one per second.
+    rate_limit(request, "booking-location", max_requests=60, window_seconds=60)
 
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:

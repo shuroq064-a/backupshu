@@ -422,6 +422,7 @@ export interface MatchedWorkerOut {
   price?: number | null;
   experienceYears?: number | null;
   distanceKm?: number | null;
+  etaMinutes?: number | null;
   latitude?: number | null;
   longitude?: number | null;
 }

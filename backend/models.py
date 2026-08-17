@@ -616,6 +616,7 @@ class MatchedWorkerOut(BaseModel):
     submittedAt: Optional[str] = None
     reviewedAt: Optional[str] = None
     distanceKm: Optional[float] = None
+    etaMinutes: Optional[int] = None
 
 
 class UserQueryProcessResponse(BaseModel):

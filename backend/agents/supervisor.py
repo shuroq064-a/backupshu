@@ -16,6 +16,7 @@ All output is yielded as SSE strings via agents.sse so the router just forwards 
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
@@ -140,8 +141,7 @@ def _tool_data_block(tool_results: list) -> str:
         elif name == "estimate_cost":
             parts.append(
                 f"COST ESTIMATE for {res.get('intent')}: "
-                f"~₹{res.get('estimated_price')} "
-                f"(ETA ~{res.get('eta_minutes')} min)."
+                f"~₹{res.get('estimated_price')}."
             )
         elif name == "search_specialists":
             w = res.get("workers", [])
@@ -150,6 +150,8 @@ def _tool_data_block(tool_results: list) -> str:
                 line = f"- {x.get('name') or x.get('email')}"
                 if x.get("distanceKm") is not None:
                     line += f" ({x['distanceKm']} km away)"
+                if x.get("etaMinutes") is not None:
+                    line += f", ~{x['etaMinutes']} min to reach you"
                 if x.get("experience_years"):
                     line += f" ({x['experience_years']}y exp)"
                 if x.get("price") is not None:
@@ -278,6 +280,7 @@ async def _chat_agent(message: str, history: list[dict], booking_ctx: str, tool_
     msgs.append({"role": "user", "content": message})
     async for delta in stream_chat(msgs):
         yield ev_token(delta)
+        await asyncio.sleep(0.018)
 
 
 async def _nearby_listing_agent(tool_results: list):
@@ -329,6 +332,7 @@ async def _clarify_agent(message: str, history: list[dict], tool_data: str = "")
     async for delta in stream_chat(msgs):
         parts.append(delta)
         yield ev_token(delta)
+        await asyncio.sleep(0.018)
     reply = "".join(parts).strip()
     options = ["Plumbing", "Electrical", "AC repair", "Cleaning"]
     yield ev_clarify(reply, options)
@@ -399,6 +403,7 @@ async def _booking_agent(db, user, message: str, history: list[dict], tool_resul
     async for delta in stream_chat(ack_msgs):
         ack_parts.append(delta)
         yield ev_token(delta)
+        await asyncio.sleep(0.018)
     ack = "".join(ack_parts).strip()
 
 
@@ -423,6 +428,7 @@ async def _tracking_agent(db, user, message: str, history: list[dict], booking_c
     ]
     async for delta in stream_chat(msgs):
         yield ev_token(delta)
+        await asyncio.sleep(0.018)
 
 
 
