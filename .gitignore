@@ -68,3 +68,6 @@ VSCode/
 fix_title.json
 opencode.json
 skills-lock.json
+
+# Agent instructions (kept locally only; never commit/push)
+AGENTS.md
