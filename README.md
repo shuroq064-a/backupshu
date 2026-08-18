@@ -17,10 +17,10 @@ Workers (called *Specialists*) register, list their skills/services, get admin-a
 ### Key features
 
 - **Natural-language query processing** — free text is classified into service intent using a trained ML classifier (TF-IDF + scikit-learn), and matched specialists are returned.
-- **AI Conversational Assistant** — a multi-agent LLM powered by **Google Gemini** that can search specialists, check bookings, estimate costs, and even cancel appointments through natural conversation.
+- **AI Conversational Assistant** — a multi-agent LLM (OpenAI-compatible primary model with **Google Gemini** fallback) that can search specialists, check bookings, estimate costs, and even cancel appointments through natural conversation.
 - **Marketplace search** — ranked specialists based on query intent, worker services, and reviews.
 - **ETA prediction** — trained regression model estimates job duration based on service type and context features.
-- **Booking lifecycle** — create → status updates (pending / accepted / in_progress / completed / cancelled) → review. Full WebSocket channel for live updates.
+- **Booking lifecycle** — `upcoming` → `accepted` → `started` → `reached` → `ongoing` → `completed`, with `cancelled` / `rejected` as terminal states. Full WebSocket channel for live updates.
 - **Real-time tracking** — workers share location during active bookings; live ETA recomputed via Ola Maps.
 - **Dual-role accounts** — any user can switch between *customer* and *specialist* without re-registering.
 - **Razorpay payments** — secure order creation, HMAC signature verification, and webhook handling.
@@ -35,9 +35,9 @@ Workers (called *Specialists*) register, list their skills/services, get admin-a
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Python 3.13, FastAPI, SQLAlchemy, PostgreSQL (Neon), Alembic, Celery + Redis |
+| **Backend** | Python 3.13, FastAPI, SQLAlchemy, PostgreSQL (Neon), Alembic, Redis (rate limiting) |
 | **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Redux Toolkit, Tailwind CSS 4 |
-| **AI/LLM** | Google Gemini (via Google Generative Language API), scikit-learn (TF-IDF classifier + ETA regressor) |
+| **AI/LLM** | Multi-provider LLM (OpenAI-compatible primary + Google Gemini fallback), scikit-learn (TF-IDF classifier + ETA regressor) |
 | **Auth** | JWT (PyJWT + bcrypt), NextAuth v4 (Google, Facebook, Apple OAuth) |
 | **Payments** | Razorpay (order creation, HMAC verification, webhooks) |
 | **Maps/Geo** | Ola Maps API (geocoding, reverse-geocoding, ETA, distance matrix) |
@@ -58,7 +58,7 @@ shuroqx-Redesign/
 │   ├── routers/                 # 14 route modules (see API surface below)
 │   ├── services/                # Domain logic — NLP, worker matching, ETA, LLM client
 │   ├── agents/                  # Multi-agent AI system (supervisor + tools)
-│   ├── tasks/                   # Celery background tasks
+│   ├── tasks/                   # Background task scaffolding (Celery, currently unused)
 │   ├── models/                  # Trained .pkl artifacts + metadata
 │   ├── datasets/                # Training data (per-service .txt + eta_training_data.csv)
 │   ├── alembic/                 # DB migrations
@@ -87,7 +87,7 @@ shuroqx-Redesign/
 - Python 3.13+
 - Node.js 20+
 - PostgreSQL (or use the included `.env` to point at your instance)
-- Redis (for Celery)
+- Redis (for rate limiting)
 
 ### 1. Backend
 
@@ -188,7 +188,7 @@ Text normalization → entity extraction → keyword/synonym matching (fast, det
 
 Trained regression model (`backend/models/eta_model.pkl`) predicts job duration from service type and context features.
 
-### Conversational AI Assistant (Google Gemini)
+### Conversational AI Assistant (multi-provider LLM)
 
 A multi-agent system where a **Supervisor** routes each user message to one of three agents:
 
