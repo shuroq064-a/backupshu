@@ -218,7 +218,7 @@ export default function PrivacyPage() {
       <div className="mt-4 rounded-xl border border-error/20 bg-error-container/20 p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-headline-md text-headline-md text-error">Deactivate Account</p>
+            <p className="font-headline-md text-headline-md text-error">Delete Account</p>
             <p className="font-body-md text-body-md text-on-surface-variant">Permanently delete your account</p>
           </div>
           <button

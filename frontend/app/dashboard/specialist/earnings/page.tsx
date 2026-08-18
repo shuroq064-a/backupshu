@@ -501,7 +501,7 @@ export default function SpecialistEarningsPage() {
               {/* Main Column: Chart and Transactions */}
               <div className="flex-[2] flex flex-col gap-6">
                 {/* Earnings Chart Card */}
-                  <div className="bg-surface-container-lowest border border-outline-variant p-6 sm:p-8 rounded-xl shadow-soft h-[520px] sm:h-[560px] flex flex-col overflow-hidden">
+                  <div className={`bg-surface-container-lowest border border-outline-variant p-6 sm:p-8 rounded-xl shadow-soft flex flex-col overflow-hidden transition-[height] duration-300 ease-in-out ${chartMode === "pie" ? "h-[400px] sm:h-[440px]" : "h-[520px] sm:h-[560px]"}`}>
                   <div className="flex justify-between items-center mb-8 flex-wrap gap-3">
                     <div>
                       <h4 className="font-label-md text-label-md text-on-surface">Earnings Trend</h4>
@@ -579,20 +579,40 @@ export default function SpecialistEarningsPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="w-full flex items-center justify-center h-[240px] sm:h-[280px]">
-                      <PieChart
-                        data={pieData}
-                        innerRadius={isMobile ? 56 : 70}
-                        size={isMobile ? 200 : 240}
-                        hoveredIndex={hoveredSlice}
-                        onHoverChange={setHoveredSlice}
-                      >
-                        {pieData.map((item, index) => (
-                          <PieSlice key={item.label} index={index} showGlow={false} />
-                        ))}
-                        <PieCenter defaultLabel="Total" prefix="₹" />
-                      </PieChart>
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-6">
+                        <div className="shrink-0 flex items-center justify-center h-[200px] sm:h-[240px]">
+                          <PieChart
+                            data={pieData}
+                            innerRadius={isMobile ? 56 : 70}
+                            size={isMobile ? 200 : 240}
+                            hoveredIndex={hoveredSlice}
+                            onHoverChange={setHoveredSlice}
+                          >
+                            {pieData.map((item, index) => (
+                              <PieSlice key={item.label} index={index} showGlow={false} />
+                            ))}
+                            <PieCenter defaultLabel="Total" prefix="₹" />
+                          </PieChart>
+                        </div>
+                        <div className="w-full sm:flex-1 sm:max-w-[260px]">
+                          <Legend
+                            layout="column"
+                            hoveredIndex={hoveredSlice}
+                            onHoverChange={setHoveredSlice}
+                            items={pieData.map(d => ({ label: d.label, value: d.value, color: d.color ?? "var(--chart-1)" }))}
+                            className="w-full gap-2 max-h-[200px] overflow-y-auto"
+                          >
+                            <LegendItem className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface-container">
+                              <LegendMarker />
+                              <LegendLabel className="truncate" />
+                              <LegendValue
+                                formatValue={(value) => formatCurrency(value)}
+                                className="text-xs tabular-nums font-semibold ml-auto"
+                              />
+                            </LegendItem>
+                          </Legend>
+                        </div>
                       </div>
                       <p className="mt-3 text-sm text-on-surface-variant flex items-center gap-1.5">
                         {pieTotal > 0 && pieTrend !== 0 ? (
@@ -609,22 +629,6 @@ export default function SpecialistEarningsPage() {
                           <span>No previous period data to compare</span>
                         )}
                       </p>
-                      <Legend
-                        layout="row"
-                        hoveredIndex={hoveredSlice}
-                        onHoverChange={setHoveredSlice}
-                        items={pieData.map(d => ({ label: d.label, value: d.value, color: d.color ?? "var(--chart-1)" }))}
-                        className="mt-4 w-full gap-x-3 gap-y-2 max-h-[120px] overflow-y-auto"
-                      >
-                        <LegendItem className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-surface-container">
-                          <LegendMarker />
-                          <LegendLabel className="truncate" />
-                          <LegendValue
-                            formatValue={(value) => formatCurrency(value)}
-                            className="text-xs tabular-nums font-semibold"
-                          />
-                        </LegendItem>
-                      </Legend>
                     </div>
                   )}
                 </div>
@@ -889,7 +893,7 @@ export default function SpecialistEarningsPage() {
               </aside>
             </div>
           </div>
-        </main>
+          </main>
       )}
     </>
   );

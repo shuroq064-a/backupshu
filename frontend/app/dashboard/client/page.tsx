@@ -169,7 +169,7 @@ export default function ServiceDiscoveryPage() {
   };
 
   return (
-    <MotionDiv 
+    <MotionDiv
       variants={containerVariants}
       initial="hidden"
       animate="show"
