@@ -705,7 +705,30 @@ def create_booking(
             raise HTTPException(status_code=400, detail="Specialist is not yet verified.")
 
     short_id = uuid.uuid4().hex[:6].upper()
-    charge = payload.visit_charge if payload.visit_charge is not None else 100.0
+    # Use specialist's per-service price if caller didn't specify one.
+    # This ensures the price entered during onboarding flows through to bookings.
+    if payload.visit_charge is not None:
+        charge = payload.visit_charge
+    elif payload.worker_id and worker is not None:
+        charge = 100.0
+        try:
+            # Lookup the worker's price_override for this service_type
+            from sqlalchemy.orm import joinedload as _jl
+            ws_rows = (
+                db.query(WorkerService)
+                .options(_jl(WorkerService.service))
+                .filter(WorkerService.worker_id == payload.worker_id)
+                .all()
+            )
+            for ws in ws_rows:
+                svc_name = ws.service.name if ws.service else ""
+                if service_matches_intent(svc_name, payload.service_type) and ws.price_override is not None:
+                    charge = float(ws.price_override)
+                    break
+        except Exception:
+            charge = 100.0
+    else:
+        charge = 100.0
     supplied_latitude = payload.customer_latitude if payload.customer_latitude is not None else payload.current_latitude
     supplied_longitude = payload.customer_longitude if payload.customer_longitude is not None else payload.current_longitude
     has_supplied_coordinates = supplied_latitude is not None or supplied_longitude is not None
@@ -946,6 +969,31 @@ async def update_booking_status(
         )
         db.commit()
         db.refresh(booking)
+
+        # If booking still carries the default 100, replace it with the accepting
+        # specialist's per-service price_override so the customer's view reflects
+        # what the specialist actually charges.
+        if booking.visit_charge == 100 or booking.visit_charge is None:
+            try:
+                from sqlalchemy.orm import joinedload as _jl2
+                ws_for_price = (
+                    db.query(WorkerService)
+                    .options(_jl2(WorkerService.service))
+                    .filter(WorkerService.worker_id == worker.id)
+                    .all()
+                )
+                for ws in ws_for_price:
+                    svc_name = ws.service.name if ws.service else ""
+                    if service_matches_intent(svc_name, booking.service_type) and ws.price_override is not None:
+                        new_charge = float(ws.price_override)
+                        if new_charge != booking.visit_charge:
+                            booking.visit_charge = new_charge
+                            booking.total_amount = new_charge
+                            db.commit()
+                            db.refresh(booking)
+                        break
+            except Exception:
+                pass
 
     else:
         # All other transitions: specialist must own the booking

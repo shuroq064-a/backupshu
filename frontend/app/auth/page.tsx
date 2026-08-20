@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import { loginUser, registerUser, clearError } from "@/store/slices/authSlice";
 import { Logo } from "@/components/ui";
 import { sanitizeRedirect } from "@/lib/security";
-import { AtSignIcon, ChevronLeftIcon } from "lucide-react";
+import { AtSignIcon, ChevronLeftIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -16,7 +16,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 
 const Particles = dynamic(() => import("@/components/ui/Particles"), { ssr: false });
 
-const ALLOWED_EMAIL_DOMAINS = ["gmail.com", "outlook.com"];
+const ALLOWED_EMAIL_DOMAINS = ["gmail.com", "outlook.com", "shuroqx.com"];
 
 function isAllowedEmail(email: string): boolean {
   const domain = email.split("@").pop()?.toLowerCase() ?? "";
@@ -128,7 +128,7 @@ function AuthPageInner() {
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!isAllowedEmail(normalizedEmail)) {
-      setFormError("Only Gmail or Outlook accounts (@gmail.com or @outlook.com) can be used.");
+      setFormError("Only Gmail, Outlook, or ShuroqX (@shuroqx.com) accounts can be used.");
       return;
     }
 
@@ -268,16 +268,24 @@ function AuthPageInner() {
                 onChange={(e) => { setPassword(e.target.value); if (passwordError) setPasswordError(""); startTyping(); }}
                 onFocus={() => setActiveField("password")}
                 onBlur={() => setActiveField(null)}
-                className={`w-full rounded-xl border bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary ${passwordError ? "border-red-400" : "border-outline-variant"}`}
+                className={`w-full rounded-xl border bg-surface-container-low px-4 py-3 pr-11 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary ${passwordError ? "border-red-400" : "border-outline-variant"}`}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full text-on-surface/40 hover:bg-surface-container-high hover:text-primary transition-colors"
+              >
+                {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
               {tab === "register" && passwordError && <p className="mt-1.5 text-xs text-red-400">{passwordError}</p>}
-              {tab === "login" && (
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:text-primary/80">
-                  {showPassword ? "Hide" : "Forgot password?"}
-                </button>
-              )}
             </div>
+            {tab === "login" && (
+              <div className="flex justify-end">
+                <button type="button" className="text-xs font-medium text-primary hover:text-primary/80 hover:underline">Forgot password?</button>
+              </div>
+            )}
 
             {(error || nextAuthError || formError) && (
               <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">

@@ -32,7 +32,7 @@ class UserRegister(BaseModel):
     @classmethod
     def email_must_be_allowed_domain(cls, v: EmailStr) -> EmailStr:
         domain = str(v).split("@")[-1].lower()
-        if domain not in {"gmail.com", "outlook.com"}:
+        if domain not in {"gmail.com", "outlook.com", "shuroqx.com"}:
             raise ValueError("Only Gmail or Outlook email addresses are allowed.")
         return v
 
@@ -59,6 +59,8 @@ class SwitchToSpecialistRequest(BaseModel):
 
     userId: str
     service_id: str
+    price_override: Optional[float] = None
+    experience_years: Optional[int] = None
 
 
 class WorkerServiceOut(BaseModel):
@@ -389,6 +391,8 @@ class WorkerServiceCreate(BaseModel):
 class WorkerCreate(BaseModel):
     userId: str
     service_id: str
+    price_override: Optional[float] = None
+    experience_years: Optional[int] = None
 
 
 class SpecialistProfileOut(BaseModel):

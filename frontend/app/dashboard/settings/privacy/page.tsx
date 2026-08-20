@@ -9,7 +9,6 @@ import { userApi } from "@/lib/api";
 export default function PrivacyPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const [twoFA, setTwoFA] = useState(false);
   const [loginAlerts, setLoginAlerts] = useState(false);
 
   // Change password state
@@ -102,13 +101,6 @@ export default function PrivacyPage() {
           <h4 className="font-headline-md text-headline-md">Security</h4>
         </div>
         <div className="space-y-4">
-          <Row
-            icon="vibration"
-            label="Two-Factor Authentication"
-            sub="Add an extra layer of security to your account."
-            onClick={() => setTwoFA((v) => !v)}
-            trailing={<Toggle checked={twoFA} onChange={setTwoFA} />}
-          />
           <Row
             icon="policy"
             label="Manage Permissions"

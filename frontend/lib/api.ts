@@ -32,6 +32,7 @@ async function request<T>(
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
     });
 
     if (!res.ok) {

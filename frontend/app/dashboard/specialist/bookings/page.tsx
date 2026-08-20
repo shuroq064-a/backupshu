@@ -191,11 +191,13 @@ export default function BookingsManagerPage() {
       });
 
       // Categorize active, completed, upcoming appointments
+      // Incoming Requests = broadcast + assigned upcoming (from /requests)
+      // Appointments = specialist's own upcoming (from /bookings) — distinct from broadcast pool
       const active = merged.filter(
         (b) => b.status === "accepted" || b.status === "started" || b.status === "reached" || b.status === "ongoing"
       );
       const completed = merged.filter((b) => b.status === "completed" || b.status === "cancelled");
-      const upcoming = reqs.filter((b) => b.status === "accepted" || b.status === "upcoming");
+      const upcoming = merged.filter((b) => b.status === "upcoming");
       const incomingRequests = reqs.filter((b) => b.status === "upcoming");
 
       // Clear any pending update whose server data now matches (i.e. the

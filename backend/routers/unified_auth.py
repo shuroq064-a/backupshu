@@ -251,7 +251,12 @@ def switch_to_specialist(
         )
 
     profile = create_worker_profile(
-        WorkerCreate(userId=payload.userId, service_id=payload.service_id),
+        WorkerCreate(
+            userId=payload.userId,
+            service_id=payload.service_id,
+            price_override=payload.price_override,
+            experience_years=payload.experience_years,
+        ),
         db,
         current_user,
     )

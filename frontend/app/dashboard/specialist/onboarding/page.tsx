@@ -160,9 +160,15 @@ export default function SpecialistOnboarding() {
       dispatch(patchUser({ name: updated.name, phone: updated.phone, address: updated.address }));
 
       // 2. Create the specialist profile with the primary skill
+      // (include per-service price so it flows through to bookings)
       const primary = selected[0];
       const res = await dispatch(
-        switchToSpecialist({ userId: user.id, service_id: primary.service_id })
+        switchToSpecialist({
+          userId: user.id,
+          service_id: primary.service_id,
+          price_override: primary.price ? Number(primary.price) : undefined,
+          experience_years: primary.experience ? Number(primary.experience) : undefined,
+        })
       ).unwrap();
       const workerId = res.workerId;
 

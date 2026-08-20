@@ -27,7 +27,6 @@ export default function SpecialistSettingsPage() {
   const account = useAccountActions();
 
   const [notifications, setNotifications] = useState(true);
-  const [twoFA, setTwoFA] = useState(true);
   const [dark, setDark] = useState(false);
   const [available, setAvailable] = useState(false);
   const [availSaving, setAvailSaving] = useState(false);
@@ -226,20 +225,6 @@ export default function SpecialistSettingsPage() {
                 label="Password Reset"
                 sub="Change your account password"
                 onClick={() => account.setShowPw(true)}
-              />
-              <SettingsRow
-                icon="vibration"
-                label="Two-Factor Authentication"
-                sub={twoFA ? "Enabled • Phone ending in 82" : "Disabled"}
-                subClass={twoFA ? "text-tertiary font-bold" : ""}
-                onClick={() => setTwoFA((v) => !v)}
-                trailing={<Toggle checked={twoFA} onChange={setTwoFA} />}
-              />
-              <SettingsRow
-                icon="devices"
-                label="Authorized Devices"
-                sub="3 devices currently active"
-                onClick={() => router.push("/dashboard/settings/privacy")}
               />
             </div>
           </section>
