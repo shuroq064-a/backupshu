@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector, type RootState } from "@/store";
 import { loginUser, registerUser, clearError } from "@/store/slices/authSlice";
 import { Logo } from "@/components/ui";
 import { sanitizeRedirect } from "@/lib/security";
-import { AtSignIcon, ChevronLeftIcon } from "lucide-react";
+import { AtSignIcon, ChevronLeftIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -268,15 +268,17 @@ function AuthPageInner() {
                 onChange={(e) => { setPassword(e.target.value); if (passwordError) setPasswordError(""); startTyping(); }}
                 onFocus={() => setActiveField("password")}
                 onBlur={() => setActiveField(null)}
-                className={`w-full rounded-xl border bg-surface-container-low px-4 py-3 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary ${passwordError ? "border-red-400" : "border-outline-variant"}`}
+                className={`w-full rounded-xl border bg-surface-container-low px-4 py-3 pr-12 text-sm text-on-surface placeholder:text-on-surface/40 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary ${passwordError ? "border-red-400" : "border-outline-variant"}`}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-on-surface-variant hover:text-primary"
+              >
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+              </button>
               {tab === "register" && passwordError && <p className="mt-1.5 text-xs text-red-400">{passwordError}</p>}
-              {tab === "login" && (
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-primary hover:text-primary/80">
-                  {showPassword ? "Hide" : "Forgot password?"}
-                </button>
-              )}
             </div>
 
             {(error || nextAuthError || formError) && (
