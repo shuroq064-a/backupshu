@@ -470,7 +470,7 @@ export default function SpecialistEarningsPage() {
                   key={stat.label}
                   whileHover={{ y: -4, scale: 1.02 }}
                   transition={{ type: "spring", stiffness: 320, damping: 22 }}
-                  className={`bg-surface-container-lowest border-2 border-transparent p-6 rounded-xl shadow-soft flex flex-col gap-2 transition-colors duration-300 ${
+                  className={`bg-surface-container-lowest border border-outline-variant p-6 rounded-2xl shadow-sm flex flex-col gap-2 transition-colors duration-300 ${
                     stat.highlight
                       ? "hover:border-green-500 hover:ring-2 hover:ring-green-500/40"
                       : "hover:border-primary hover:ring-2 hover:ring-primary/30"
