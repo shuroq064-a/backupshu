@@ -102,6 +102,8 @@ export interface AuthResponse {
 export interface SwitchToSpecialistRequest {
   userId: string;
   service_id: string;
+  price_override?: number;
+  experience_years?: number;
 }
 
 export interface SwitchToSpecialistResponse {

@@ -326,7 +326,7 @@ def get_stats(
         totalPending=db.query(Worker).filter(Worker.verification_status == "pending").count(),
         totalApproved=db.query(Worker).filter(Worker.verification_status == "approved").count(),
         totalRejected=db.query(Worker).filter(Worker.verification_status == "rejected").count(),
-        totalUsers=db.query(User).filter(User.role == "user").count(),
+        totalUsers=db.query(User).count(),
     )
 
 
@@ -338,16 +338,12 @@ def get_stats(
 
 @router.get("/users", response_model=List[AdminUserOut])
 def list_users(
-    skip: int = 0,
-    limit: int = 100,
     db: Session = Depends(get_db),
     _admin: User = Depends(get_admin_user),
 ):
     users = (
         db.query(User)
         .order_by(User.created_at.desc())
-        .offset(skip)
-        .limit(limit)
         .all()
     )
 

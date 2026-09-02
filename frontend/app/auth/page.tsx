@@ -16,7 +16,7 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 
 const Particles = dynamic(() => import("@/components/ui/Particles"), { ssr: false });
 
-const ALLOWED_EMAIL_DOMAINS = ["gmail.com", "outlook.com"];
+const ALLOWED_EMAIL_DOMAINS = ["gmail.com", "outlook.com", "shuroqx.com"];
 
 function isAllowedEmail(email: string): boolean {
   const domain = email.split("@").pop()?.toLowerCase() ?? "";
@@ -128,7 +128,7 @@ function AuthPageInner() {
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!isAllowedEmail(normalizedEmail)) {
-      setFormError("Only Gmail or Outlook accounts (@gmail.com or @outlook.com) can be used.");
+      setFormError("Only Gmail, Outlook, or ShuroqX (@shuroqx.com) accounts can be used.");
       return;
     }
 
@@ -280,6 +280,11 @@ function AuthPageInner() {
               </button>
               {tab === "register" && passwordError && <p className="mt-1.5 text-xs text-red-400">{passwordError}</p>}
             </div>
+            {tab === "login" && (
+              <div className="flex justify-end">
+                <button type="button" className="text-xs font-medium text-primary hover:text-primary/80 hover:underline">Forgot password?</button>
+              </div>
+            )}
 
             {(error || nextAuthError || formError) && (
               <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">

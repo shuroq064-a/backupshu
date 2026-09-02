@@ -138,6 +138,8 @@ def create_worker_profile(
         worker_id=worker.id,
         service_id=payload.service_id,
         status="pending",
+        price_override=payload.price_override,
+        experience_years=payload.experience_years,
     )
     db.add(worker_service)
     db.commit()

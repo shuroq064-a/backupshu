@@ -113,6 +113,7 @@ async def security_headers_middleware(request: Request, call_next):
         response = Response(status_code=500, content="Internal Server Error")
 
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "no-store"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     response.headers["Referrer-Policy"] = "no-referrer"

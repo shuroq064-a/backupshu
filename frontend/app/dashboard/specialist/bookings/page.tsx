@@ -191,11 +191,13 @@ export default function BookingsManagerPage() {
       });
 
       // Categorize active, completed, upcoming appointments
+      // Incoming Requests = broadcast + assigned upcoming (from /requests)
+      // Appointments = specialist's own upcoming (from /bookings) — distinct from broadcast pool
       const active = merged.filter(
         (b) => b.status === "accepted" || b.status === "started" || b.status === "reached" || b.status === "ongoing"
       );
       const completed = merged.filter((b) => b.status === "completed" || b.status === "cancelled");
-      const upcoming = reqs.filter((b) => b.status === "accepted" || b.status === "upcoming");
+      const upcoming = merged.filter((b) => b.status === "upcoming");
       const incomingRequests = reqs.filter((b) => b.status === "upcoming");
 
       // Clear any pending update whose server data now matches (i.e. the
@@ -993,30 +995,52 @@ function AddSkillModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/60 animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between mb-5 border-b border-outline-variant/40 pb-3">
-          <h2 className="text-lg font-bold text-gray-900">Add Another Skill</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-sm">
-            Close
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Add Another Skill</h2>
+            <p className="text-xs text-on-surface-variant mt-1">
+              Pick a service to offer. It goes to admin for approval.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
-        
-        {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+
+        {error && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+            <span className="material-symbols-outlined text-base">error</span>
+            {error}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5 max-h-60 overflow-y-auto p-1">
-          {available.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setSelected(s.id)}
-              className={`flex flex-col items-center gap-2 px-3 py-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                selected === s.id
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-gray-200 hover:border-primary-fixed-dim"
-              }`}
-            >
-              <span className="material-symbols-outlined text-2xl">{ICONS[s.name] || "work"}</span>
-              <span className="text-[11px] font-bold text-center truncate w-full text-on-surface">{s.name}</span>
-            </button>
-          ))}
+          {available.map((s) => {
+            const selectedNow = selected === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setSelected(s.id)}
+                className={`relative flex flex-col items-center gap-2 px-3 py-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                  selectedNow
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-outline-variant hover:border-primary-fixed-dim text-on-surface"
+                }`}
+              >
+                {selectedNow && (
+                  <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+                    <span className="material-symbols-outlined text-[12px] leading-none">check</span>
+                  </span>
+                )}
+                <span className="material-symbols-outlined text-2xl">{ICONS[s.name] || "work"}</span>
+                <span className="text-[11px] font-bold text-center truncate w-full">{s.name}</span>
+              </button>
+            );
+          })}
         </div>
 
         {!available.length && (
@@ -1026,14 +1050,14 @@ function AddSkillModal({
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 border border-outline text-on-surface-variant font-bold text-xs rounded-xl hover:bg-gray-50 cursor-pointer"
+            className="flex-1 py-3 border border-outline text-on-surface-variant font-bold text-xs rounded-xl hover:bg-surface-container transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={!selected || isSubmitting}
-            className="flex-1 py-3 bg-primary text-white font-bold text-xs rounded-xl hover:bg-primary/90 disabled:opacity-50 cursor-pointer shadow-md"
+            className="flex-1 py-3 bg-primary text-white font-bold text-xs rounded-xl hover:bg-primary/90 disabled:opacity-50 cursor-pointer shadow-md transition-colors"
           >
             {isSubmitting ? "Submitting..." : "Submit for Review"}
           </button>

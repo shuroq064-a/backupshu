@@ -336,14 +336,32 @@ export default function RedesignedClientChat() {
     note: string,
     assistantMsgId: string,
     workerId?: string,
+    workerPrice?: number | null,
   ): Promise<void> {
     const bookingLocation = serviceLocation?.address || user?.location || "";
     let bookingId: string | undefined;
     try {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Use real booking time — not a hardcoded tomorrow 10 AM. The date/time
+      // should reflect when the customer actually placed the request.
+      const now = new Date();
+      const scheduledDate = now.toISOString().split("T")[0];
+      const scheduledTime = now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
       const resolvedLocation = await resolveBookingLocation(bookingLocation);
       const details = serviceAddressDetails;
+      // Resolve per-service price from the chosen specialist's candidate card,
+      // so the price entered during onboarding flows through to the booking.
+      // Prefer explicit workerPrice passed from handleChooseSpecialist; fall
+      // back to looking up the candidate in the current message.
+      let visitCharge: number | undefined = workerPrice ?? undefined;
+      if (visitCharge == null && workerId) {
+        const currentMsg = messages.find((m) => m.id === assistantMsgId);
+        const chosen = currentMsg?.candidates?.find((c) => c.workerId === workerId);
+        if (chosen?.price != null) visitCharge = chosen.price;
+      }
       const booking = await bookingApi.create({
         service_type: intent || "General Service",
         address: resolvedLocation.address,
@@ -354,10 +372,10 @@ export default function RedesignedClientChat() {
         landmark: details?.landmark,
         address_label: details?.addressLabel || "Home",
         custom_address_label: details?.customAddressLabel,
-        scheduled_date: tomorrow.toISOString().split("T")[0],
-        scheduled_time: "10:00 AM",
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
         notes: note,
-        visit_charge: 100,
+        ...(visitCharge != null ? { visit_charge: visitCharge } : {}),
         customer_latitude: resolvedLocation.latitude,
         customer_longitude: resolvedLocation.longitude,
         ...(workerId ? { worker_id: workerId } : {}),
@@ -394,13 +412,19 @@ export default function RedesignedClientChat() {
       showToast("You already have an open booking. Complete or cancel it before requesting another specialist.", "error");
       return;
     }
+    // Capture the chosen specialist's price before the optimistic update
+    let chosenPrice: number | null | undefined;
+    try {
+      const msg = messages.find((m) => m.id === assistantMsgId);
+      chosenPrice = msg?.candidates?.find((c) => c.workerId === workerId)?.price;
+    } catch {}
     updateMessage(assistantMsgId, (prev) => ({
       ...prev,
       selectedWorkerId: workerId,
     }));
     const intent = prevIntentRef.current;
     if (intent) {
-      void createBookingForIntent(intent, prevNoteRef.current, assistantMsgId, workerId);
+      void createBookingForIntent(intent, prevNoteRef.current, assistantMsgId, workerId, chosenPrice);
     }
   }
 

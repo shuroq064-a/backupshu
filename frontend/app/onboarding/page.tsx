@@ -93,7 +93,7 @@ const BLOB_OPENERS: Record<string, string[]> = {
   ],
 };
 
-const EMAIL_OK_RE = /^[^\s@]+@(gmail\.com|outlook\.com)$/i;
+const EMAIL_OK_RE = /^[^\s@]+@(gmail\.com|outlook\.com|shuroqx\.com)$/i;
 
   const inputClass =
     "w-full rounded-xl border border-outline-variant bg-surface-container-low pl-10 pr-4 py-2.5 text-sm text-on-surface placeholder:text-on-surface/40 focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none";
@@ -647,7 +647,7 @@ function OnboardingInner() {
                       />
                     </div>
                     {form.email.length > 0 && !EMAIL_OK_RE.test(form.email) && (
-                      <p className="text-xs text-amber-600 mt-1">Only Gmail or Outlook emails are accepted.</p>
+                      <p className="text-xs text-amber-600 mt-1">Only Gmail, Outlook, or ShuroqX (@shuroqx.com) emails are accepted.</p>
                     )}
                   </div>
 

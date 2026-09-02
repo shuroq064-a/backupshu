@@ -69,7 +69,7 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline'" + devScriptSrc + "; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: wss:" + devConnectSrc + "; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" + devUpgrade,
+              "default-src 'self'; script-src 'self' 'unsafe-inline'" + devScriptSrc + "; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https: wss:" + devConnectSrc + "; frame-src 'self' https://maps.google.com https://www.google.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" + devUpgrade,
           },
           {
             key: "Permissions-Policy",
