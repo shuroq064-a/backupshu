@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shuroqx-postgres-local
+    environment:
+      POSTGRES_USER: shuroqx
+      POSTGRES_PASSWORD: shuroqx_dev
+      POSTGRES_DB: shuroqx
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shuroqx -d shuroqx"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: shuroqx-redis-local
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

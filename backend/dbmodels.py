@@ -249,7 +249,10 @@ class AiChatSession(Base):
     )
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # NOTE: no index=True here — ix_ai_chat_sessions_user_id is declared
+    # explicitly in __table_args__ above. Both together emit two CREATE INDEX
+    # with the same name and crash startup on a fresh DB (DuplicateTable).
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String, nullable=True)  # Optional: first user message as title
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -268,7 +271,9 @@ class AiChatMessage(Base):
     )
 
     id = Column(String, primary_key=True, index=True)
-    session_id = Column(String, ForeignKey("ai_chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    # NOTE: no index=True here — ix_ai_chat_messages_session_id is declared
+    # explicitly in __table_args__ above (same DuplicateTable reason as AiChatSession).
+    session_id = Column(String, ForeignKey("ai_chat_sessions.id", ondelete="CASCADE"), nullable=False)
     role = Column(String, nullable=False)  # "user" | "assistant"
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

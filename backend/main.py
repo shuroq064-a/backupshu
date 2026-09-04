@@ -14,7 +14,14 @@ from database import engine
 
 logger = logging.getLogger(__name__)
 
-dbmodels.Base.metadata.create_all(bind=engine)
+# create_all is a best-effort safety net for fresh dev DBs — Alembic migrations
+# are the real schema path. Never let it crash the boot: a duplicate index or
+# similar drift would otherwise take the whole API down (frontend sees 500 on
+# every /api/backend/* call with nothing listening on :8001).
+try:
+    dbmodels.Base.metadata.create_all(bind=engine)
+except Exception:
+    logger.warning("metadata.create_all failed — continuing, Alembic is authoritative", exc_info=True)
 
 # Ensure token_version column exists (added after initial table creation)
 try:
@@ -28,9 +35,9 @@ except Exception:
 
 
 if __package__:
-    from .routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat, payments
+    from .routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat, payments, voice
 else:
-    from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat, payments
+    from routers import unified_auth, admin, workers, users, bookings, userinput, intent, marketplace, services, location_permission, assistant, messages, ai_chat, payments, voice
 
 # ── App environment: docs are only exposed in development ────────────────────
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production").strip().lower()
@@ -182,6 +189,7 @@ app.include_router(assistant.router)            # /assistant/chat (LLM chat brai
 app.include_router(messages.router)             # /messages (specialist <-> client chat)
 app.include_router(ai_chat.router)              # /ai-chat (AI chat session history)
 app.include_router(payments.router)            # /payments (Razorpay integration)
+app.include_router(voice.router)               # /voice/transcribe (speech-to-text)
 
 
 # ── Startup: restart OTP refresh loops for active reached bookings ───────────
