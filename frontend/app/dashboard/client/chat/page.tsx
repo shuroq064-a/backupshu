@@ -119,19 +119,25 @@ export default function RedesignedClientChat() {
     setHydrated(true);
   }, [user?.id]);
 
-  // Pre-fill prompt from URL if any (e.g. from Discover page category click).
-  // The param is consumed once and removed from the URL so a reload never
-  // restores text the user has already cleared.
-  const prefilledQueryRef = useRef(false);
+  // Auto-run searches arriving via URL (Discover search box / category cards).
+  // The param is consumed and removed so a reload never re-sends, and each NEW
+  // query value triggers exactly one send. Previously the query only pre-filled
+  // the input (and repeat searches were ignored entirely), so Search looked dead.
+  const lastAutoQueryRef = useRef<string | null>(null);
   useEffect(() => {
-    if (hydrated && !prefilledQueryRef.current) {
-      const query = searchParams.get("query");
-      if (query) {
-        setInput(query);
-        prefilledQueryRef.current = true;
-        router.replace(window.location.pathname, { scroll: false });
-      }
-    }
+    if (!hydrated) return;
+    const query = searchParams.get("query");
+    if (!query || lastAutoQueryRef.current === query) return;
+    lastAutoQueryRef.current = query;
+    setInput(query);
+    router.replace(window.location.pathname, { scroll: false });
+    // Let profile/location state settle, then send. The cleanup keeps React 19
+    // StrictMode double-effects to a single send; handleSend's own
+    // isSearching/isSubmittingRef guards backstop it.
+    const t = setTimeout(() => {
+      handleSend(query);
+    }, 400);
+    return () => clearTimeout(t);
   }, [hydrated, searchParams, router]);
 
   useEffect(() => {
