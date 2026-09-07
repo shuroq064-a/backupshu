@@ -95,7 +95,7 @@ if (Test-Path $envFile) {
             Write-Host "[OK] DATABASE_URL already configured for proxy" -ForegroundColor Green
         } else {
             Write-Host "[CONFIG] Updating DATABASE_URL to use proxy..." -ForegroundColor Yellow
-            $envContent = $envContent -replace "DATABASE_URL=.*", "DATABASE_URL=postgresql://shuroqx:5kE2BpocLGqsbmF1lxSg@127.0.0.1:$ProxyPort/shuroqx?sslmode=disable"
+            $envContent = $envContent -replace "DATABASE_URL=.*", "DATABASE_URL=postgresql://shuroqx:5kE2BpocLGqsbmF1lxSg@127.0.0.1:$ProxyPort/shuroqx_rdxdb?sslmode=disable"
             Set-Content -Path $envFile -Value $envContent -NoNewline
             Write-Host "[OK] DATABASE_URL updated" -ForegroundColor Green
         }
