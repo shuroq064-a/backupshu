@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
 import { useRef, useState } from "react";
+import AI_Voice from "@/components/ai-voice";
 
 type ChatPromptInputProps = {
   value: string;
@@ -47,6 +48,12 @@ export function ChatPromptInput({
     if (uploadInputRef.current) uploadInputRef.current.value = "";
   };
 
+  const handleVoiceTranscript = (text: string) => {
+    if (text.trim()) {
+      onChange(value ? value + " " + text : text);
+    }
+  };
+
   return (
     <PromptInput
       value={value}
@@ -82,22 +89,26 @@ export function ChatPromptInput({
       <PromptInputTextarea placeholder={placeholder} disabled={disabled} />
 
       <PromptInputActions className="flex items-center justify-between gap-2 pt-2">
-        <PromptInputAction tooltip="Attach files">
-          <label
-            htmlFor="file-upload"
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl hover:bg-surface-container"
-          >
-            <input
-              ref={uploadInputRef}
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              className="hidden"
-              id="file-upload"
-            />
-            <Paperclip className="size-5 text-primary" />
-          </label>
-        </PromptInputAction>
+        <div className="flex items-center gap-1">
+          <PromptInputAction tooltip="Attach files">
+            <label
+              htmlFor="file-upload"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-2xl hover:bg-surface-container"
+            >
+              <input
+                ref={uploadInputRef}
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
+              />
+              <Paperclip className="size-5 text-primary" />
+            </label>
+          </PromptInputAction>
+
+          <AI_Voice onTranscript={handleVoiceTranscript} disabled={disabled || isLoading} />
+        </div>
 
         <PromptInputAction tooltip={isLoading ? "Stop generation" : "Send message"}>
           <Button

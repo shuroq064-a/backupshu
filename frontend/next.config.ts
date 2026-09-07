@@ -6,7 +6,7 @@ if (!apiBaseUrl && process.env.NODE_ENV === "production") {
   throw new Error("NEXT_PUBLIC_API_URL must be set for production builds");
 }
 
-const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8001";
+const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8003";
 
 // In dev the frontend talks to the backend over http/ws on localhost:8001
 // (the REST API is proxied same-origin via /api/backend, but the live
@@ -14,7 +14,7 @@ const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8001";
 const isProd = process.env.NODE_ENV === "production";
 const devConnectSrc = isProd
   ? ""
-  : " http://localhost:8001 ws://localhost:8001";
+  : " http://localhost:8003 ws://localhost:8003";
 // Next.js dev Fast Refresh (react-refresh) evaluates code at runtime, so
 // 'unsafe-eval' is required in script-src during development only.
 const devScriptSrc = isProd ? "" : " 'unsafe-eval'";
@@ -73,7 +73,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(self)",
+            value: "camera=(self), microphone=(self), geolocation=(self)",
           },
           {
             key: "Strict-Transport-Security",
