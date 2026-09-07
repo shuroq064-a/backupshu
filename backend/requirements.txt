@@ -17,3 +17,4 @@ joblib
 dateparser
 razorpay
 httpx
+python-multipart
